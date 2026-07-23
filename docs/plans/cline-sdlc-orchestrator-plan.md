@@ -1363,8 +1363,8 @@ specification review before implementation proceeds.
 
 ### Phase 0
 
-- [ ] Task 0.1: Restore a trustworthy project baseline.
-- [ ] Task 0.2: Add a deterministic fake-Cline contract harness.
+- [x] Task 0.1: Restore a trustworthy project baseline.
+- [x] Task 0.2: Add a deterministic fake-Cline contract harness.
 - [ ] Task 0.3: Prove the real Cline CLI contracts.
 - [ ] Checkpoint A: Architecture viability accepted.
 
@@ -1430,10 +1430,16 @@ specification review before implementation proceeds.
 - The redundant hard-coded package-version test was removed by explicit user decision.
   Release tag `v0.0.1`, package metadata, built distributions, and an import smoke check
   agree on version `0.0.1`; Ruff formatting and linting, mypy, and the package build pass.
-- Task 0.1 remains incomplete because `uv run pytest` now exits with code 5 when it collects
-  no tests. Task 0.2 must add the fake-Cline contract tests before the test baseline can be
-  green; the package-version-test acceptance criterion is intentionally waived.
-- Task 0.2 is the next authorized implementation slice and may proceed to unblock Task 0.1.
+- Task 0.2 added a deterministic test-only fake Cline executable and typed fixture API. Its
+  explicit scenarios cover valid, missing, malformed, duplicate, conflicting,
+  approval-required, delayed, interrupted, controlled-write, and non-zero-exit behavior
+  without real Cline, network access, or developer repository state.
+- The focused fake-Cline contract suite passes 11 tests on macOS, including timeout and
+  SIGTERM behavior. The full project test suite is now green, so Task 0.1 is complete under
+  the documented package-version-test waiver and Task 0.2 is complete.
+- Task 0.3 is the next authorized implementation slice. It must remain a supervised
+  capability proof and may not weaken the specification contracts if real Cline behavior
+  is insufficient.
 - Independent review iteration 1 found sequencing, boundary, sizing, and traceability gaps.
   Plan revision 2 resolves those findings through earlier validation support, ordered
   preflight, attached-interactive execution, explicit invocation approval, public contract
@@ -1523,9 +1529,9 @@ validation_evidence:
     recorded_at: 2026-07-23T20:31:40Z
   - slice_id: task-0.1
     command: uv run pytest
-    result: failed
-    exit_code: 5
-    recorded_at: 2026-07-23T20:34:47Z
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T20:41:00Z
   - slice_id: task-0.1
     command: uv build
     result: passed
@@ -1537,6 +1543,41 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-23T20:31:40Z
+  - slice_id: task-0.2
+    command: uv run pytest tests/contract/features/cline_execution/
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T20:41:00Z
+  - slice_id: task-0.2
+    command: uv run ruff format --check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T20:41:00Z
+  - slice_id: task-0.2
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T20:41:00Z
+  - slice_id: task-0.2
+    command: uv run mypy .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T20:41:00Z
+  - slice_id: task-0.2
+    command: uv run pytest
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T20:41:00Z
+  - slice_id: task-0.2
+    command: uv build
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T20:41:00Z
+  - slice_id: task-0.2
+    command: git --no-pager diff --check
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T20:41:00Z
 blocker:
   code: specification_not_accepted
   summary: The source specification remains draft; Checkpoint A cannot authorize Tasks 1.1 and later until explicit acceptance.
@@ -1544,7 +1585,7 @@ blocker:
   proposed_operation: null
   recorded_at: 2026-07-23T20:25:00Z
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-23T20:34:47Z
+updated_at: 2026-07-23T20:41:00Z
 completed_at: null
 ```
 
