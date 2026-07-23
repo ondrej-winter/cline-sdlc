@@ -1456,6 +1456,18 @@ specification review before implementation proceeds.
 - The focused `cline_execution` unit suite passes 4 tests, and the full project test suite
   passes 15 tests. Ruff formatting, Ruff linting, mypy, and `git --no-pager diff --check`
   pass for the current Task 0.3 slice.
+- Task 0.3 continued with deterministic required-skill probing in the subprocess capability
+  adapter. The existing `CapabilityProbeRequest.required_skills` field now produces typed
+  per-skill observations from a `skill list` subprocess check, proves available fake skills,
+  and fails closed for missing or unsuccessful skill probes.
+- This follow-up strengthens the automated evidence model but does not complete Checkpoint A:
+  real Cline skill probing without unintended network-backed behavior, terminal outcome
+  emission, pre-execution permission mediation, and interruption observability remain
+  supervised proof requirements.
+- The focused `cline_execution` unit suite now passes 6 tests after the required-skill
+  follow-up slice.
+- The follow-up slice quality gate passed: Ruff fixes/checks and formatting, mypy, the full
+  17-test suite, and `git --no-pager diff --check` completed successfully.
 - Independent review iteration 1 found sequencing, boundary, sizing, and traceability gaps.
   Plan revision 2 resolves those findings through earlier validation support, ordered
   preflight, attached-interactive execution, explicit invocation approval, public contract
@@ -1629,6 +1641,41 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-23T20:57:58Z
+  - slice_id: task-0.3-required-skill-probing
+    command: uv run pytest tests/unit/features/cline_execution/
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T21:03:40Z
+  - slice_id: task-0.3-required-skill-probing
+    command: uv run ruff check . --fix
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T21:04:20Z
+  - slice_id: task-0.3-required-skill-probing
+    command: uv run ruff format .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T21:04:20Z
+  - slice_id: task-0.3-required-skill-probing
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T21:04:20Z
+  - slice_id: task-0.3-required-skill-probing
+    command: uv run mypy .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T21:04:20Z
+  - slice_id: task-0.3-required-skill-probing
+    command: uv run pytest
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T21:04:20Z
+  - slice_id: task-0.3-required-skill-probing
+    command: git --no-pager diff --check
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T21:04:20Z
 blocker:
   code: cline_cli_critical_contracts_unproven
   summary: Cline 3.0.46 advertises required supporting options, but exactly-one terminal outcome emission, pre-execution permission mediation, interruption recovery observability, and skill probing without unintended network behavior remain unproven; Checkpoint A cannot authorize Tasks 1.1 and later.
@@ -1636,7 +1683,7 @@ blocker:
   proposed_operation: null
   recorded_at: 2026-07-23T20:58:14Z
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-23T20:58:14Z
+updated_at: 2026-07-23T21:04:20Z
 completed_at: null
 ```
 

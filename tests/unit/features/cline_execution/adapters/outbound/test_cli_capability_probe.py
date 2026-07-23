@@ -28,3 +28,26 @@ def test_probe_records_advertised_supporting_capabilities_and_unproven_critical_
     assert statuses["interruption_recovery_observability"] is CapabilityStatus.UNPROVEN
     assert not report.critical_capabilities_proven
     assert len(report.limitations) == UNPROVEN_CRITICAL_CAPABILITY_COUNT
+
+
+def test_probe_records_required_skill_availability() -> None:
+    fake_cline = Path(__file__).with_name("fake_helping_cline.py")
+
+    report = SubprocessClineCapabilityProbe().probe(
+        CapabilityProbeRequest(command=(sys.executable, str(fake_cline)), required_skills=("idea-refine",))
+    )
+
+    statuses = {observation.name: observation.status for observation in report.observations}
+    assert statuses["required_skill:idea-refine"] is CapabilityStatus.PROVEN
+
+
+def test_probe_records_missing_required_skill() -> None:
+    fake_cline = Path(__file__).with_name("fake_helping_cline.py")
+
+    report = SubprocessClineCapabilityProbe().probe(
+        CapabilityProbeRequest(command=(sys.executable, str(fake_cline)), required_skills=("missing-skill",))
+    )
+
+    statuses = {observation.name: observation.status for observation in report.observations}
+    assert statuses["required_skill:missing-skill"] is CapabilityStatus.MISSING
+    assert not report.critical_capabilities_proven

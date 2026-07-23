@@ -66,6 +66,9 @@ evidence without starting lifecycle work:
 - `ProveClineCliContracts` delegates probing through an application-owned port.
 - `SubprocessClineCapabilityProbe` uses argument-array subprocess calls to inspect
   help/version output with a finite timeout.
+- `SubprocessClineCapabilityProbe` now also exercises requested skill availability
+  through deterministic `skill list` probing in automated tests, while treating
+  failed skill probing as unproven rather than silently available.
 
 The default automated tests use deterministic fake executables and do not require
 real Cline credentials, network access, or global developer state.
@@ -83,7 +86,8 @@ hook directories to prove or reject:
 - dedicated terminal outcome emission;
 - pre-execution permission enforcement;
 - timeout/interruption cleanup and write attribution;
-- skill availability probing behavior.
+- real Cline skill availability probing behavior without unintended network-backed
+  side effects.
 
 If any critical contract cannot be proven, implementation must stop for product
 review and an SDK-direction decision rather than weakening the specification.

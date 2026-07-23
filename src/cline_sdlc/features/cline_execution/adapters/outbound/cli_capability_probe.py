@@ -36,6 +36,7 @@ class SubprocessClineCapabilityProbe:
             _advertised("hook_injection_directory", "--hooks-dir", help_text),
             _advertised("explicit_working_directory", "--cwd", help_text),
             _advertised("skill_management_command", "skill", help_text),
+            *_skill_observations(request.command, request.required_skills),
             CapabilityObservation(
                 name="exactly_one_machine_detectable_terminal_outcome",
                 status=CapabilityStatus.UNPROVEN,
@@ -106,3 +107,36 @@ def _advertised(name: str, token: str, help_text: str) -> CapabilityObservation:
         criticality=CapabilityCriticality.SUPPORTING,
         evidence=evidence,
     )
+
+
+def _skill_observations(command: Sequence[str], required_skills: tuple[str, ...]) -> tuple[CapabilityObservation, ...]:
+    if not required_skills:
+        return ()
+
+    skill_result = _run((*command, "skill", "list"))
+    skill_text = skill_result.stdout + skill_result.stderr
+    available_skills = frozenset(line.strip() for line in skill_text.splitlines() if line.strip())
+
+    return tuple(
+        CapabilityObservation(
+            name=f"required_skill:{skill}",
+            status=_skill_status(skill_result.returncode, skill, available_skills),
+            criticality=CapabilityCriticality.CRITICAL,
+            evidence=_skill_evidence(skill_result.returncode, skill),
+        )
+        for skill in required_skills
+    )
+
+
+def _skill_status(return_code: int, skill: str, available_skills: frozenset[str]) -> CapabilityStatus:
+    if return_code != 0:
+        return CapabilityStatus.UNPROVEN
+    if skill in available_skills:
+        return CapabilityStatus.PROVEN
+    return CapabilityStatus.MISSING
+
+
+def _skill_evidence(return_code: int, skill: str) -> str:
+    if return_code != 0:
+        return "Skill list command did not complete successfully; availability is unproven."
+    return f"Skill list output was inspected for required skill {skill!r}."

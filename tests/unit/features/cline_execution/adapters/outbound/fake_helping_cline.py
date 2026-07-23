@@ -8,6 +8,9 @@ def main() -> int:
     if "--version" in sys.argv:
         sys.stdout.write("3.0.46\n")
         return 0
+    if sys.argv[-2:] == ["skill", "list"]:
+        sys.stdout.write("idea-refine\nspec-driven-development\n")
+        return 0
     if "--help" in sys.argv:
         sys.stdout.write(
             "Usage: cline [options] [command] [prompt]\n"
@@ -20,6 +23,9 @@ def main() -> int:
             "  skill [args...]\n"
         )
         return 0
+    if sys.argv[-2:] == ["skill", "fail"]:
+        sys.stderr.write("skill command failed\n")
+        return 1
     return 0
 
 
