@@ -11,7 +11,8 @@
 ## Objective
 
 Build a standalone Python 3 command-line application that coordinates one
-bounded software development lifecycle stage per invocation through Cline CLI.
+bounded software development lifecycle stage per invocation through the Cline
+CLI.
 The application must accept one rough idea or one repository artifact, invoke
 the existing stage-specific Agent Skills in controlled Cline sessions, persist
 durable progress in human-reviewable repository artifacts, and stop at the next
@@ -22,10 +23,8 @@ idea refinement, specification, planning, plan review, and incremental
 implementation without surrendering approval at major lifecycle or risk
 boundaries.
 
-The package must be installable and runnable as a Python CLI through `uvx`.
-This specification calls the executable `cline-sdlc`; the final package name may
-differ only if the implementation plan records the reason and preserves an
-equivalent console entry point.
+The `cline-sdlc` package must be installable and runnable as a Python CLI through
+`uvx` and must expose the `cline-sdlc` console entry point.
 
 ## Current context
 
@@ -57,9 +56,9 @@ completed work.
    this specification.
 6. The initial release supports one balanced approval profile and local commits
    only.
-7. The application may depend on Git, `uvx`, Python, and Cline CLI, but must not
-   require this repository's directory layout or maintenance tooling when used
-   in another repository.
+7. The application may depend on Git, `uvx`, Python 3.14 or newer, and the Cline
+   CLI, but must not require this repository's directory layout or maintenance
+   tooling when used in another repository.
 
 If assumptions 2, 4, or 5 fail during a proof of concept, implementation must
 stop for a product decision rather than weakening the state, outcome, or safety
@@ -112,10 +111,14 @@ CLI orchestration cannot enforce these contracts reliably.
 - **Progress content**: execution state, checkboxes, timestamps, validation
   evidence, commit identifiers, blockers, and implementation notes that report
   work without changing its authorized meaning.
-- **Plan material digest**: a SHA-256 digest of canonical material plan content,
-  excluding progress content and the digest field itself.
+- **Specification digest**: a SHA-256 digest of the exact accepted specification
+  content after deterministic text canonicalization.
+- **Plan material digest**: a SHA-256 digest of canonical material plan content
+  and its specification digest, excluding progress content and the plan material
+  digest field itself.
 - **Invocation approval**: approval created when a user deliberately invokes the
-  implementation stage with a ready plan whose current material digest is known.
+  implementation stage with a ready plan whose current specification and plan
+  material digests are known.
 - **Remediation envelope**: the part of invocation approval that permits one
   bounded correction attempt for a final-review finding proving non-conformance
   with already approved material requirements.
@@ -142,10 +145,10 @@ cline-sdlc --plan-file <path>
 The package must support an equivalent `uvx` invocation:
 
 ```text
-uvx <package-name> --idea "<rough idea>"
-uvx <package-name> --idea-file <path>
-uvx <package-name> --spec-file <path>
-uvx <package-name> --plan-file <path>
+uvx cline-sdlc --idea "<rough idea>"
+uvx cline-sdlc --idea-file <path>
+uvx cline-sdlc --spec-file <path>
+uvx cline-sdlc --plan-file <path>
 ```
 
 Exactly one input option is required. Empty rough ideas, missing files,
@@ -204,6 +207,7 @@ follow concise human output; in `--json` mode it is the only stdout content.
   "reason": "plan_complete",
   "input_path": "docs/plans/example-plan.md",
   "output_paths": ["docs/plans/example-plan.md"],
+  "specification_digest": "sha256:<hex>",
   "plan_material_digest": "sha256:<hex>",
   "blocker": null
 }
@@ -247,16 +251,19 @@ Rough-idea processing may run outside Git only when its resulting artifact is
 saved outside a repository. All file-based stages and all in-repository artifact
 writes require Git for the MVP.
 
-Every artifact-writing stage requires a clean working tree at session start. The
-only dirty-tree exception is a plan implementation invocation that reconciles an
-existing partial slice or partial finalization transaction under the recovery
-rules. Every file input used in Git must be tracked, committed at `HEAD`, and
-identical to its committed content at invocation start. Interactive stages must
-save their accepted artifact before completion but do not create a Git commit.
-Plan authoring and review likewise leave the ready or blocked plan and findings
-uncommitted for human review. Before invoking the next file-based stage, the user
-must review and commit the input artifact and any referenced findings. Only plan
-implementation creates commits automatically in the MVP.
+Every artifact-writing stage requires a clean working tree at invocation start.
+The only dirty-tree exception is a plan implementation invocation that
+reconciles an existing partial slice or partial finalization transaction under
+the recovery rules. Every file input used in Git must be tracked, committed at
+`HEAD`, and identical to its committed content at invocation start. Within one
+invocation, later sessions may observe writes produced by an earlier session in
+the same stage only after the orchestrator has reconciled those writes as
+stage-owned. Interactive stages must save their accepted artifact before
+completion but do not create a Git commit. Plan authoring and review likewise
+leave the ready or blocked plan and findings uncommitted for human review. Before
+invoking the next file-based stage, the user must review and commit the input
+artifact and any referenced findings. Only plan implementation creates commits
+automatically in the MVP.
 
 ## Lifecycle stage selection
 
@@ -327,6 +334,9 @@ The reviewer session must be fresh and read-only. Its prompt may include the
 specification, proposed plan, relevant repository constraints and files, known
 failure modes, and required findings schema. It must not include the author's
 private reasoning or instruct the reviewer to confirm the author's conclusion.
+The reviewer reports findings through its terminal outcome; the orchestrator,
+not the reviewer session, writes those findings into the plan or adjacent
+findings artifact after validating the outcome.
 
 Review follows this bounded loop:
 
@@ -347,10 +357,11 @@ implementation.
 
 ### Ready plan to completed implementation
 
-Invoking `--plan-file` deliberately approves the exact current material digest
-for the duration of that invocation. Preflight must reject a plan that is not
-review-ready, has unresolved blocking findings, has an invalid state block, or
-has a stored material digest that does not match canonical material content.
+Invoking `--plan-file` deliberately approves the exact current specification and
+plan material digests for the duration of that invocation. Preflight must reject
+a plan that is not review-ready, has unresolved blocking findings, has an invalid
+state block, or has a stored specification or material digest that does not match
+the current accepted specification and canonical material content.
 
 The orchestrator must then:
 
@@ -365,7 +376,7 @@ The orchestrator must then:
 7. create one local atomic commit containing implementation, tests or
    documentation, validation evidence in the plan, and updated progress state,
    with machine-readable work and slice trailers;
-8. repeat serially while the approved digest remains valid;
+8. repeat serially while both approved digests remain valid;
 9. after all planned slices complete, run a final fresh-context read-only review
    and repository-wide quality gate;
 10. create explicit progress-only remediation records for in-scope fixable
@@ -412,9 +423,11 @@ work_id: example-work
 profile: balanced
 phase: ready
 specification: docs/specs/example-spec.md
+specification_digest: sha256:<hex>
 plan_revision: 2
 review_iteration: 2
 review_readiness: ready
+digest_schema_version: 1
 material_digest: sha256:<hex>
 current_task: null
 current_slice: null
@@ -437,9 +450,14 @@ Required field rules:
 - `phase` is one of `drafting`, `reviewing`, `ready`, `implementing`, `blocked`,
   or `complete`.
 - `specification` is a normalized repository-relative path to the accepted spec.
+- `specification_digest` is the SHA-256 digest of the accepted specification's
+  canonical content: decode strict UTF-8, normalize CRLF and CR line endings to
+  LF, re-encode as UTF-8 without a byte-order mark, hash those bytes, and format
+  the result as `sha256:<lowercase hexadecimal>`.
 - `plan_revision` starts at 1 and increases for every material revision.
 - `review_iteration` starts at 1 after initial review and is at most 3.
 - `review_readiness` is `not_reviewed`, `changes_required`, `ready`, or `blocked`.
+- `digest_schema_version` is the integer `1` for the MVP.
 - `material_digest` uses `sha256:<lowercase hexadecimal>`.
 - `current_task` and `current_slice` are null unless a slice is active or blocked.
 - `slice_start_commit` is the full Git commit at which the current slice began.
@@ -456,11 +474,14 @@ Required field rules:
 
 Allowed phase transitions are `drafting -> reviewing`, `reviewing -> ready`,
 `reviewing -> blocked`, `ready -> implementing`, `implementing -> blocked`,
-`blocked -> implementing` after successful reconciliation, and
+`blocked -> reviewing` for material revision, `blocked -> implementing` after
+successful reconciliation, and
 `implementing -> complete` through the finalization transaction. Material plan
-revision resets phase to `reviewing`, clears invocation approval and active
-progress fields, and requires review readiness to become `ready` again. Other
-transitions are invalid in schema version 1.
+revision from `ready` or `blocked` transitions the phase to `reviewing`, clears
+invocation approval and active progress fields, and requires review readiness to
+become `ready` again. Material revision during `implementing` is prohibited and
+requires the current invocation to stop before a later invocation may revise the
+plan. Other transitions are invalid in schema version 1.
 
 The parser must reject duplicate YAML keys, aliases, custom tags, unexpected
 types, path traversal, unknown required enum values, and unsupported schema
@@ -470,10 +491,23 @@ or misspelled state cannot be silently ignored.
 ### Material digest
 
 The plan authoring format must identify material and progress sections
-unambiguously. The implementation plan must choose one deterministic marker
-syntax and test it. At minimum, material content includes objective, scope,
-non-goals, acceptance criteria, decisions, contracts, dependencies, risks,
-sequencing, task definitions, and slice definitions.
+unambiguously. Schema version 1 uses non-nesting HTML comment pairs:
+
+```text
+<!-- cline-sdlc-material:start -->
+...material Markdown...
+<!-- cline-sdlc-material:end -->
+
+<!-- cline-sdlc-progress:start -->
+...progress Markdown and the state block...
+<!-- cline-sdlc-progress:end -->
+```
+
+The plan must contain one or more material regions and exactly one progress
+region. Every non-blank character after the document title must be inside one of
+these regions. Regions must not overlap or nest. At minimum, material content
+includes objective, scope, non-goals, acceptance criteria, decisions, contracts,
+dependencies, risks, sequencing, task definitions, and slice definitions.
 
 The following are progress-only when they do not alter material text:
 
@@ -487,10 +521,17 @@ The following are progress-only when they do not alter material text:
 - blocker and recovery notes;
 - factual implementation notes tied to completed slices.
 
-Canonicalization must normalize UTF-8 text and line endings, use a documented
-stable section order, and exclude the stored digest value. Whitespace changes
-inside material sections are material in the MVP. A changed material digest
-ends inherited invocation approval and blocks further slices.
+Canonicalization version 1 must decode strict UTF-8, normalize CRLF and CR line
+endings to LF, preserve all other whitespace, and concatenate material-region
+bodies in document order with one LF between regions. It must then serialize a
+JSON object with keys `digest_schema_version`, `plan_revision`, `specification`,
+`specification_digest`, and `material_content`, sorted lexicographically, using
+UTF-8, no byte-order mark, no insignificant whitespace, JSON string escaping,
+and unescaped non-ASCII characters. SHA-256 is calculated over those serialized
+bytes and formatted as `sha256:<lowercase hexadecimal>`. This payload excludes
+the stored material digest and all progress-region content. Whitespace changes
+inside material regions are material in the MVP. A changed specification or
+material digest ends inherited invocation approval and blocks further slices.
 
 ### Validation evidence
 
@@ -512,7 +553,8 @@ it must not be embedded in the commit that creates it.
 
 ### Blocker
 
-A blocker must include:
+A blocker must include `code`, `summary`, `recorded_at`, and optional contextual
+fields appropriate to the failure:
 
 ```yaml
 blocker:
@@ -520,11 +562,15 @@ blocker:
   summary: Focused tests still fail after the permitted repair attempt.
   slice_id: slice-1.1
   details_path: .cline-sdlc/runs/<run-id>/summary.json
+  proposed_operation: null
   recorded_at: 2026-07-23T17:40:00Z
 ```
 
 The summary must be safe to commit. Logs that may contain sensitive repository
 content remain in the ignored run-log directory and are referenced, not embedded.
+`proposed_operation` is required and non-null for `approval_required`; it must be
+specific enough for manual action without exposing secrets. `slice_id`,
+`details_path`, and `proposed_operation` are otherwise optional.
 
 ## Plan-review findings
 
@@ -547,8 +593,9 @@ Allowed severities are `blocking`, `major`, and `minor`. Allowed statuses are
 `open`, `resolved`, `accepted_risk`, and `not_applicable`. A `blocking` finding
 must be `resolved` or explicitly accepted by a human before readiness can be
 `ready`. The unattended review loop may resolve findings through plan changes but
-must not mark a blocking finding `accepted_risk` or `not_applicable` without
-human intervention.
+must not mark a blocking or major finding `accepted_risk` or `not_applicable`
+without human intervention. Human dispositions must be present in a committed
+input artifact before a later unattended invocation may rely on them.
 
 Finding identifiers remain stable through review iterations. A reviewer must
 verify prior dispositions and may add new findings. Readiness is:
@@ -594,6 +641,7 @@ decide completion.
       "result": "passed"
     }
   ],
+  "findings": [],
   "finding_ids": [],
   "risk": null,
   "blocker": null,
@@ -602,7 +650,8 @@ decide completion.
 ```
 
 Allowed `session_role` values are `idea_refiner`, `spec_author`, `plan_author`,
-`plan_reviewer`, `implementation`, and `final_reviewer`. Allowed statuses are:
+`plan_reviewer`, `implementation`, `remediation`, and `final_reviewer`. Allowed
+statuses are:
 
 - `completed`: the assigned bounded responsibility is complete;
 - `blocked`: ambiguity, drift, missing context, or repeated failure requires
@@ -616,6 +665,24 @@ repository-relative paths observed by Git after the session. A reviewer must
 report an empty changed-path list. The orchestrator independently checks artifact
 existence, changed paths, validation exit codes, and repository state before
 accepting `completed`.
+
+Role-specific outcome requirements are:
+
+- idea and specification authors must name exactly one primary artifact path;
+- plan authors must name the plan and any adjacent findings artifact they wrote;
+- plan and final reviewers must report no changed paths and must return all
+  findings in the validated findings schema;
+- implementation and remediation sessions must report observed changed paths and
+  every validation they ran; and
+- `approval_required` must include the exact proposed operation and reason in its
+  blocker, while `blocked`, `failed`, and `invalid_output` must include a safe
+  diagnostic blocker.
+
+Fields irrelevant to a role must use their documented empty or null value rather
+than being omitted. The implementation plan may define transport-specific
+serialization details but must not weaken these role contracts.
+`findings` contains complete finding records returned by reviewer roles;
+`finding_ids` identifies existing findings acted on or verified by other roles.
 
 ### Invalid, missing, and conflicting outcomes
 
@@ -696,6 +763,8 @@ Plan implementation requires:
 - a clean working tree, except for a reconciled partial slice recorded by this
   plan;
 - the plan and specification available in the working tree;
+- the plan's stored specification digest matching the committed specification at
+  `HEAD`;
 - no submodule or nested-repository changes unless explicitly included in the
   accepted plan and supported by a later specification revision.
 
@@ -830,21 +899,23 @@ On every implementation invocation, the orchestrator must:
 
 1. parse and validate plan state;
 2. recompute the material digest;
-3. inspect current HEAD, branch, operation state, status, and diff;
-4. derive each completed slice's unique owning commit from trailers and verify it
+3. recompute and verify the specification digest;
+4. inspect current HEAD, branch, operation state, status, and diff;
+5. derive each completed slice's unique owning commit from trailers and verify it
    is an ancestor of HEAD;
-5. verify completed checkboxes and evidence agree with the derived owning
+6. verify completed checkboxes and evidence agree with the derived owning
    commits;
-6. when a partial slice exists, require current HEAD to equal
+7. when a partial slice exists, require current HEAD to equal
    `slice_start_commit` and the dirty paths to equal or be an explainable subset
    of `partial_slice_paths` plus the plan itself;
-7. stop when existing changes are unrelated, ownership is unclear, or recorded
+8. stop when existing changes are unrelated, ownership is unclear, or recorded
    files disappeared unexpectedly;
-8. resume the partial slice before selecting new work;
-9. otherwise select the earliest dependency-ready incomplete slice;
-10. preserve unrelated human commits made after completed slices when they do
+9. resume the partial slice before selecting new work;
+10. otherwise select the earliest dependency-ready incomplete slice;
+11. preserve unrelated human commits made after completed slices when they do
     not alter material content or planned path assumptions;
-11. invalidate approval and stop if reconciliation reveals material divergence.
+12. invalidate approval and stop if reconciliation reveals specification or
+    material divergence.
 
 Resume must be idempotent: rerunning against a complete plan performs no writes,
 and rerunning after a committed slice must not repeat that slice.
@@ -874,15 +945,15 @@ The orchestrator may create a remediation slice only when the finding:
 - has an explicit acceptance check and bounded changed-path scope; and
 - does not require a prohibited operation.
 
-Invocation approval for an exact material digest includes a remediation envelope
-for these corrections because they restore conformance to already approved
-requirements. A remediation record is progress content, not an ordinary material
-plan slice. It must include a stable `FINAL-` finding ID, affected accepted
-requirement or acceptance criterion, bounded changed-path scope, correction,
-verification, status, and attempt count. The orchestrator may not create a
-remediation record that adds capability, changes a contract, alters architecture
-or dependencies, changes sequencing of incomplete planned work, or cannot cite
-the approved material requirement it restores.
+Invocation approval for exact specification and plan material digests includes a
+remediation envelope for these corrections because they restore conformance to
+already approved requirements. A remediation record is progress content, not an
+ordinary material plan slice. It must include a stable `FINAL-` finding ID,
+affected accepted requirement or acceptance criterion, bounded changed-path
+scope, correction, verification, status, and attempt count. The orchestrator may
+not create a remediation record that adds capability, changes a contract, alters
+architecture or dependencies, changes sequencing of incomplete planned work, or
+cannot cite the approved material requirement it restores.
 
 New product features, architecture changes, dependency decisions, migrations,
 or broadened acceptance criteria are blockers, not remediation. Every remediation
@@ -922,8 +993,8 @@ existing ignore file destructively or commit log content.
 - Existing host conventions determine artifact locations when discoverable; the
   defaults are `docs/ideas/`, `docs/specs/`, and `docs/plans/`.
 - The application must support macOS and Linux for the MVP.
-- The implementation plan must select and document a minimum supported Python 3
-  version compatible with current `uvx` packaging.
+- The application must support Python 3.14 or newer, consistent with the package
+  metadata, on supported macOS and Linux environments.
 - Cline compatibility must be capability-based. Unsupported or missing required
   behavior produces an actionable preflight error naming the failed capability.
 - File writes must use UTF-8 and preserve host line endings where practical;
@@ -1014,8 +1085,8 @@ explicit human-approved exception outside unattended execution.
 - [ ] Progress-only updates preserve the material digest.
 - [ ] Scope, acceptance, contract, dependency, architecture, security, migration,
       or material sequencing changes alter the digest.
-- [ ] A plan-file invocation records the exact verified material digest as its
-      bounded invocation approval.
+- [ ] A plan-file invocation records the exact verified specification and
+      material digests as its bounded invocation approval.
 - [ ] Material divergence during execution stops before another slice or commit.
 
 ### Implementation and Git safety
@@ -1048,7 +1119,7 @@ explicit human-approved exception outside unattended execution.
 - [ ] The orchestrator never pushes, publishes, deploys, rewrites history, deletes
       branches, or executes streamed remote scripts.
 - [ ] Ambiguity, spec contradiction, material drift, unavailable context, or
-      exhausted attempts stops automation rather than broadening scope.
+      exhausted attempts stop automation rather than broadening scope.
 
 ### Failure and resumption
 
@@ -1166,15 +1237,14 @@ must be behind replaceable boundaries.
 
 ## Commands and validation
 
-Exact implementation commands will be selected in the implementation plan after
-the Python package layout and minimum version are chosen. The completed project
-must expose documented equivalents of:
+The completed project must pass the repository's configured quality commands and
+packaging smoke test:
 
 ```text
-uv run <formatter-command>
-uv run <lint-command>
-uv run <type-check-command>
-uv run <test-command>
+uv run ruff format .
+uv run ruff check .
+uv run mypy .
+uv run pytest
 uvx --from . cline-sdlc --help
 ```
 
@@ -1224,10 +1294,8 @@ telemetry; local summaries are sufficient.
 These choices do not change the product contract and may be resolved in the
 implementation plan:
 
-- the package distribution name and source directory within its repository;
-- the minimum supported Python 3 and Cline CLI versions after capability spikes;
+- the minimum supported Cline CLI version after capability spikes;
 - the concrete Python libraries for CLI parsing and strict YAML handling;
-- the exact material/progress section marker syntax;
 - the default finite session timeout within the specified limit;
 - the exact ignored run-log insertion strategy for repositories with different
   ignore conventions;
