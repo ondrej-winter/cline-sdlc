@@ -1468,6 +1468,21 @@ specification review before implementation proceeds.
   follow-up slice.
 - The follow-up slice quality gate passed: Ruff fixes/checks and formatting, mypy, the full
   17-test suite, and `git --no-pager diff --check` completed successfully.
+- Task 0.3 continued with an explicit fake-backed supervised session probe path. The
+  `CapabilityProbeRequest.supervised_session_probe` option now lets callers supply isolated
+  repository, data, and hook directories plus a bounded timeout for a session probe. The
+  subprocess adapter can prove exactly-one terminal outcome detection, permission-mediation
+  evidence, and interruption-recovery evidence from deterministic fake output while failing
+  closed for duplicate outcomes and timeouts.
+- This slice still does not complete Task 0.3 or Checkpoint A: the proof path is automated and
+  deterministic, but real installed Cline behavior for terminal outcome emission,
+  pre-execution permission mediation, interruption recovery, and network-free skill probing
+  still needs supervised evidence and product-owner review.
+- The focused `cline_execution` unit suite now passes 9 tests after the fake-backed supervised
+  session probe slice.
+- The fake-backed supervised session probe slice quality gate passed: Ruff fixes/checks and
+  formatting, mypy, the full 20-test suite, and `git --no-pager diff --check` completed
+  successfully.
 - Independent review iteration 1 found sequencing, boundary, sizing, and traceability gaps.
   Plan revision 2 resolves those findings through earlier validation support, ordered
   preflight, attached-interactive execution, explicit invocation approval, public contract
@@ -1676,14 +1691,49 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-23T21:04:20Z
+  - slice_id: task-0.3-fake-backed-supervised-session-probe
+    command: uv run pytest tests/unit/features/cline_execution/
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T21:08:42Z
+  - slice_id: task-0.3-fake-backed-supervised-session-probe
+    command: uv run ruff check . --fix
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T21:10:07Z
+  - slice_id: task-0.3-fake-backed-supervised-session-probe
+    command: uv run ruff format .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T21:10:07Z
+  - slice_id: task-0.3-fake-backed-supervised-session-probe
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T21:10:07Z
+  - slice_id: task-0.3-fake-backed-supervised-session-probe
+    command: uv run mypy .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T21:10:07Z
+  - slice_id: task-0.3-fake-backed-supervised-session-probe
+    command: uv run pytest
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T21:10:07Z
+  - slice_id: task-0.3-fake-backed-supervised-session-probe
+    command: git --no-pager diff --check
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T21:10:07Z
 blocker:
   code: cline_cli_critical_contracts_unproven
-  summary: Cline 3.0.46 advertises required supporting options, but exactly-one terminal outcome emission, pre-execution permission mediation, interruption recovery observability, and skill probing without unintended network behavior remain unproven; Checkpoint A cannot authorize Tasks 1.1 and later.
+  summary: Cline 3.0.46 advertises required supporting options, and deterministic fake-backed probes now exercise the typed evidence path, but real installed Cline terminal outcome emission, pre-execution permission mediation, interruption recovery observability, and skill probing without unintended network behavior remain unproven; Checkpoint A cannot authorize Tasks 1.1 and later.
   details_path: docs/research/cline-cli-capability-spike.md
   proposed_operation: null
-  recorded_at: 2026-07-23T20:58:14Z
+  recorded_at: 2026-07-23T21:10:07Z
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-23T21:04:20Z
+updated_at: 2026-07-23T21:10:07Z
 completed_at: null
 ```
 

@@ -51,8 +51,10 @@ The following Checkpoint A requirements remain unproven by this slice:
      timeout or external interruption.
 4. **Required skill availability without unintended network behavior**
    - Help output advertises a `skill` command backed by the open skills CLI, but
-     this slice does not prove that required skills can be checked without
-     network-backed `npx` behavior.
+     only fake-backed automated tests currently prove the typed fail-closed
+     skill-observation behavior. A real supervised run is still needed to prove
+     the installed Cline command does not trigger unintended network-backed
+     behavior for required-skill checks.
 
 ## Implemented local evidence model
 
@@ -69,15 +71,23 @@ evidence without starting lifecycle work:
 - `SubprocessClineCapabilityProbe` now also exercises requested skill availability
   through deterministic `skill list` probing in automated tests, while treating
   failed skill probing as unproven rather than silently available.
+- `CapabilityProbeRequest.supervised_session_probe` enables an explicit bounded
+  session probe with caller-supplied repository, data, and hook directories.
+- The fake-backed supervised probe validates exactly-one terminal outcome
+  detection, permission-mediation evidence, interruption-recovery evidence,
+  duplicate-outcome rejection, and bounded timeout reporting without real Cline,
+  network access, or developer repository state.
 
 The default automated tests use deterministic fake executables and do not require
 real Cline credentials, network access, or global developer state.
 
 ## Decision and next action
 
-Task 0.3 has established the first supervised capability evidence surface and
-captured advertised Cline CLI support in a typed report. It has **not** proven the
-critical runtime behavior needed to pass Checkpoint A.
+Task 0.3 has established the first supervised capability evidence surface,
+captured advertised Cline CLI support in a typed report, added deterministic
+required-skill probing, and added a fake-backed supervised session proof path. It
+has **not** proven the real installed Cline runtime behavior needed to pass
+Checkpoint A.
 
 Before Tasks 1.1 and later can be authorized, a follow-up supervised spike must
 exercise real Cline sessions in a disposable repository with isolated data and
