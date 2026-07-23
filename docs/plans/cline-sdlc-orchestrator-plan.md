@@ -1440,6 +1440,22 @@ specification review before implementation proceeds.
 - Task 0.3 is the next authorized implementation slice. It must remain a supervised
   capability proof and may not weaken the specification contracts if real Cline behavior
   is insufficient.
+- Task 0.3 started with a minimal `cline_execution` capability-evidence slice:
+  typed capability observations, a capability report, an application-owned probe port,
+  the `ProveClineCliContracts` use case, and a subprocess-backed help/version probe that
+  uses argument-array execution with a finite timeout.
+- The local supervised probe observed Cline CLI `3.0.46` at
+  `/Users/owinter/.nvm/versions/node/v22.22.3/bin/cline`. Its help output advertises
+  JSON output, finite timeout configuration, explicit working directory selection,
+  isolated data directories, hook directories, and skill management.
+- Task 0.3 recorded the initial `docs/research/cline-cli-capability-spike.md` evidence
+  report. The full task remains incomplete and Checkpoint A remains blocked because
+  help/version probes do not prove exactly-one terminal outcome emission, pre-execution
+  permission mediation, interruption recovery observability, or skill probing without
+  unintended network-backed behavior.
+- The focused `cline_execution` unit suite passes 4 tests, and the full project test suite
+  passes 15 tests. Ruff formatting, Ruff linting, mypy, and `git --no-pager diff --check`
+  pass for the current Task 0.3 slice.
 - Independent review iteration 1 found sequencing, boundary, sizing, and traceability gaps.
   Plan revision 2 resolves those findings through earlier validation support, ordered
   preflight, attached-interactive execution, explicit invocation approval, public contract
@@ -1578,14 +1594,49 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-23T20:41:00Z
+  - slice_id: task-0.3
+    command: uv run pytest tests/unit/features/cline_execution/
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T20:57:50Z
+  - slice_id: task-0.3
+    command: uv run ruff check . --fix
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T20:57:50Z
+  - slice_id: task-0.3
+    command: uv run ruff format .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T20:57:50Z
+  - slice_id: task-0.3
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T20:57:50Z
+  - slice_id: task-0.3
+    command: uv run mypy .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T20:57:50Z
+  - slice_id: task-0.3
+    command: uv run pytest
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T20:57:58Z
+  - slice_id: task-0.3
+    command: git --no-pager diff --check
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T20:57:58Z
 blocker:
-  code: specification_not_accepted
-  summary: The source specification remains draft; Checkpoint A cannot authorize Tasks 1.1 and later until explicit acceptance.
-  details_path: null
+  code: cline_cli_critical_contracts_unproven
+  summary: Cline 3.0.46 advertises required supporting options, but exactly-one terminal outcome emission, pre-execution permission mediation, interruption recovery observability, and skill probing without unintended network behavior remain unproven; Checkpoint A cannot authorize Tasks 1.1 and later.
+  details_path: docs/research/cline-cli-capability-spike.md
   proposed_operation: null
-  recorded_at: 2026-07-23T20:25:00Z
+  recorded_at: 2026-07-23T20:58:14Z
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-23T20:41:00Z
+updated_at: 2026-07-23T20:58:14Z
 completed_at: null
 ```
 
