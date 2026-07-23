@@ -1365,7 +1365,7 @@ specification review before implementation proceeds.
 
 - [x] Task 0.1: Restore a trustworthy project baseline.
 - [x] Task 0.2: Add a deterministic fake-Cline contract harness.
-- [ ] Task 0.3: Prove the real Cline CLI contracts.
+- [x] Task 0.3: Prove the real Cline CLI contracts.
 - [ ] Checkpoint A: Architecture viability accepted.
 
 ### Phase 1
@@ -1494,6 +1494,18 @@ specification review before implementation proceeds.
   automated validation. Task 0.3 and Checkpoint A remain incomplete until the command is run
   against the installed Cline executable in a disposable repository and the resulting evidence
   proves or rejects the critical contracts.
+- Task 0.3 completed the supervised real-Cline proof on 2026-07-23 using Cline `3.0.46` at
+  `/Users/owinter/.nvm/versions/node/v22.22.3/bin/cline`, a disposable Git repository, and
+  isolated Cline data and hook directories under the ignored `.cline-sdlc-proof/` proof
+  directory. The command exited `1` with a redacted typed report: required skills were
+  reported missing for `idea-refine`, `spec-driven-development`, `planning-and-task-breakdown`,
+  and `code-review-and-quality`; the session emitted `0` parseable terminal outcomes; and
+  pre-execution permission mediation plus interruption recovery observability remained
+  unproven.
+- Task 0.3 is therefore complete as a proof/rejection slice, but Checkpoint A remains blocked.
+  Tasks 1.1 and later are still unauthorized until the product owner reviews the evidence and
+  either revises the CLI-wrapper proof path, establishes supported Cline configuration that
+  proves the critical contracts, or makes an SDK-direction decision.
 - Independent review iteration 1 found sequencing, boundary, sizing, and traceability gaps.
   Plan revision 2 resolves those findings through earlier validation support, ordered
   preflight, attached-interactive execution, explicit invocation approval, public contract
@@ -1742,14 +1754,20 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-23T21:17:05Z
+  - slice_id: task-0.3-supervised-real-cline-proof
+    command: >-
+      uv run python tests/manual/cline_execution/prove_real_cline_capability.py --cline-command /Users/owinter/.nvm/versions/node/v22.22.3/bin/cline --repository-root .cline-sdlc-proof/runs/20260723T212225Z/repo --data-directory .cline-sdlc-proof/runs/20260723T212225Z/data --hooks-directory .cline-sdlc-proof/runs/20260723T212225Z/hooks --required-skill idea-refine --required-skill spec-driven-development --required-skill planning-and-task-breakdown --required-skill code-review-and-quality
+    result: failed
+    exit_code: 1
+    recorded_at: 2026-07-23T21:22:57Z
 blocker:
-  code: cline_cli_critical_contracts_unproven
-  summary: Cline 3.0.46 advertises required supporting options, deterministic fake-backed probes exercise the typed evidence path, and a manual supervised real-Cline proof command now exists, but real installed Cline terminal outcome emission, pre-execution permission mediation, interruption recovery observability, and skill probing without unintended network behavior remain unproven until that command is run and reviewed; Checkpoint A cannot authorize Tasks 1.1 and later.
+  code: cline_cli_critical_contracts_rejected
+  summary: The supervised real-Cline proof command ran against Cline 3.0.46 in a disposable repository with isolated data and hooks and exited 1; required skills were reported missing, the session emitted 0 parseable terminal outcomes, and pre-execution permission mediation plus interruption recovery observability remained unproven. Task 0.3 is complete as a proof/rejection slice, but Checkpoint A cannot authorize Tasks 1.1 and later until product review decides whether to revise the CLI-wrapper proof path, configure/prove supported Cline behavior, or move toward an SDK direction.
   details_path: docs/research/cline-cli-capability-spike.md
   proposed_operation: null
-  recorded_at: 2026-07-23T21:17:05Z
+  recorded_at: 2026-07-23T21:22:57Z
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-23T21:17:05Z
+updated_at: 2026-07-23T21:22:57Z
 completed_at: null
 ```
 

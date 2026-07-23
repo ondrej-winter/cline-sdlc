@@ -6,7 +6,7 @@
 - Related plan task: `0.3` in `docs/plans/cline-sdlc-orchestrator-plan.md`
 - Cline executable observed: `/Users/owinter/.nvm/versions/node/v22.22.3/bin/cline`
 - Cline version observed: `3.0.46`
-- Decision: **Checkpoint A remains blocked** pending deeper supervised proof.
+- Decision: **Checkpoint A remains blocked** after supervised real-Cline proof.
 
 ## Purpose
 
@@ -33,28 +33,31 @@ advertises these supporting capabilities:
 These are useful prerequisites for the CLI-wrapper design, but they do not prove
 the critical contracts by themselves.
 
-## Critical contracts not yet proven
+## Critical contracts not proven by the supervised real-Cline proof
 
-The following Checkpoint A requirements remain unproven by this slice:
+The supervised proof run on 2026-07-23 used Cline `3.0.46` in a disposable Git
+repository with isolated Cline data and hook directories. The command exited `1`,
+meaning one or more critical observations remained blocking. The typed report was
+captured locally under the ignored `.cline-sdlc-proof/` proof directory and
+contained no committed secrets.
+
+The following Checkpoint A requirements remain unproven:
 
 1. **Exactly one machine-detectable terminal outcome**
-   - Help and version output do not prove that an arbitrary Cline session can emit
-     exactly one dedicated terminal outcome channel or file that is separate from
-     ordinary assistant prose.
+   - The supervised session emitted `0` parseable terminal outcomes where exactly
+     one was required.
 2. **Pre-execution permission mediation**
-   - Help output advertises hook injection, but this slice does not prove that a
-     parent process can enforce argument-aware allow/deny decisions before a
-     prohibited operation executes.
+   - The supervised session outcome did not prove that a parent process can
+     enforce argument-aware allow/deny decisions before a prohibited operation
+     executes.
 3. **Interruption recovery observability**
-   - Help output advertises timeouts, but this slice does not prove bounded child
-     termination, sufficient event capture, or changed-path attribution after
-     timeout or external interruption.
+   - The supervised session outcome did not prove bounded child termination,
+     sufficient event capture, or changed-path attribution after timeout or
+     external interruption.
 4. **Required skill availability without unintended network behavior**
-   - Help output advertises a `skill` command backed by the open skills CLI, but
-     only fake-backed automated tests currently prove the typed fail-closed
-     skill-observation behavior. A real supervised run is still needed to prove
-     the installed Cline command does not trigger unintended network-backed
-     behavior for required-skill checks.
+   - Real `skill list` probing reported required skills as missing for
+     `idea-refine`, `spec-driven-development`, `planning-and-task-breakdown`, and
+     `code-review-and-quality`.
 
 ## Implemented local evidence model
 
@@ -108,19 +111,22 @@ Exit code `1` means one or more critical observations remain blocking. The
 command prints the complete redacted JSON report either way so the result can be
 copied into this research note after human review.
 
-## Decision and next action
+## Supervised proof result and next action
 
 Task 0.3 has established the first supervised capability evidence surface,
 captured advertised Cline CLI support in a typed report, added deterministic
 required-skill probing, added a fake-backed supervised session proof path, and
-added a manual real-Cline proof command. It has **not** proven the real installed
-Cline runtime behavior needed to pass Checkpoint A because the new command has
-not yet been run and reviewed against the installed executable in a disposable
-repository.
+added a manual real-Cline proof command. The command was run against the installed
+Cline `3.0.46` executable in a disposable repository with isolated data and hook
+directories on 2026-07-23. The result **rejects Checkpoint A for the current
+CLI-wrapper implementation evidence** because all critical runtime contracts
+remained blocking in the typed report.
 
-Before Tasks 1.1 and later can be authorized, a follow-up supervised spike must
-exercise real Cline sessions in a disposable repository with isolated data and
-hook directories to prove or reject:
+Tasks 1.1 and later remain unauthorized. A product decision is required before
+continuing: either revise the CLI-wrapper proof mechanism and rerun the
+supervised spike, install/configure required skills and prove the missing
+contracts through supported Cline behavior, or review an SDK-based orchestration
+direction. Any continuation must still prove or explicitly redesign:
 
 - dedicated terminal outcome emission;
 - pre-execution permission enforcement;
