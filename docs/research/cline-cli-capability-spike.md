@@ -77,17 +77,46 @@ evidence without starting lifecycle work:
   detection, permission-mediation evidence, interruption-recovery evidence,
   duplicate-outcome rejection, and bounded timeout reporting without real Cline,
   network access, or developer repository state.
+- `tests/manual/cline_execution/prove_real_cline_capability.py` now provides a
+  supervised proof command for explicitly selected real Cline executables. It
+  requires caller-supplied disposable repository, isolated data, and hook
+  directories, invokes the existing application use case and subprocess adapter,
+  and emits one redacted JSON capability report with blocking observations.
 
 The default automated tests use deterministic fake executables and do not require
 real Cline credentials, network access, or global developer state.
+
+## Supervised proof procedure
+
+Run the proof only in a disposable repository and isolated Cline state directory.
+Do not run it from the developer's working repository.
+
+Example:
+
+```shell
+uv run python tests/manual/cline_execution/prove_real_cline_capability.py \
+  --cline-command /Users/owinter/.nvm/versions/node/v22.22.3/bin/cline \
+  --repository-root /tmp/cline-sdlc-proof-repo \
+  --data-directory /tmp/cline-sdlc-proof-data \
+  --hooks-directory /tmp/cline-sdlc-proof-hooks \
+  --required-skill idea-refine \
+  --required-skill spec-driven-development
+```
+
+Exit code `0` means every critical observation in the typed report is proven.
+Exit code `1` means one or more critical observations remain blocking. The
+command prints the complete redacted JSON report either way so the result can be
+copied into this research note after human review.
 
 ## Decision and next action
 
 Task 0.3 has established the first supervised capability evidence surface,
 captured advertised Cline CLI support in a typed report, added deterministic
-required-skill probing, and added a fake-backed supervised session proof path. It
-has **not** proven the real installed Cline runtime behavior needed to pass
-Checkpoint A.
+required-skill probing, added a fake-backed supervised session proof path, and
+added a manual real-Cline proof command. It has **not** proven the real installed
+Cline runtime behavior needed to pass Checkpoint A because the new command has
+not yet been run and reviewed against the installed executable in a disposable
+repository.
 
 Before Tasks 1.1 and later can be authorized, a follow-up supervised spike must
 exercise real Cline sessions in a disposable repository with isolated data and

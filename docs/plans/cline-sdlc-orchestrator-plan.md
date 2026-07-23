@@ -1483,6 +1483,17 @@ specification review before implementation proceeds.
 - The fake-backed supervised session probe slice quality gate passed: Ruff fixes/checks and
   formatting, mypy, the full 20-test suite, and `git --no-pager diff --check` completed
   successfully.
+- Task 0.3 continued with a manual supervised real-Cline proof command under
+  `tests/manual/cline_execution/prove_real_cline_capability.py`. The command requires an
+  explicit Cline command plus disposable repository, isolated data, and hook directories;
+  invokes the existing capability proof use case and subprocess adapter; and emits one
+  redacted JSON capability report with blocking observations and an exit code suitable for
+  supervised review.
+- The new proof command is covered by fake-backed unit tests and does not run real Cline,
+  require credentials, require network access, or touch developer repository state during
+  automated validation. Task 0.3 and Checkpoint A remain incomplete until the command is run
+  against the installed Cline executable in a disposable repository and the resulting evidence
+  proves or rejects the critical contracts.
 - Independent review iteration 1 found sequencing, boundary, sizing, and traceability gaps.
   Plan revision 2 resolves those findings through earlier validation support, ordered
   preflight, attached-interactive execution, explicit invocation approval, public contract
@@ -1726,14 +1737,19 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-23T21:10:07Z
+  - slice_id: task-0.3-real-cline-proof-command
+    command: uv run pytest tests/unit/features/cline_execution/manual/test_prove_real_cline_capability.py
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T21:17:05Z
 blocker:
   code: cline_cli_critical_contracts_unproven
-  summary: Cline 3.0.46 advertises required supporting options, and deterministic fake-backed probes now exercise the typed evidence path, but real installed Cline terminal outcome emission, pre-execution permission mediation, interruption recovery observability, and skill probing without unintended network behavior remain unproven; Checkpoint A cannot authorize Tasks 1.1 and later.
+  summary: Cline 3.0.46 advertises required supporting options, deterministic fake-backed probes exercise the typed evidence path, and a manual supervised real-Cline proof command now exists, but real installed Cline terminal outcome emission, pre-execution permission mediation, interruption recovery observability, and skill probing without unintended network behavior remain unproven until that command is run and reviewed; Checkpoint A cannot authorize Tasks 1.1 and later.
   details_path: docs/research/cline-cli-capability-spike.md
   proposed_operation: null
-  recorded_at: 2026-07-23T21:10:07Z
+  recorded_at: 2026-07-23T21:17:05Z
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-23T21:10:07Z
+updated_at: 2026-07-23T21:17:05Z
 completed_at: null
 ```
 
