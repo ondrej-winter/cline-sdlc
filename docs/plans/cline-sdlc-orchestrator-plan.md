@@ -1427,8 +1427,13 @@ specification review before implementation proceeds.
 ### Current planning status
 
 - The specification and repository baseline were inspected on 2026-07-23.
-- The current repository test baseline is not green because the package version test
-  expects `0.1.0` while installed metadata reports `0.0.1`; Task 0.1 owns resolution.
+- The redundant hard-coded package-version test was removed by explicit user decision.
+  Release tag `v0.0.1`, package metadata, built distributions, and an import smoke check
+  agree on version `0.0.1`; Ruff formatting and linting, mypy, and the package build pass.
+- Task 0.1 remains incomplete because `uv run pytest` now exits with code 5 when it collects
+  no tests. Task 0.2 must add the fake-Cline contract tests before the test baseline can be
+  green; the package-version-test acceptance criterion is intentionally waived.
+- Task 0.2 is the next authorized implementation slice and may proceed to unblock Task 0.1.
 - Independent review iteration 1 found sequencing, boundary, sizing, and traceability gaps.
   Plan revision 2 resolves those findings through earlier validation support, ordered
   preflight, attached-interactive execution, explicit invocation approval, public contract
@@ -1500,7 +1505,38 @@ slice_start_commit: null
 partial_slice_paths: []
 completed_slices: []
 remediation_records: []
-validation_evidence: []
+validation_evidence:
+  - slice_id: task-0.1
+    command: uv run ruff format --check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T20:31:40Z
+  - slice_id: task-0.1
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T20:31:40Z
+  - slice_id: task-0.1
+    command: uv run mypy .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T20:31:40Z
+  - slice_id: task-0.1
+    command: uv run pytest
+    result: failed
+    exit_code: 5
+    recorded_at: 2026-07-23T20:34:47Z
+  - slice_id: task-0.1
+    command: uv build
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T20:31:40Z
+  - slice_id: task-0.1
+    command: >-
+      uv run python -c "import cline_sdlc; assert cline_sdlc.__version__ == '0.0.1'; print(cline_sdlc.__version__)"
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-23T20:31:40Z
 blocker:
   code: specification_not_accepted
   summary: The source specification remains draft; Checkpoint A cannot authorize Tasks 1.1 and later until explicit acceptance.
@@ -1508,7 +1544,7 @@ blocker:
   proposed_operation: null
   recorded_at: 2026-07-23T20:25:00Z
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-23T20:25:00Z
+updated_at: 2026-07-23T20:34:47Z
 completed_at: null
 ```
 
