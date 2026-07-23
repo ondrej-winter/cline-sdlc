@@ -1,0 +1,81 @@
+[build-system]
+requires = ["hatchling>=1.29.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cline-sdlc"
+version = "0.1.0"
+description = "A Python application for Cline-assisted software development lifecycle workflows."
+readme = "README.md"
+requires-python = ">=3.14"
+license = "MIT"
+authors = [
+    { name = "Ondřej Winter" },
+]
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "mypy>=2.1.0",
+    "pre-commit>=4.5.1",
+    "pytest>=9.0.3",
+    "pytest-cov>=7.1.0",
+    "python-semantic-release>=10.6.1",
+    "ruff>=0.15.14",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cline_sdlc"]
+
+[tool.semantic_release]
+assets = ["uv.lock"]
+build_command = "uv lock && uv build"
+commit_message = "release: bump version to {version}"
+commit_parser = "conventional"
+tag_format = "v{version}"
+version_toml = ["pyproject.toml:project.version"]
+
+[tool.semantic_release.branches.master]
+match = "master"
+prerelease = false
+
+[tool.semantic_release.changelog.default_templates]
+output_format = ""
+
+[tool.semantic_release.remote]
+name = "origin"
+type = "github"
+
+[tool.semantic_release.publish]
+dist_glob_patterns = ["dist/*"]
+upload_to_vcs_release = true
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+include = ["src/**/*.py", "tests/**/*.py"]
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "ANN",    # Type annotations are enforced by strict mypy.
+    "COM812", # Conflicts with the Ruff formatter.
+    "D1",     # Avoid mandatory docstrings for trivial modules and packages.
+    "D203",   # Prefer no blank line before class docstrings (D211).
+    "D213",   # Prefer summaries on the first line (D212).
+    "FIX",    # Allow normal FIXME comments during development.
+    "ISC001", # Conflicts with the Ruff formatter.
+    "TD",     # Do not require issue metadata in every TODO comment.
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101"] # Pytest uses plain assert statements for outcomes.
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+files = ["src", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=cline_sdlc --cov-report=term-missing"
