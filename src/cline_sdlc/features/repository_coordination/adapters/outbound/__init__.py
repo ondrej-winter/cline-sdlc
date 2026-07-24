@@ -1,0 +1,1 @@
+"""Outbound repository coordination adapters."""

@@ -1,0 +1,1 @@
+"""Repository coordination adapters."""

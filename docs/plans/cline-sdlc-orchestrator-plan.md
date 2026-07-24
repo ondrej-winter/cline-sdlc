@@ -1678,6 +1678,21 @@ specification review before implementation proceeds.
   enforce hook-based operation mediation; those remain later orchestration slices.
 - The Task 2.3 validation gate passed: focused Cline execution tests completed 30 tests; Ruff
   fixes/checks and formatting passed; mypy passed; and the full 159-test suite passed.
+- Task 2.5a completed on 2026-07-24 as the first repository-coordination slice. It added the
+  `repository_coordination` feature slice with application-owned repository inspection DTOs, a
+  Git inspection outbound port, the `InspectRepository` use case, and a Git CLI outbound adapter
+  that uses non-interactive argument arrays with an explicit working directory.
+- The Task 2.5a adapter discovers the repository root, current HEAD, current branch, porcelain
+  status paths, and selected input-file observations. It fails closed with typed blockers when
+  Git is unavailable, HEAD cannot be read, repository status cannot be read, or selected inputs
+  are outside the repository, not regular files, untracked, absent at HEAD, or different from
+  committed HEAD content.
+- Task 2.5a does not implement protected-branch matching, unresolved Git operation-state checks,
+  nested-repository detection, symlink/path escape policy for managed writes, reconciliation, or
+  commits. Those remain Task 2.5b and later repository-coordination slices.
+- The Task 2.5a validation gate passed: focused repository-coordination unit and integration
+  tests completed 5 tests; Ruff fixes/checks and formatting passed; mypy passed; and the full
+  164-test suite passed.
 - Checkpoint B was accepted on 2026-07-24 as a supervised-runner MVP checkpoint over the
   completed Phase 1 artifact and public-contract slices. Current focused checks prove CLI
   contract behavior without launching real Cline, fail-closed session outcome and finding
@@ -1767,6 +1782,7 @@ completed_slices:
   - task-2.4
   - task-2.1
   - task-2.3
+  - task-2.5a
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -2339,9 +2355,40 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-24T19:30:27Z
+  - slice_id: task-2.5a
+    command: >-
+      uv run pytest tests/unit/features/repository_coordination/ tests/integration/features/repository_coordination/test_preflight.py
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T19:42:00Z
+  - slice_id: task-2.5a
+    command: uv run ruff check . --fix
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T19:42:00Z
+  - slice_id: task-2.5a
+    command: uv run ruff format .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T19:42:00Z
+  - slice_id: task-2.5a
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T19:42:00Z
+  - slice_id: task-2.5a
+    command: uv run mypy .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T19:42:00Z
+  - slice_id: task-2.5a
+    command: uv run pytest
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T19:42:00Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-24T19:30:27Z
+updated_at: 2026-07-24T19:42:00Z
 completed_at: null
 ```
 
