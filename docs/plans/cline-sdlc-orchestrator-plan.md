@@ -1373,7 +1373,7 @@ specification review before implementation proceeds.
 - [x] Task 1.1: Define CLI invocation and terminal result contracts.
 - [x] Task 1.2: Define session outcome and finding schemas.
 - [x] Task 1.3: Parse and validate plan lifecycle state.
-- [ ] Task 1.4: Implement artifact regions and deterministic digests.
+- [x] Task 1.4: Implement artifact regions and deterministic digests.
 - [ ] Task 1.5: Discover artifact locations and portable defaults.
 - [ ] Checkpoint B: Artifact and public contract accepted.
 
@@ -1611,6 +1611,22 @@ specification review before implementation proceeds.
   implementation slice is Task 1.4 for artifact regions and deterministic digests.
 - The Task 1.3 validation gate passed: focused artifact lifecycle tests completed 30 tests,
   Ruff fixes/checks and formatting passed, mypy passed, and the full 83-test suite passed.
+- Task 1.4 completed on 2026-07-24 as the artifact-region and digest canonicalization slice.
+  It added pure `artifact_lifecycle` domain parsing for non-nesting material/progress HTML
+  comment regions and deterministic SHA-256 digest services for accepted specifications and
+  plan material payloads.
+- The Task 1.4 region parser requires at least one material region and exactly one progress
+  region, rejects nested, overlapping, unmatched, unclosed, and outside-content cases, and
+  preserves material-region body whitespace for canonical digest calculation. Specification
+  digest calculation normalizes CRLF and CR to LF after strict UTF-8 decoding. Plan material
+  digest calculation excludes progress content while incorporating digest schema version, plan
+  revision, specification path, specification digest, and material content.
+- Task 1.4 does not implement artifact-location discovery, managed write safety, Git
+  reconciliation, or automatic state updates. The next implementation slice is Task 1.5 for
+  artifact locations and portable defaults.
+- The Task 1.4 validation gate passed: focused region/digest tests completed 20 tests; Ruff
+  fixes/checks and formatting passed; mypy passed; the broader artifact lifecycle suite
+  completed 50 tests; and the full 103-test suite passed.
 
 ### Plan-review findings
 
@@ -1682,6 +1698,7 @@ completed_slices:
   - task-1.1c
   - task-1.2
   - task-1.3
+  - task-1.4
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -2047,9 +2064,44 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-24T10:00:47Z
+  - slice_id: task-1.4
+    command: uv run pytest tests/unit/features/artifact_lifecycle/domain/test_regions.py tests/unit/features/artifact_lifecycle/domain/test_digests.py
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T10:15:05Z
+  - slice_id: task-1.4
+    command: uv run ruff check . --fix
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T10:15:05Z
+  - slice_id: task-1.4
+    command: uv run ruff format .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T10:15:05Z
+  - slice_id: task-1.4
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T10:15:05Z
+  - slice_id: task-1.4
+    command: uv run mypy .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T10:15:05Z
+  - slice_id: task-1.4
+    command: uv run pytest tests/unit/features/artifact_lifecycle/
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T10:29:02Z
+  - slice_id: task-1.4
+    command: uv run pytest
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T10:29:02Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-24T10:00:47Z
+updated_at: 2026-07-24T10:29:02Z
 completed_at: null
 ```
 
