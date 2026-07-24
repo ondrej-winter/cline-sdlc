@@ -18,6 +18,7 @@ class ClineSessionProcessStatus(StrEnum):
 
     EXITED = "exited"
     TIMED_OUT = "timed_out"
+    START_FAILED = "start_failed"
 
 
 @dataclass(frozen=True)

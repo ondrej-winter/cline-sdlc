@@ -60,8 +60,10 @@ def _parse_arguments() -> argparse.Namespace:
         required=True,
         choices=(
             "valid",
+            "interactive-valid",
             "missing",
             "malformed",
+            "interactive-malformed",
             "duplicate",
             "conflicting",
             "approval-required",
@@ -98,12 +100,20 @@ def main() -> int:
     elif scenario == "malformed":
         sys.stdout.write("{not-json}\n")
         return exit_code
+    elif scenario == "interactive-malformed":
+        sys.stdout.write(json.dumps({"type": "assistant", "content": "human-visible question"}) + "\n")
+        sys.stdout.write("{not-json}\n")
+        sys.stderr.write("interactive warning\n")
+        return exit_code
 
     if scenario == "conflicting" and not arguments.reported_changed_path:
         reported_paths = ["unexpected/conflicting-path.txt"]
 
     status = "approval_required" if scenario == "approval-required" else "completed"
     serialized = json.dumps(_outcome(status, reported_paths), sort_keys=True)
+    if scenario == "interactive-valid":
+        sys.stdout.write(json.dumps({"type": "assistant", "content": "human-visible question"}) + "\n")
+        sys.stderr.write("interactive warning\n")
     sys.stdout.write(f"{serialized}\n")
     if scenario == "duplicate":
         sys.stdout.write(f"{serialized}\n")

@@ -1387,7 +1387,7 @@ specification review before implementation proceeds.
 - [x] Task 2.6: Add ignored run audit and redaction.
 - [x] Task 2.7: Discover, classify, and execute validation commands.
 - [x] Task 2.8: Coordinate ordered no-write preflight.
-- [ ] Task 2.9: Add attached interactive Cline execution.
+- [x] Task 2.9: Add attached interactive Cline execution.
 - [ ] Checkpoint C: Safe execution boundaries accepted.
 
 ### Phase 3
@@ -1765,6 +1765,21 @@ specification review before implementation proceeds.
 - The Task 2.8 focused validation passed: ordered preflight tests completed 6 tests, Ruff
   fixes/checks and formatting passed, mypy passed, the full 203-test suite passed, and
   `git --no-pager diff --check` completed successfully.
+- Task 2.9 completed on 2026-07-24 as the attached interactive Cline execution slice. It added
+  the `AttachedInteractiveClineSessionRunner` outbound adapter, an application-owned terminal
+  output port, typed start-failure status, and a shared terminal-outcome parser reused by both
+  captured and attached Cline subprocess adapters.
+- The Task 2.9 adapter uses explicit argument arrays, repository working directories, finite
+  subprocess timeouts, inherited stdin, captured output, and no shell interpolation. Human-visible
+  non-outcome stdout/stderr is forwarded through the terminal boundary while schema-versioned
+  terminal outcomes remain separately parsed for orchestration.
+- Task 2.9 extended the deterministic fake-Cline harness with interactive valid and malformed
+  scenarios and added contract tests for human-output separation, malformed output, timeout,
+  signal termination, and start failure. It does not implement idea/specification stage
+  orchestration; that remains Phase 3 work.
+- The Task 2.9 focused validation passed: attached-interactive and existing subprocess session
+  contract tests completed 14 tests; Ruff fixes/checks and formatting passed; mypy passed; the
+  full 208-test suite passed; and `git --no-pager diff --check` completed successfully.
 - Checkpoint B was accepted on 2026-07-24 as a supervised-runner MVP checkpoint over the
   completed Phase 1 artifact and public-contract slices. Current focused checks prove CLI
   contract behavior without launching real Cline, fail-closed session outcome and finding
@@ -2651,9 +2666,45 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-24T20:33:04Z
+  - slice_id: task-2.9
+    command: >-
+      uv run pytest tests/contract/features/cline_execution/test_interactive_session.py tests/contract/features/cline_execution/test_subprocess_session_runner.py
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:39:20Z
+  - slice_id: task-2.9
+    command: uv run ruff check . --fix
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:39:36Z
+  - slice_id: task-2.9
+    command: uv run ruff format .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:39:36Z
+  - slice_id: task-2.9
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:39:36Z
+  - slice_id: task-2.9
+    command: uv run mypy .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:39:36Z
+  - slice_id: task-2.9
+    command: uv run pytest
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:40:04Z
+  - slice_id: task-2.9
+    command: git --no-pager diff --check
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:40:04Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-24T20:33:04Z
+updated_at: 2026-07-24T20:40:04Z
 completed_at: null
 ```
 
