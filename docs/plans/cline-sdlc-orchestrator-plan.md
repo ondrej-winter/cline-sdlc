@@ -1371,7 +1371,7 @@ specification review before implementation proceeds.
 ### Phase 1
 
 - [x] Task 1.1: Define CLI invocation and terminal result contracts.
-- [ ] Task 1.2: Define session outcome and finding schemas.
+- [x] Task 1.2: Define session outcome and finding schemas.
 - [ ] Task 1.3: Parse and validate plan lifecycle state.
 - [ ] Task 1.4: Implement artifact regions and deterministic digests.
 - [ ] Task 1.5: Discover artifact locations and portable defaults.
@@ -1583,6 +1583,20 @@ specification review before implementation proceeds.
 - The Task 1.1c validation gate passed: focused bootstrap and lifecycle CLI tests, the required
   `uvx --from . cline-sdlc --help` local packaging smoke, Ruff formatting and checks, mypy, the
   full 43-test suite, `uv build`, and `git --no-pager diff --check` completed successfully.
+- Task 1.2 completed on 2026-07-24 as the supervised-runner schema slice. It added typed
+  session-role, session-status, validation-evidence, blocker, and session-outcome domain values
+  under `cline_execution`, with fail-closed checks for schema version, empty reasons, unsafe or
+  duplicate repository-relative paths, reviewer writes, approval-required proposed operations,
+  and not-run validation evidence exit codes.
+- Task 1.2 also introduced the `artifact_lifecycle` feature slice with plan-review finding
+  severities, statuses, readiness classification, stable finding sets, and invariants for required
+  text, unique affected sections, duplicate finding IDs, open dispositions, and unresolved or
+  unsafe blocking/major finding readiness. It does not start Cline, inspect Git, parse YAML plan
+  state, or implement unattended terminal-outcome enforcement beyond typed core schema values.
+- The Task 1.2 validation gate passed after a Ruff-detected hard-coded temporary-path test
+  literal was replaced with a non-temporary absolute-path case. Focused domain tests completed
+  18 tests successfully, and the broader gate passed: Ruff fixes/checks and formatting, mypy,
+  the full 59-test suite, and `git --no-pager diff --check` completed successfully.
 
 ### Plan-review findings
 
@@ -1643,8 +1657,8 @@ review_iteration: 1
 review_readiness: changes_required
 digest_schema_version: 1
 material_digest: sha256:4f3efa4a1dbf4705cc33e6260196b4dbf36495f9863fcf1c718998a6011f18c3
-current_task: task-1.2
-current_slice: session-outcome-and-finding-schemas
+current_task: task-1.3
+current_slice: plan-lifecycle-state-validation
 slice_start_commit: null
 partial_slice_paths: []
 completed_slices:
@@ -1652,6 +1666,7 @@ completed_slices:
   - task-1.1a
   - task-1.1b
   - task-1.1c
+  - task-1.2
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -1952,9 +1967,44 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-24T08:47:31Z
+  - slice_id: task-1.2
+    command: uv run pytest tests/unit/features/cline_execution/domain/ tests/unit/features/artifact_lifecycle/domain/
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T09:11:20Z
+  - slice_id: task-1.2
+    command: uv run ruff check . --fix
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T09:12:21Z
+  - slice_id: task-1.2
+    command: uv run ruff format .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T09:12:21Z
+  - slice_id: task-1.2
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T09:12:21Z
+  - slice_id: task-1.2
+    command: uv run mypy .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T09:12:21Z
+  - slice_id: task-1.2
+    command: uv run pytest
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T09:12:21Z
+  - slice_id: task-1.2
+    command: git --no-pager diff --check
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T09:12:21Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-24T08:47:31Z
+updated_at: 2026-07-24T09:12:21Z
 completed_at: null
 ```
 

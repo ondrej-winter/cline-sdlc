@@ -1,0 +1,1 @@
+"""Artifact lifecycle feature slice."""
