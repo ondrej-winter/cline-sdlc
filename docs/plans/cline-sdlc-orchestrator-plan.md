@@ -1380,7 +1380,7 @@ specification review before implementation proceeds.
 ### Phase 2
 
 - [x] Task 2.1: Implement the Cline subprocess adapter.
-- [ ] Task 2.2: Coordinate bounded session attempts.
+- [x] Task 2.2: Coordinate bounded session attempts.
 - [x] Task 2.3: Add capability and skill preflight.
 - [x] Task 2.4: Implement the balanced operation policy.
 - [x] Task 2.5: Implement Git inspection and branch safety.
@@ -1705,6 +1705,18 @@ specification review before implementation proceeds.
 - The Task 2.5b validation gate passed: focused repository-coordination unit and integration tests
   completed 12 tests; Ruff formatting and checks passed; mypy passed; and the full 171-test suite
   passed.
+- Task 2.2 completed on 2026-07-24 as the bounded session-attempt orchestration slice. It added
+  lifecycle-orchestration application DTOs for attempt requests, observations, retry reasons,
+  blockers, and results plus the `RunSessionAttempts` use case.
+- The Task 2.2 use case coordinates repository snapshots before and after each Cline session through
+  application-owned ports, permits at most one fresh retry for protocol-output failures or transient
+  startup failures only when repository state is unchanged, and blocks retry for timeouts,
+  approval-required outcomes, unsafe repository changes, or exhausted attempts. It performs no Git,
+  subprocess, audit, validation-command, lifecycle artifact, or commit I/O directly; those remain
+  later orchestration and adapter slices.
+- The Task 2.2 focused validation passed: lifecycle-orchestration unit tests completed 23 tests;
+  Ruff fixes/checks and formatting passed; mypy passed; the full 178-test suite passed; and
+  `git --no-pager diff --check` completed successfully.
 - Checkpoint B was accepted on 2026-07-24 as a supervised-runner MVP checkpoint over the
   completed Phase 1 artifact and public-contract slices. Current focused checks prove CLI
   contract behavior without launching real Cline, fail-closed session outcome and finding
@@ -1796,6 +1808,7 @@ completed_slices:
   - task-2.3
   - task-2.5a
   - task-2.5b
+  - task-2.2
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -2425,9 +2438,49 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-24T19:48:18Z
+  - slice_id: task-2.2
+    command: uv run pytest tests/unit/features/lifecycle_orchestration/application/test_session_attempts.py
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T19:53:26Z
+  - slice_id: task-2.2
+    command: uv run ruff check . --fix
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T19:54:16Z
+  - slice_id: task-2.2
+    command: uv run ruff format .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T19:54:16Z
+  - slice_id: task-2.2
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T19:54:16Z
+  - slice_id: task-2.2
+    command: uv run mypy .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T19:54:16Z
+  - slice_id: task-2.2
+    command: uv run pytest tests/unit/features/lifecycle_orchestration/
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T19:54:20Z
+  - slice_id: task-2.2
+    command: uv run pytest
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T19:55:12Z
+  - slice_id: task-2.2
+    command: git --no-pager diff --check
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T19:55:12Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-24T19:48:18Z
+updated_at: 2026-07-24T19:55:12Z
 completed_at: null
 ```
 
