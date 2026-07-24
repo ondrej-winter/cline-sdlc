@@ -1392,7 +1392,7 @@ specification review before implementation proceeds.
 
 ### Phase 3
 
-- [ ] Task 3.1: Implement rough idea to accepted idea brief.
+- [x] Task 3.1: Implement rough idea to accepted idea brief.
 - [ ] Task 3.2: Implement idea artifact to accepted specification.
 - [ ] Task 3.3: Implement initial plan authoring.
 - [ ] Task 3.4: Implement initial independent plan review.
@@ -1804,6 +1804,27 @@ specification review before implementation proceeds.
 - The Checkpoint B handoff quality gate passed after the progress update: Ruff formatting and
   checks, mypy, the full 153-test suite, local `uvx --from . cline-sdlc --help` packaging
   smoke, `uv build`, and `git --no-pager diff --check` completed successfully.
+- Task 3.1 completed on 2026-07-24 as the first artifact-producing supervised-runner stage
+  slice. It added application-owned idea-refinement DTOs and the `RefineIdea` use case under
+  `lifecycle_orchestration`, coordinating ordered preflight and bounded session attempts through
+  published application boundaries rather than direct subprocess, terminal, Git, or filesystem I/O.
+- The Task 3.1 use case builds an explicit argument-array Cline request that asks for the
+  `idea-refine` skill, stops at the accepted idea-brief boundary, and verifies completion only
+  when the typed session evidence reports an `idea_refiner` outcome plus exactly one selected
+  changed `ArtifactKind.IDEA_BRIEF` path. Preflight blockers, declined/blocked sessions, wrong
+  roles, specification/plan artifacts, missing artifacts, and multiple artifacts do not complete
+  the stage.
+- Task 3.1 added focused lifecycle orchestration contract tests for successful rough-idea
+  refinement, empty ideas, preflight failure ordering, blocked user acceptance, wrong session
+  roles, mismatched artifacts, and multiple-artifact rejection. It does not yet wire the stage
+  into the bootstrap CLI or implement the idea-file specification stage; those remain later Phase
+  3 work.
+- The Task 3.1 focused validation passed: Ruff checks for the new DTO/use-case/test files passed,
+  and `uv run pytest tests/contract/features/lifecycle_orchestration/test_idea_stage.py`
+  completed 7 tests successfully.
+- The Task 3.1 broad validation gate passed after the progress update: Ruff formatting and
+  checks, mypy, the full 215-test suite, and `git --no-pager diff --check` completed
+  successfully.
 
 ### Plan-review findings
 
@@ -1890,6 +1911,7 @@ completed_slices:
   - task-2.8
   - task-2.9
   - checkpoint-c-safe-execution-boundaries
+  - task-3.1
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -2747,9 +2769,45 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-24T20:43:55Z
+  - slice_id: task-3.1
+    command: >-
+      uv run ruff check src/cline_sdlc/features/lifecycle_orchestration/application/dtos/idea_stage.py src/cline_sdlc/features/lifecycle_orchestration/application/use_cases/refine_idea.py tests/contract/features/lifecycle_orchestration/test_idea_stage.py
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:52:43Z
+  - slice_id: task-3.1
+    command: uv run pytest tests/contract/features/lifecycle_orchestration/test_idea_stage.py
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:52:43Z
+  - slice_id: task-3.1
+    command: uv run ruff format .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:53:45Z
+  - slice_id: task-3.1
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:53:45Z
+  - slice_id: task-3.1
+    command: uv run mypy .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:53:45Z
+  - slice_id: task-3.1
+    command: uv run pytest
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:53:45Z
+  - slice_id: task-3.1
+    command: git --no-pager diff --check
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:53:50Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-24T20:43:55Z
+updated_at: 2026-07-24T20:53:50Z
 completed_at: null
 ```
 
