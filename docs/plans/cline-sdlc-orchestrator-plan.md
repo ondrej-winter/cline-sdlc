@@ -1513,6 +1513,13 @@ specification review before implementation proceeds.
   wrapped-text extraction. Checkpoint A still remains blocked until the manual real-Cline proof
   is rerun and shows whether real `cline --json` provides one reliable terminal outcome through
   one of those event shapes or another supported channel.
+- Task 0.3 was rerun on 2026-07-24 using Cline `3.0.46` at
+  `/Users/owinter/.nvm/versions/node/v22.22.3/bin/cline`, disposable Git repository
+  `.cline-sdlc-proof/runs/20260724T061450Z/repo`, and isolated data/hooks directories. The
+  command exited `1`: required skills were still reported missing, the supervised session
+  emitted `0` parseable terminal outcomes even after wrapped-event extraction support, and
+  pre-execution permission mediation plus interruption recovery observability remained
+  unproven. No new parser refinement was justified by this output.
 - Independent review iteration 1 found sequencing, boundary, sizing, and traceability gaps.
   Plan revision 2 resolves those findings through earlier validation support, ordered
   preflight, attached-interactive execution, explicit invocation approval, public contract
@@ -1772,14 +1779,20 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-24T06:04:18Z
+  - slice_id: task-0.3-real-cline-proof-rerun
+    command: >-
+      uv run python .cline-sdlc-proof/helpers/retry-real-cline-proof.py
+    result: failed
+    exit_code: 1
+    recorded_at: 2026-07-24T06:14:50Z
 blocker:
   code: cline_cli_critical_contracts_rejected
-  summary: The supervised real-Cline proof command ran against Cline 3.0.46 in a disposable repository with isolated data and hooks and exited 1; required skills were reported missing, the session emitted 0 parseable terminal outcomes, and pre-execution permission mediation plus interruption recovery observability remained unproven. A follow-up adapter refinement can now detect schema-versioned outcomes in common wrapped JSON event fields, but this has only been proven with fake-backed tests and must be rerun against real Cline before Checkpoint A can authorize Tasks 1.1 and later.
+  summary: The supervised real-Cline proof command ran against Cline 3.0.46 in disposable repositories with isolated data and hooks and exited 1; required skills were reported missing, the session emitted 0 parseable terminal outcomes, and pre-execution permission mediation plus interruption recovery observability remained unproven. A follow-up adapter refinement can detect schema-versioned outcomes in common wrapped JSON event fields, but the 2026-07-24 real-Cline rerun still emitted 0 parseable terminal outcomes, so Checkpoint A cannot authorize Tasks 1.1 and later.
   details_path: docs/research/cline-cli-capability-spike.md
   proposed_operation: null
-  recorded_at: 2026-07-24T06:04:18Z
+  recorded_at: 2026-07-24T06:14:50Z
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-24T06:04:18Z
+updated_at: 2026-07-24T06:14:50Z
 completed_at: null
 ```
 

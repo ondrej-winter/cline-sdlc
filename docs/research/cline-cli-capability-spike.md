@@ -122,10 +122,20 @@ Task 0.3 has established the first supervised capability evidence surface,
 captured advertised Cline CLI support in a typed report, added deterministic
 required-skill probing, added a fake-backed supervised session proof path, and
 added a manual real-Cline proof command. The command was run against the installed
-Cline `3.0.46` executable in a disposable repository with isolated data and hook
-directories on 2026-07-23. The result **rejects Checkpoint A for the current
-CLI-wrapper implementation evidence** because all critical runtime contracts
-remained blocking in the typed report.
+Cline `3.0.46` executable in disposable repositories with isolated data and hook
+directories on 2026-07-23 and again on 2026-07-24 after wrapped-event extraction
+support was added. Both runs **reject Checkpoint A for the current CLI-wrapper
+implementation evidence** because critical runtime contracts remained blocking in
+the typed reports.
+
+The 2026-07-24 rerun used
+`/Users/owinter/.nvm/versions/node/v22.22.3/bin/cline` and ignored proof directory
+`.cline-sdlc-proof/runs/20260724T061450Z/`. The command exited `1`; required
+skills were still reported missing for `idea-refine`, `spec-driven-development`,
+`planning-and-task-breakdown`, and `code-review-and-quality`; the supervised
+session emitted `0` parseable terminal outcomes even with wrapped-event extraction;
+and pre-execution permission mediation plus interruption recovery observability
+remained unproven.
 
 Tasks 1.1 and later remain unauthorized. A product decision is required before
 continuing: either revise the CLI-wrapper proof mechanism and rerun the
@@ -139,12 +149,10 @@ direction. Any continuation must still prove or explicitly redesign:
 - real Cline skill availability probing behavior without unintended network-backed
   side effects.
 
-The next supervised proof run should specifically determine whether real
-`cline --json` emits the orchestrator terminal outcome as a known wrapped event
-field, a top-level object, another stable event shape, ordinary prose only, or no
-recoverable outcome at all. Passing fake-backed wrapped-event tests is not itself
-Checkpoint A evidence; it only makes the proof adapter capable of recognizing the
-most likely structured event envelopes.
+The latest supervised proof run found no recoverable terminal outcome in the known
+top-level or wrapped event shapes. Passing fake-backed wrapped-event tests is not
+itself Checkpoint A evidence; it only makes the proof adapter capable of
+recognizing the most likely structured event envelopes if real Cline emits them.
 
 If any critical contract cannot be proven, implementation must stop for product
 review and an SDK-direction decision rather than weakening the specification.
