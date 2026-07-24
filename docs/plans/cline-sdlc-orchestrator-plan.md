@@ -1375,7 +1375,7 @@ specification review before implementation proceeds.
 - [x] Task 1.3: Parse and validate plan lifecycle state.
 - [x] Task 1.4: Implement artifact regions and deterministic digests.
 - [x] Task 1.5: Discover artifact locations and portable defaults.
-- [ ] Checkpoint B: Artifact and public contract accepted.
+- [x] Checkpoint B: Artifact and public contract accepted.
 
 ### Phase 2
 
@@ -1666,6 +1666,18 @@ specification review before implementation proceeds.
   or decide lifecycle advancement; those remain later orchestration slices.
 - The Task 2.1 validation gate passed: focused Cline execution contract/unit tests completed 33
   tests; Ruff fixes/checks and formatting passed; and mypy passed.
+- Checkpoint B was accepted on 2026-07-24 as a supervised-runner MVP checkpoint over the
+  completed Phase 1 artifact and public-contract slices. Current focused checks prove CLI
+  contract behavior without launching real Cline, fail-closed session outcome and finding
+  schema values, strict plan-state and artifact-region validation, deterministic digest
+  behavior, and portable artifact-location selection. This checkpoint does not claim the
+  deferred unattended-orchestrator guarantees from the pre-pivot material plan.
+- The focused Checkpoint B validation pass completed 82 tests successfully across lifecycle
+  CLI parsing/rendering, Cline execution domain schemas, artifact lifecycle domain schemas,
+  region/digest behavior, and artifact-location selection.
+- The Checkpoint B handoff quality gate passed after the progress update: Ruff formatting and
+  checks, mypy, the full 153-test suite, local `uvx --from . cline-sdlc --help` packaging
+  smoke, `uv build`, and `git --no-pager diff --check` completed successfully.
 
 ### Plan-review findings
 
@@ -1739,6 +1751,7 @@ completed_slices:
   - task-1.3
   - task-1.4
   - task-1.5
+  - checkpoint-b-artifact-public-contract
   - task-2.4
   - task-2.1
 remediation_records: []
@@ -2227,9 +2240,65 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-24T17:52:43Z
+  - slice_id: checkpoint-b-artifact-public-contract
+    command: uv run pytest tests/unit/features/lifecycle_orchestration/adapters/inbound/
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T18:10:55Z
+  - slice_id: checkpoint-b-artifact-public-contract
+    command: uv run pytest tests/unit/features/cline_execution/domain/
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T18:10:55Z
+  - slice_id: checkpoint-b-artifact-public-contract
+    command: >-
+      uv run pytest tests/unit/features/artifact_lifecycle/domain/test_findings.py tests/unit/features/artifact_lifecycle/domain/test_plan_state.py tests/unit/features/artifact_lifecycle/domain/test_regions.py tests/unit/features/artifact_lifecycle/domain/test_digests.py
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T18:10:55Z
+  - slice_id: checkpoint-b-artifact-public-contract
+    command: uv run pytest tests/unit/features/artifact_lifecycle/application/test_artifact_locations.py
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T18:10:55Z
+  - slice_id: checkpoint-b-artifact-public-contract
+    command: uv run ruff format .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T18:11:30Z
+  - slice_id: checkpoint-b-artifact-public-contract
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T18:11:30Z
+  - slice_id: checkpoint-b-artifact-public-contract
+    command: uv run mypy .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T18:11:30Z
+  - slice_id: checkpoint-b-artifact-public-contract
+    command: uv run pytest
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T18:11:30Z
+  - slice_id: checkpoint-b-artifact-public-contract
+    command: uvx --from . cline-sdlc --help
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T18:11:30Z
+  - slice_id: checkpoint-b-artifact-public-contract
+    command: uv build
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T18:11:30Z
+  - slice_id: checkpoint-b-artifact-public-contract
+    command: git --no-pager diff --check
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T18:11:30Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-24T17:53:14Z
+updated_at: 2026-07-24T18:11:30Z
 completed_at: null
 ```
 
