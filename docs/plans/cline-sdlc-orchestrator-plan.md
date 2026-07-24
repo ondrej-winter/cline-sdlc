@@ -1386,7 +1386,7 @@ specification review before implementation proceeds.
 - [x] Task 2.5: Implement Git inspection and branch safety.
 - [x] Task 2.6: Add ignored run audit and redaction.
 - [x] Task 2.7: Discover, classify, and execute validation commands.
-- [ ] Task 2.8: Coordinate ordered no-write preflight.
+- [x] Task 2.8: Coordinate ordered no-write preflight.
 - [ ] Task 2.9: Add attached interactive Cline execution.
 - [ ] Checkpoint C: Safe execution boundaries accepted.
 
@@ -1754,6 +1754,17 @@ specification review before implementation proceeds.
 - The Task 2.7b validation gate passed: focused validation discovery/execution tests completed 12
   tests; Ruff fixes/checks and formatting passed; mypy passed; the full 197-test suite passed; and
   `git --no-pager diff --check` completed successfully.
+- Task 2.8 completed on 2026-07-24 as the ordered no-write lifecycle preflight slice. It added
+  lifecycle-orchestration application DTOs for preflight status, ordered step evidence, blockers,
+  requests, and authorization results plus the `PreflightLifecycleStage` use case.
+- The Task 2.8 use case coordinates published application boundaries in order: selected invocation,
+  artifact-location selection, repository inspection, optional ignored run-audit setup, and Cline
+  capability/skill preflight. Each failure returns one typed actionable blocker before later checks
+  run, and the slice starts no Cline session, performs no Git writes, and modifies no lifecycle
+  artifact directly.
+- The Task 2.8 focused validation passed: ordered preflight tests completed 6 tests, Ruff
+  fixes/checks and formatting passed, mypy passed, the full 203-test suite passed, and
+  `git --no-pager diff --check` completed successfully.
 - Checkpoint B was accepted on 2026-07-24 as a supervised-runner MVP checkpoint over the
   completed Phase 1 artifact and public-contract slices. Current focused checks prove CLI
   contract behavior without launching real Cline, fail-closed session outcome and finding
@@ -1849,6 +1860,7 @@ completed_slices:
   - task-2.6
   - task-2.7a
   - task-2.7b
+  - task-2.8
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -2604,9 +2616,44 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-24T20:19:46Z
+  - slice_id: task-2.8
+    command: uv run pytest tests/unit/features/lifecycle_orchestration/application/test_preflight_stage.py
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:32:04Z
+  - slice_id: task-2.8
+    command: uv run ruff check . --fix
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:32:04Z
+  - slice_id: task-2.8
+    command: uv run ruff format .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:32:04Z
+  - slice_id: task-2.8
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:32:04Z
+  - slice_id: task-2.8
+    command: uv run mypy .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:32:04Z
+  - slice_id: task-2.8
+    command: uv run pytest
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:33:04Z
+  - slice_id: task-2.8
+    command: git --no-pager diff --check
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:33:04Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-24T20:19:46Z
+updated_at: 2026-07-24T20:33:04Z
 completed_at: null
 ```
 
