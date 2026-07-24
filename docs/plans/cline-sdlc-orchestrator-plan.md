@@ -1396,8 +1396,8 @@ specification review before implementation proceeds.
 - [x] Task 3.2: Implement idea artifact to accepted specification.
 - [x] Task 3.3: Implement initial plan authoring.
 - [x] Task 3.4: Implement initial independent plan review.
-- [ ] Task 3.5: Add bounded revision and blocked-plan behavior.
-- [ ] Checkpoint D: Artifact boundaries accepted.
+- [x] Task 3.5: Add bounded revision and blocked-plan behavior.
+- [x] Checkpoint D: Artifact boundaries accepted.
 
 ### Phase 4
 
@@ -1893,6 +1893,28 @@ specification review before implementation proceeds.
 - The Task 3.4 focused validation passed with 9 review orchestration/filesystem regression tests.
   The final broad gate passed with Ruff formatting and checks, strict mypy over 195 source files, the
   full 249-test suite, `uv build`, and `git --no-pager diff --check`.
+- Task 3.5 completed on 2026-07-24 with a bounded plan revision/re-review coordinator. Each revision
+  starts a fresh `plan_author` session, and each re-review starts a fresh read-only `plan_reviewer`
+  session; the workflow stops at `ready`, an explicit failure, or the third total review without
+  starting an implementation session.
+- Material revision validation requires exactly one `plan_revision` increment, an unchanged review
+  iteration and specification identity, and a recomputed changed material digest. Re-review
+  reconciliation increments only `review_iteration`, preserves progress-only material content, and
+  retains every prior finding ID as an ordered prefix while allowing newly discovered findings to be
+  appended.
+- Existing finding readiness rules keep unresolved blocking or major findings non-ready. Exhausting
+  the initial review plus two revision/re-review cycles persists the complete unresolved finding set,
+  transitions the plan to `blocked`, and records `plan_review_limit_exhausted`; revision validation
+  failures fail closed before content reads or later sessions.
+- Task 3.5 added direct revision-session, coordinator, re-review traceability, immutable transition,
+  authored-plan validation, and filesystem persistence coverage. The focused suite passed with 36
+  tests, affected-surface Ruff and strict mypy checks passed, and the initial broad gate passed with
+  Ruff formatting/checks, strict mypy over 202 source files, all 270 tests at 87% coverage,
+  `uv build`, and `git --no-pager diff --check`.
+- Checkpoint D is accepted: authored/reviewed plans are specification-linked and digest-validated,
+  reviewer sessions are independently read-only, bounded revisions preserve finding traceability,
+  and unresolved final reviews terminate explicitly as blocked. Deferred Phase 4 and Phase 5
+  unattended Git implementation, commit, and recovery behavior remains inactive.
 
 ### Plan-review findings
 
@@ -1983,6 +2005,8 @@ completed_slices:
   - task-3.2
   - task-3.3
   - task-3.4
+  - task-3.5
+  - checkpoint-d-artifact-boundaries
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -2985,9 +3009,50 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-24T21:54:08Z
+  - slice_id: task-3.5
+    command: >-
+      uv run pytest tests/contract/features/lifecycle_orchestration/test_plan_review.py tests/contract/features/lifecycle_orchestration/test_plan_revision.py tests/contract/features/lifecycle_orchestration/test_revise_plan.py tests/unit/features/artifact_lifecycle/application/test_apply_plan_revision.py tests/unit/features/artifact_lifecycle/application/test_validate_authored_plan.py tests/unit/features/artifact_lifecycle/adapters/inbound/test_filesystem_plan_review.py
+    result: passed (36 tests)
+    exit_code: 0
+    recorded_at: 2026-07-24T22:22:09Z
+  - slice_id: task-3.5
+    command: affected-surface Ruff and mypy checks
+    result: passed (Ruff; mypy over 61 source files)
+    exit_code: 0
+    recorded_at: 2026-07-24T22:22:09Z
+  - slice_id: checkpoint-d-artifact-boundaries
+    command: uv run ruff format .
+    result: passed (2 files reformatted, 200 files unchanged)
+    exit_code: 0
+    recorded_at: 2026-07-24T22:22:09Z
+  - slice_id: checkpoint-d-artifact-boundaries
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T22:22:09Z
+  - slice_id: checkpoint-d-artifact-boundaries
+    command: uv run mypy .
+    result: passed (202 source files)
+    exit_code: 0
+    recorded_at: 2026-07-24T22:22:09Z
+  - slice_id: checkpoint-d-artifact-boundaries
+    command: uv run pytest
+    result: passed (270 tests, 87% coverage)
+    exit_code: 0
+    recorded_at: 2026-07-24T22:22:09Z
+  - slice_id: checkpoint-d-artifact-boundaries
+    command: uv build
+    result: passed (source distribution and wheel)
+    exit_code: 0
+    recorded_at: 2026-07-24T22:22:09Z
+  - slice_id: checkpoint-d-artifact-boundaries
+    command: git --no-pager diff --check
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T22:22:09Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-24T21:54:08Z
+updated_at: 2026-07-24T22:22:09Z
 completed_at: null
 ```
 

@@ -10,6 +10,7 @@ from cline_sdlc.features.lifecycle_orchestration.domain.stage import LifecycleSt
 
 if TYPE_CHECKING:
     from cline_sdlc.features.artifact_lifecycle.domain.findings import Finding, PlanReviewReadiness
+    from cline_sdlc.features.artifact_lifecycle.domain.plan_state import PlanState
     from cline_sdlc.features.lifecycle_orchestration.application.dtos.invocation import InvocationRequest
     from cline_sdlc.features.lifecycle_orchestration.application.dtos.preflight import StagePreflightRequest
 
@@ -44,6 +45,9 @@ class PlanReviewRequest:
     invocation: InvocationRequest
     preflight_request: StagePreflightRequest
     plan_path: str
+    previous_plan_state: PlanState | None = None
+    prior_findings: tuple[Finding, ...] = field(default_factory=tuple)
+    initial_review: bool = True
 
     def __post_init__(self) -> None:
         if self.invocation.source.kind is not StageInputKind.SPEC_FILE:
@@ -54,6 +58,12 @@ class PlanReviewRequest:
             raise ValueError(message)
         if not self.plan_path.strip():
             message = "initial plan review requires a plan path"
+            raise ValueError(message)
+        if self.initial_review and self.prior_findings:
+            message = "initial plan review must not include prior findings"
+            raise ValueError(message)
+        if not self.initial_review and self.previous_plan_state is None:
+            message = "plan re-review requires the previous reviewed plan state"
             raise ValueError(message)
 
 
@@ -66,6 +76,7 @@ class PlanReviewResult:
     findings: tuple[Finding, ...] = field(default_factory=tuple)
     output_paths: tuple[str, ...] = field(default_factory=tuple)
     material_digest: str | None = None
+    plan_state: PlanState | None = None
     blocker: PlanReviewBlocker | None = None
 
     @property

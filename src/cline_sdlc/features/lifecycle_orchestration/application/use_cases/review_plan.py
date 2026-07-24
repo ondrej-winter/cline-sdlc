@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
@@ -11,6 +12,7 @@ from cline_sdlc.features.artifact_lifecycle.application.dtos.authored_plan impor
 )
 from cline_sdlc.features.artifact_lifecycle.application.dtos.plan_review import PlanReviewProgressRequest
 from cline_sdlc.features.artifact_lifecycle.domain.findings import PlanReviewReadiness
+from cline_sdlc.features.artifact_lifecycle.domain.plan_state import PlanPhase
 from cline_sdlc.features.cline_execution.application.dtos.session import ClineSessionRequest
 from cline_sdlc.features.cline_execution.domain.outcome import SessionRole
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.plan_review import (
@@ -29,6 +31,7 @@ if TYPE_CHECKING:
 
     from cline_sdlc.features.artifact_lifecycle.application.dtos.authored_plan import AuthoredPlanValidationResult
     from cline_sdlc.features.artifact_lifecycle.application.dtos.plan_review import PlanReviewProgressResult
+    from cline_sdlc.features.cline_execution.domain.outcome import SessionOutcome
     from cline_sdlc.features.lifecycle_orchestration.application.dtos.session_attempt import SessionAttemptResult
 
 
@@ -98,6 +101,7 @@ class ReviewPlan:
         outcome_result = _review_outcome(request, session_result)
         if isinstance(outcome_result, PlanReviewResult):
             return outcome_result
+        readiness = _validated_readiness(outcome_result)
         content_failure = self._validate_unchanged_content(request, expected=content_result)
         if content_failure is not None:
             return content_failure
@@ -106,8 +110,9 @@ class ReviewPlan:
             PlanReviewProgressRequest(
                 plan_path=request.plan_path,
                 findings=outcome_result.findings,
-                readiness=outcome_result.review_readiness,
+                readiness=readiness,
                 updated_at=self._clock.now(),
+                initial_review=request.initial_review,
             )
         )
         if not progress_result.updated:
@@ -116,17 +121,19 @@ class ReviewPlan:
                 "validated review evidence could not be applied without changing plan material",
                 "; ".join(progress_result.blockers),
             )
-        status = (
-            PlanReviewStatus.READY
-            if outcome_result.review_readiness is PlanReviewReadiness.READY
-            else PlanReviewStatus.CHANGES_REQUIRED
-        )
+        if progress_result.plan_state is not None and progress_result.plan_state.phase is PlanPhase.BLOCKED:
+            status = PlanReviewStatus.BLOCKED
+        elif readiness is PlanReviewReadiness.READY:
+            status = PlanReviewStatus.READY
+        else:
+            status = PlanReviewStatus.CHANGES_REQUIRED
         return PlanReviewResult(
             status=status,
-            readiness=outcome_result.review_readiness,
+            readiness=readiness,
             findings=outcome_result.findings,
             output_paths=(request.plan_path,),
             material_digest=progress_result.material_digest,
+            plan_state=progress_result.plan_state,
         )
 
     def _validated_content(self, request: PlanReviewRequest) -> AuthoredPlanValidationRequest | PlanReviewResult:
@@ -137,7 +144,7 @@ class ReviewPlan:
             )
         except (OSError, UnicodeError, ValueError) as err:
             return _blocked("plan_review_content_unavailable", "plan review input could not be read safely", str(err))
-        validation = self._plan_validator.execute(content)
+        validation = self._plan_validator.execute(replace(content, previous_plan_state=request.previous_plan_state))
         if not validation.valid:
             evidence = "; ".join(blocker.evidence or blocker.code for blocker in validation.blockers)
             return _blocked("plan_review_input_invalid", "plan must pass initial validation before review", evidence)
@@ -203,11 +210,31 @@ def _session_failure(session_result: SessionAttemptResult) -> PlanReviewResult |
     )
 
 
-def _review_outcome(request: PlanReviewRequest, session_result: SessionAttemptResult):  # type: ignore[no-untyped-def]
+def _review_outcome(
+    request: PlanReviewRequest,
+    session_result: SessionAttemptResult,
+) -> SessionOutcome | PlanReviewResult:
     terminal = session_result.terminal_session_result
     if terminal is None or len(terminal.terminal_outcomes) != 1:
         return _blocked("plan_review_outcome_unavailable", "initial review requires one typed terminal outcome")
     outcome = terminal.terminal_outcomes[0]
+    outcome_failure = _review_outcome_shape_failure(request, session_result, outcome)
+    if outcome_failure is not None:
+        return outcome_failure
+    prior_ids = tuple(finding.id for finding in request.prior_findings)
+    if not request.initial_review and outcome.finding_ids[: len(prior_ids)] != prior_ids:
+        return _blocked(
+            "finding_traceability_mismatch",
+            "plan re-review must preserve every prior finding ID in order before new findings",
+        )
+    return outcome
+
+
+def _review_outcome_shape_failure(
+    request: PlanReviewRequest,
+    session_result: SessionAttemptResult,
+    outcome: SessionOutcome,
+) -> PlanReviewResult | None:
     if outcome.session_role is not SessionRole.PLAN_REVIEWER:
         return _blocked("unexpected_session_role", "initial review must use a plan_reviewer session")
     if outcome.artifact_paths not in {(), (request.plan_path,)}:
@@ -216,7 +243,15 @@ def _review_outcome(request: PlanReviewRequest, session_result: SessionAttemptRe
         return _blocked("reviewer_write_observed", "read-only plan reviewer changed repository state")
     if outcome.review_readiness is None:
         return _blocked("review_readiness_missing", "plan reviewer must report validated readiness")
-    return outcome
+    return None
+
+
+def _validated_readiness(outcome: SessionOutcome) -> PlanReviewReadiness:
+    readiness = outcome.review_readiness
+    if readiness is None:
+        message = "validated reviewer outcome must include review readiness"
+        raise ValueError(message)
+    return readiness
 
 
 def _reviewer_changed_repository(session_result: SessionAttemptResult) -> bool:

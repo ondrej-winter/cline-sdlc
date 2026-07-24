@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 
 import pytest
@@ -14,6 +15,7 @@ from cline_sdlc.features.artifact_lifecycle.domain.digests import (
     compute_plan_material_digest,
     compute_specification_digest,
 )
+from cline_sdlc.features.artifact_lifecycle.domain.plan_state import PlanPhase, ReviewReadiness
 
 SPECIFICATION_PATH = "docs/specs/example-spec.md"
 PLAN_PATH = "docs/plans/example-plan.md"
@@ -80,6 +82,50 @@ def test_rejects_stale_material_digest() -> None:
 
     assert not result.valid
     assert result.blockers[0].evidence == "stored material digest does not match authored plan material"
+
+
+def test_validates_material_revision_against_previous_reviewed_state() -> None:
+    initial = _request()
+    previous_state = replace(
+        initial.plan_state,
+        phase=PlanPhase.REVIEWING,
+        review_readiness=ReviewReadiness.CHANGES_REQUIRED,
+    )
+    revised_content = (
+        _plan_content(PLACEHOLDER_DIGEST)
+        .replace(
+            b"Ordered slice 1.",
+            b"Ordered slice 1 with the broad quality gate.",
+        )
+        .replace(b"plan_revision: 1", b"plan_revision: 2")
+        .replace(
+            b"phase: drafting\n",
+            b"phase: reviewing\n",
+        )
+        .replace(b"review_readiness: not_reviewed", b"review_readiness: changes_required")
+    )
+    revised_digest = compute_plan_material_digest(
+        PlanMaterialDigestInput(
+            plan_markdown=revised_content,
+            plan_revision=2,
+            specification=SPECIFICATION_PATH,
+            specification_digest=compute_specification_digest(SPECIFICATION_CONTENT),
+        )
+    )
+    revised_content = revised_content.replace(PLACEHOLDER_DIGEST.encode(), revised_digest.encode())
+
+    result = ValidateAuthoredPlan().execute(
+        AuthoredPlanValidationRequest(
+            specification_path=SPECIFICATION_PATH,
+            specification_content=SPECIFICATION_CONTENT,
+            plan_path=PLAN_PATH,
+            plan_content=revised_content,
+            plan_state=parse_plan_state_from_markdown(revised_content.decode()),
+            previous_plan_state=previous_state,
+        )
+    )
+
+    assert result.valid
 
 
 def _request() -> AuthoredPlanValidationRequest:

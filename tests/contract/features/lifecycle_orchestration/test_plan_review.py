@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -110,7 +110,7 @@ def test_initial_ready_review_uses_fresh_read_only_context_and_needs_no_revision
     attempts = RecordingAttempts(_completed_attempt(), [])
     progress = RecordingProgressWriter([])
 
-    result = _reviewer(attempts=attempts, progress=progress).execute(_request())
+    result = _reviewer(attempts=attempts, progress=progress).execute(plan_review_request())
 
     assert result.ready
     assert result.readiness is PlanReviewReadiness.READY
@@ -131,7 +131,7 @@ def test_initial_major_finding_requires_revision_and_preserves_complete_record()
     result = _reviewer(
         attempts=RecordingAttempts(_completed_attempt(findings=(finding,)), []),
         progress=progress,
-    ).execute(_request())
+    ).execute(plan_review_request())
 
     assert result.status is PlanReviewStatus.CHANGES_REQUIRED
     assert result.findings == (finding,)
@@ -144,7 +144,7 @@ def test_observed_reviewer_write_blocks_progress_update() -> None:
     result = _reviewer(
         attempts=RecordingAttempts(_completed_attempt(dirty_after=("docs/plans/example-plan.md",)), []),
         progress=progress,
-    ).execute(_request())
+    ).execute(plan_review_request())
 
     assert result.status is PlanReviewStatus.BLOCKED
     assert result.blocker is not None
@@ -157,12 +157,75 @@ def test_wrong_session_role_blocks_progress_update() -> None:
     result = _reviewer(
         attempts=RecordingAttempts(_completed_attempt(role=SessionRole.PLAN_AUTHOR), []),
         progress=progress,
-    ).execute(_request())
+    ).execute(plan_review_request())
 
     assert result.status is PlanReviewStatus.BLOCKED
     assert result.blocker is not None
     assert result.blocker.code == "unexpected_session_role"
     assert progress.requests == []
+
+
+def test_re_review_blocks_when_prior_finding_is_omitted() -> None:
+    progress = RecordingProgressWriter([])
+    request = replace(
+        plan_review_request(),
+        previous_plan_state=_reviewing_state(),
+        prior_findings=(_finding(),),
+        initial_review=False,
+    )
+
+    result = _reviewer(
+        attempts=RecordingAttempts(_completed_attempt(), []),
+        progress=progress,
+    ).execute(request)
+
+    assert result.status is PlanReviewStatus.BLOCKED
+    assert result.blocker is not None
+    assert result.blocker.code == "finding_traceability_mismatch"
+    assert progress.requests == []
+
+
+def test_re_review_blocks_when_prior_findings_are_reordered() -> None:
+    first = _finding()
+    second = _finding(finding_id="PLAN-002")
+    progress = RecordingProgressWriter([])
+    request = replace(
+        plan_review_request(),
+        previous_plan_state=_reviewing_state(),
+        prior_findings=(first, second),
+        initial_review=False,
+    )
+
+    result = _reviewer(
+        attempts=RecordingAttempts(_completed_attempt(findings=(second, first)), []),
+        progress=progress,
+    ).execute(request)
+
+    assert result.status is PlanReviewStatus.BLOCKED
+    assert result.blocker is not None
+    assert result.blocker.code == "finding_traceability_mismatch"
+    assert progress.requests == []
+
+
+def test_re_review_allows_new_findings_after_preserved_prior_findings() -> None:
+    first = _finding()
+    second = _finding(finding_id="PLAN-002")
+    progress = RecordingProgressWriter([])
+    request = replace(
+        plan_review_request(),
+        previous_plan_state=_reviewing_state(),
+        prior_findings=(first,),
+        initial_review=False,
+    )
+
+    result = _reviewer(
+        attempts=RecordingAttempts(_completed_attempt(findings=(first, second)), []),
+        progress=progress,
+    ).execute(request)
+
+    assert result.status is PlanReviewStatus.CHANGES_REQUIRED
+    assert result.findings == (first, second)
+    assert progress.requests[0].initial_review is False
 
 
 def test_unchanged_dirty_paths_do_not_hide_reviewer_content_write() -> None:
@@ -187,7 +250,7 @@ def test_unchanged_dirty_paths_do_not_hide_reviewer_content_write() -> None:
         clock=FixedClock(),
     )
 
-    result = reviewer.execute(_request())
+    result = reviewer.execute(plan_review_request())
 
     assert result.status is PlanReviewStatus.BLOCKED
     assert result.blocker is not None
@@ -209,7 +272,7 @@ def _reviewer(
     )
 
 
-def _request() -> PlanReviewRequest:
+def plan_review_request() -> PlanReviewRequest:
     invocation = InvocationRequest(
         source=InvocationSource.from_spec_file(Path(_spec_path())),
         timeout_seconds=30,
@@ -294,15 +357,30 @@ def _content() -> AuthoredPlanValidationRequest:
     )
 
 
-def _finding() -> Finding:
+def _finding(*, finding_id: str = "PLAN-001") -> Finding:
     return Finding(
-        id="PLAN-001",
+        id=finding_id,
         severity=FindingSeverity.MAJOR,
         status=FindingStatus.OPEN,
         summary="Validation scope is incomplete.",
         evidence="The plan omits the broad quality gate.",
         required_correction="Add the broad quality gate.",
         affected_sections=("Verification",),
+    )
+
+
+def _reviewing_state() -> PlanState:
+    return PlanState(
+        work_id="example-work",
+        phase=PlanPhase.REVIEWING,
+        specification=_spec_path(),
+        specification_digest=SPECIFICATION_DIGEST,
+        plan_revision=1,
+        review_iteration=1,
+        review_readiness=ReviewReadiness.CHANGES_REQUIRED,
+        material_digest=MATERIAL_DIGEST,
+        created_at=NOW,
+        updated_at=NOW,
     )
 
 

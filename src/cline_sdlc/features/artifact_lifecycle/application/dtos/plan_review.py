@@ -20,6 +20,7 @@ class PlanReviewProgressRequest:
     findings: tuple[Finding, ...]
     readiness: PlanReviewReadiness
     updated_at: datetime
+    initial_review: bool = True
 
 
 @dataclass(frozen=True)

@@ -9,6 +9,7 @@ from cline_sdlc.features.artifact_lifecycle.application.dtos.authored_plan impor
     AuthoredPlanValidationRequest,
     AuthoredPlanValidationResult,
 )
+from cline_sdlc.features.artifact_lifecycle.application.use_cases.apply_plan_revision import validate_plan_revision
 from cline_sdlc.features.artifact_lifecycle.domain.digests import (
     PlanMaterialDigestInput,
     compute_plan_material_digest,
@@ -38,7 +39,7 @@ class ValidateAuthoredPlan:
             markdown = request.plan_content.decode("utf-8", errors="strict")
             parse_plan_regions(markdown.replace("\r\n", "\n").replace("\r", "\n"))
             state = request.plan_state
-            _validate_initial_state(state.phase, state.review_readiness)
+            _validate_state(request)
             _validate_required_sections(markdown)
             _validate_specification_identity(request.specification_path, state.specification)
             specification_digest = compute_specification_digest(request.specification_content)
@@ -85,6 +86,13 @@ def _validate_initial_state(phase: PlanPhase, readiness: ReviewReadiness) -> Non
     if phase is not PlanPhase.DRAFTING or readiness is not ReviewReadiness.NOT_REVIEWED:
         message = "initial authored plan must be drafting and not_reviewed"
         raise ValueError(message)
+
+
+def _validate_state(request: AuthoredPlanValidationRequest) -> None:
+    if request.previous_plan_state is None:
+        _validate_initial_state(request.plan_state.phase, request.plan_state.review_readiness)
+        return
+    validate_plan_revision(request.previous_plan_state, request.plan_state)
 
 
 def _validate_required_sections(markdown: str) -> None:

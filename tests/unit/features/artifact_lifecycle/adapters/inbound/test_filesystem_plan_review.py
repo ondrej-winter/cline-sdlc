@@ -88,6 +88,45 @@ def test_records_complete_findings_as_changes_required(tmp_path: Path) -> None:
     assert 'required_correction: "Add the broad quality gate."' in markdown
 
 
+def test_final_subsequent_review_marks_plan_blocked(tmp_path: Path) -> None:
+    plan_path = _write_initial_plan(tmp_path)
+    assert (
+        _writer(tmp_path)
+        .execute(
+            PlanReviewProgressRequest(
+                plan_path=PLAN_PATH,
+                findings=(_finding(),),
+                readiness=PlanReviewReadiness.CHANGES_REQUIRED,
+                updated_at=datetime(2026, 7, 24, 22, tzinfo=UTC),
+            )
+        )
+        .updated
+    )
+    reviewed = plan_path.read_text(encoding="utf-8")
+    revised = reviewed.replace("plan_revision: 1", "plan_revision: 2").replace(
+        "review_iteration: 1",
+        "review_iteration: 2",
+    )
+    previous_digest = parse_plan_state_from_markdown(revised).material_digest
+    revised_digest = _revised_digest(revised)
+    plan_path.write_text(revised.replace(previous_digest, revised_digest), encoding="utf-8")
+
+    result = _writer(tmp_path).execute(
+        PlanReviewProgressRequest(
+            plan_path=PLAN_PATH,
+            findings=(_finding(),),
+            readiness=PlanReviewReadiness.CHANGES_REQUIRED,
+            updated_at=datetime(2026, 7, 24, 23, tzinfo=UTC),
+            initial_review=False,
+        )
+    )
+
+    assert result.updated
+    assert result.plan_state is not None
+    assert result.plan_state.phase is PlanPhase.BLOCKED
+    assert result.plan_state.review_readiness is ReviewReadiness.BLOCKED
+
+
 def test_rejects_findings_after_state_without_changing_plan(tmp_path: Path) -> None:
     plan_path = _write_initial_plan(tmp_path)
     original = plan_path.read_text(encoding="utf-8")
@@ -129,6 +168,30 @@ def _ready_request() -> PlanReviewProgressRequest:
         findings=(),
         readiness=PlanReviewReadiness.READY,
         updated_at=datetime(2026, 7, 24, 22, tzinfo=UTC),
+    )
+
+
+def _finding() -> Finding:
+    return Finding(
+        id="PLAN-001",
+        severity=FindingSeverity.MAJOR,
+        status=FindingStatus.OPEN,
+        summary="Validation scope is incomplete.",
+        evidence="The plan omits the broad quality gate.",
+        required_correction="Add the broad quality gate.",
+        affected_sections=("Verification",),
+    )
+
+
+def _revised_digest(markdown: str) -> str:
+    state = parse_plan_state_from_markdown(markdown)
+    return compute_plan_material_digest(
+        PlanMaterialDigestInput(
+            plan_markdown=markdown.encode(),
+            plan_revision=state.plan_revision,
+            specification=state.specification,
+            specification_digest=state.specification_digest,
+        )
     )
 
 

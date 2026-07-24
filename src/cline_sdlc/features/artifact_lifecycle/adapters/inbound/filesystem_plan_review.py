@@ -20,6 +20,9 @@ from cline_sdlc.features.artifact_lifecycle.application.dtos.plan_review import 
 from cline_sdlc.features.artifact_lifecycle.application.use_cases.apply_initial_plan_review import (
     apply_initial_plan_review,
 )
+from cline_sdlc.features.artifact_lifecycle.application.use_cases.apply_plan_revision import (
+    apply_subsequent_plan_review,
+)
 from cline_sdlc.features.artifact_lifecycle.domain.digests import PlanMaterialDigestInput, compute_plan_material_digest
 from cline_sdlc.features.artifact_lifecycle.domain.findings import Finding, FindingSet
 from cline_sdlc.features.artifact_lifecycle.domain.regions import (
@@ -48,7 +51,8 @@ class FilesystemPlanReviewProgressWriter:
             original = plan_path.read_text(encoding="utf-8", errors="strict")
             original_state = parse_plan_state_from_markdown(original)
             original_material = parse_plan_regions(_normalize(original)).material_content
-            updated_state = apply_initial_plan_review(
+            apply_review = apply_initial_plan_review if request.initial_review else apply_subsequent_plan_review
+            updated_state = apply_review(
                 original_state,
                 findings=FindingSet(request.findings),
                 readiness=request.readiness,

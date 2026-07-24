@@ -18,6 +18,7 @@ class AuthoredPlanValidationRequest:
     plan_path: str
     plan_content: bytes
     plan_state: PlanState
+    previous_plan_state: PlanState | None = None
 
 
 @dataclass(frozen=True)
