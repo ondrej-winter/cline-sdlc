@@ -1382,7 +1382,7 @@ specification review before implementation proceeds.
 - [ ] Task 2.1: Implement the Cline subprocess adapter.
 - [ ] Task 2.2: Coordinate bounded session attempts.
 - [ ] Task 2.3: Add capability and skill preflight.
-- [ ] Task 2.4: Implement the balanced operation policy.
+- [x] Task 2.4: Implement the balanced operation policy.
 - [ ] Task 2.5: Implement Git inspection and branch safety.
 - [ ] Task 2.6: Add ignored run audit and redaction.
 - [ ] Task 2.7: Discover, classify, and execute validation commands.
@@ -1641,6 +1641,21 @@ specification review before implementation proceeds.
   later slices.
 - The Task 1.5 validation gate passed: focused artifact-location tests completed 16 tests; Ruff
   fixes/checks and formatting passed; mypy passed; and the full 119-test suite passed.
+- Task 2.4 completed on 2026-07-24 as the supervised-runner balanced operation-policy slice. It
+  added the `operation_policy` feature slice with a pure domain command-operation model,
+  allow/approval-required decisions, safe proposed-operation summaries, and an application use
+  case for classifying structured executable-plus-argument operations before execution.
+- The Task 2.4 classifier allows known non-interactive local Git inspection with `--no-pager`,
+  configured local validation through `uv run ruff`, `uv run mypy`, and `uv run pytest`, and the
+  local `uv build` packaging check. It fails closed for network-capable commands, dependency
+  operations, secret or credential references, destructive filesystem commands, database commands,
+  privilege or system changes, shell wrappers, interpreters, mutating or dangerous Git operations,
+  external-effect commands, and unclassified executables.
+- Task 2.4 does not execute commands, discover repository validation commands, inspect Git state,
+  enforce Cline hook mediation, or coordinate preflight. Those remain later adapter/orchestration
+  slices.
+- The Task 2.4 validation gate passed: focused operation-policy tests completed 25 tests; Ruff
+  fixes/checks and formatting passed; mypy passed; and the full 144-test suite passed.
 
 ### Plan-review findings
 
@@ -1714,6 +1729,7 @@ completed_slices:
   - task-1.3
   - task-1.4
   - task-1.5
+  - task-2.4
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -2144,9 +2160,39 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-24T17:14:29Z
+  - slice_id: task-2.4
+    command: uv run pytest tests/unit/features/operation_policy/
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T17:38:09Z
+  - slice_id: task-2.4
+    command: uv run ruff check . --fix
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T17:38:09Z
+  - slice_id: task-2.4
+    command: uv run ruff format .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T17:38:09Z
+  - slice_id: task-2.4
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T17:38:09Z
+  - slice_id: task-2.4
+    command: uv run mypy .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T17:38:09Z
+  - slice_id: task-2.4
+    command: uv run pytest
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T17:38:09Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-24T17:14:29Z
+updated_at: 2026-07-24T17:38:09Z
 completed_at: null
 ```
 
