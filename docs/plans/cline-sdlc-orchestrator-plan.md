@@ -1383,7 +1383,7 @@ specification review before implementation proceeds.
 - [ ] Task 2.2: Coordinate bounded session attempts.
 - [x] Task 2.3: Add capability and skill preflight.
 - [x] Task 2.4: Implement the balanced operation policy.
-- [ ] Task 2.5: Implement Git inspection and branch safety.
+- [x] Task 2.5: Implement Git inspection and branch safety.
 - [ ] Task 2.6: Add ignored run audit and redaction.
 - [ ] Task 2.7: Discover, classify, and execute validation commands.
 - [ ] Task 2.8: Coordinate ordered no-write preflight.
@@ -1693,6 +1693,18 @@ specification review before implementation proceeds.
 - The Task 2.5a validation gate passed: focused repository-coordination unit and integration
   tests completed 5 tests; Ruff fixes/checks and formatting passed; mypy passed; and the full
   164-test suite passed.
+- Task 2.5b completed on 2026-07-24 as the repository branch and path-safety slice. It extended
+  the application-owned repository inspection request/snapshot DTOs with protected branch
+  configuration, managed-path checks, unresolved operation observations, and nested-repository
+  observations while preserving safe defaults for existing callers.
+- The Task 2.5b Git CLI adapter now fails closed for detached HEAD, protected default branches
+  (`main`, `master`, `trunk`, `production`, `release`, and `release/*`), unresolved merge/rebase/
+  cherry-pick/revert/bisect state markers, nested repository changes, managed path traversal, and
+  managed path symlink escapes. It still performs no repository writes, reconciliation, staging, or
+  commits; those remain later repository-coordination and lifecycle-orchestration slices.
+- The Task 2.5b validation gate passed: focused repository-coordination unit and integration tests
+  completed 12 tests; Ruff formatting and checks passed; mypy passed; and the full 171-test suite
+  passed.
 - Checkpoint B was accepted on 2026-07-24 as a supervised-runner MVP checkpoint over the
   completed Phase 1 artifact and public-contract slices. Current focused checks prove CLI
   contract behavior without launching real Cline, fail-closed session outcome and finding
@@ -1783,6 +1795,7 @@ completed_slices:
   - task-2.1
   - task-2.3
   - task-2.5a
+  - task-2.5b
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -2386,9 +2399,35 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-24T19:42:00Z
+  - slice_id: task-2.5b
+    command: >-
+      uv run pytest tests/unit/features/repository_coordination/ tests/integration/features/repository_coordination/
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T19:47:42Z
+  - slice_id: task-2.5b
+    command: uv run ruff format .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T19:48:18Z
+  - slice_id: task-2.5b
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T19:48:18Z
+  - slice_id: task-2.5b
+    command: uv run mypy .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T19:48:18Z
+  - slice_id: task-2.5b
+    command: uv run pytest
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T19:48:18Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-24T19:42:00Z
+updated_at: 2026-07-24T19:48:18Z
 completed_at: null
 ```
 

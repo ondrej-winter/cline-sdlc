@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import subprocess
 from dataclasses import dataclass
+from fnmatch import fnmatchcase
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from cline_sdlc.features.repository_coordination.application.dtos.repository import (
     RepositoryFileObservation,
@@ -15,9 +17,20 @@ from cline_sdlc.features.repository_coordination.application.dtos.repository imp
     RepositorySnapshot,
 )
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
 GIT_COMMAND = "git"
 GIT_STATUS_PATH_START = 3
 GIT_STATUS_MINIMUM_LINE_LENGTH = 4
+OPERATION_GIT_PATHS = {
+    "merge": "MERGE_HEAD",
+    "rebase": "rebase-merge",
+    "rebase_apply": "rebase-apply",
+    "cherry_pick": "CHERRY_PICK_HEAD",
+    "revert": "REVERT_HEAD",
+    "bisect": "BISECT_LOG",
+}
 
 
 class GitCliRepositoryInspector:
@@ -44,6 +57,45 @@ class GitCliRepositoryInspector:
             return _failed("git_status_unavailable", "repository status is unavailable", status_result.stderr)
 
         blockers: list[RepositoryInspectionBlocker] = []
+        branch = branch_result.stdout.strip() or None
+        if branch is None:
+            blockers.append(
+                RepositoryInspectionBlocker(
+                    code="detached_head",
+                    summary="repository must be on a named non-detached branch",
+                )
+            )
+        elif _matches_protected_branch(branch, request.protected_branch_patterns):
+            blockers.append(
+                RepositoryInspectionBlocker(
+                    code="protected_branch",
+                    summary="repository branch is protected for automated lifecycle writes",
+                    evidence=branch,
+                )
+            )
+
+        dirty_paths = _dirty_paths(status_result.stdout)
+        operation_states = _operation_states(repository_root)
+        blockers.extend(
+            RepositoryInspectionBlocker(
+                code="git_operation_in_progress",
+                summary="repository has an unresolved Git operation in progress",
+                evidence=operation_state,
+            )
+            for operation_state in operation_states
+        )
+
+        nested_repository_paths = _nested_repository_paths(repository_root, dirty_paths)
+        blockers.extend(
+            RepositoryInspectionBlocker(
+                code="nested_repository_change",
+                summary="nested repository or submodule changes are not supported by this preflight slice",
+                path=nested_path,
+            )
+            for nested_path in nested_repository_paths
+        )
+
+        blockers.extend(_managed_path_blockers(repository_root, request.managed_paths))
         input_observations = tuple(_inspect_input(repository_root, path, blockers) for path in request.input_paths)
         if blockers:
             return RepositoryInspectionResult(status=RepositoryInspectionStatus.FAILED, blockers=tuple(blockers))
@@ -51,9 +103,11 @@ class GitCliRepositoryInspector:
         snapshot = RepositorySnapshot(
             repository_root=repository_root.as_posix(),
             head_commit=head_result.stdout.strip(),
-            branch=branch_result.stdout.strip() or None,
-            dirty_paths=_dirty_paths(status_result.stdout),
+            branch=branch,
+            dirty_paths=dirty_paths,
             input_files=input_observations,
+            operation_states=operation_states,
+            nested_repository_paths=nested_repository_paths,
         )
         return RepositoryInspectionResult(status=RepositoryInspectionStatus.READY, snapshot=snapshot)
 
@@ -120,6 +174,83 @@ def _relative_path(repository_root: Path, path: Path) -> str | None:
         return path.relative_to(repository_root).as_posix()
     except ValueError:
         return None
+
+
+def _matches_protected_branch(branch: str, patterns: Iterable[str]) -> bool:
+    return any(fnmatchcase(branch, pattern) for pattern in patterns)
+
+
+def _operation_states(repository_root: Path) -> tuple[str, ...]:
+    states: list[str] = []
+    for state, git_path in OPERATION_GIT_PATHS.items():
+        path_result = _git(repository_root, "rev-parse", "--git-path", git_path)
+        if path_result.succeeded and (repository_root / path_result.stdout.strip()).exists():
+            states.append(state)
+    return tuple(states)
+
+
+def _nested_repository_paths(repository_root: Path, dirty_paths: Iterable[str]) -> tuple[str, ...]:
+    nested_paths: list[str] = []
+    for dirty_path in dirty_paths:
+        candidate = repository_root / dirty_path
+        if (candidate / ".git").exists():
+            nested_paths.append(dirty_path.rstrip("/"))
+    return tuple(nested_paths)
+
+
+def _managed_path_blockers(
+    repository_root: Path,
+    managed_paths: Iterable[Path],
+) -> tuple[RepositoryInspectionBlocker, ...]:
+    blockers: list[RepositoryInspectionBlocker] = []
+    for path in managed_paths:
+        candidate = path if path.is_absolute() else repository_root / path
+        if ".." in path.parts:
+            blockers.append(
+                RepositoryInspectionBlocker(
+                    code="managed_path_traversal",
+                    summary="managed paths must not contain traversal segments",
+                    path=path.as_posix(),
+                )
+            )
+            continue
+        symlink_path = _first_symlink_path(repository_root, candidate)
+        if symlink_path is not None:
+            blockers.append(
+                RepositoryInspectionBlocker(
+                    code="managed_path_symlink_escape",
+                    summary="managed path must not traverse symlinks before writing",
+                    path=path.as_posix(),
+                    evidence=symlink_path,
+                )
+            )
+            continue
+        relative_path = _relative_path(repository_root, candidate.resolve(strict=False))
+        if relative_path is None:
+            blockers.append(
+                RepositoryInspectionBlocker(
+                    code="managed_path_outside_repository",
+                    summary="managed path must stay inside the inspected repository",
+                    path=path.as_posix(),
+                )
+            )
+            continue
+    return tuple(blockers)
+
+
+def _first_symlink_path(repository_root: Path, candidate: Path) -> str | None:
+    current = repository_root
+    try:
+        relative_parts = candidate.relative_to(repository_root).parts
+    except ValueError:
+        return None
+    for part in relative_parts:
+        current /= part
+        if current.is_symlink():
+            return current.relative_to(repository_root).as_posix()
+        if not current.exists():
+            return None
+    return None
 
 
 def _dirty_paths(stdout: str) -> tuple[str, ...]:

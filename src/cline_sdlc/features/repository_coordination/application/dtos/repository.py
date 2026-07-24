@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path  # noqa: TC003 - Runtime dataclass annotations intentionally expose Path.
 
+DEFAULT_PROTECTED_BRANCH_PATTERNS = ("main", "master", "trunk", "production", "release", "release/*")
+
 
 class RepositoryInspectionStatus(StrEnum):
     """Terminal status for repository inspection."""
@@ -44,6 +46,8 @@ class RepositorySnapshot:
     branch: str | None
     dirty_paths: tuple[str, ...] = ()
     input_files: tuple[RepositoryFileObservation, ...] = ()
+    operation_states: tuple[str, ...] = ()
+    nested_repository_paths: tuple[str, ...] = ()
 
     @property
     def is_clean(self) -> bool:
@@ -57,6 +61,8 @@ class RepositoryInspectionRequest:
 
     working_directory: Path
     input_paths: tuple[Path, ...] = ()
+    managed_paths: tuple[Path, ...] = ()
+    protected_branch_patterns: tuple[str, ...] = DEFAULT_PROTECTED_BRANCH_PATTERNS
 
 
 @dataclass(frozen=True)
