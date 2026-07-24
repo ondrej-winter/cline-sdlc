@@ -1729,6 +1729,17 @@ specification review before implementation proceeds.
 - The Task 2.6 focused validation passed: run-audit unit and integration tests completed 7 tests;
   Ruff formatting and checks passed; mypy passed; the full 185-test suite passed; and
   `git --no-pager diff --check` completed successfully.
+- Task 2.7a completed on 2026-07-24 as the validation-command discovery slice. It added
+  lifecycle-orchestration application DTOs for structured validation commands, scopes, sources,
+  truthful pre-execution evidence, discovery requests/results, and blockers plus the pure
+  `DiscoverValidationCommands` use case.
+- The Task 2.7a use case preserves explicit focused commands, discovers deterministic focused
+  pytest candidates from changed Python source/test paths, and publishes the repository's default
+  uv-backed broad quality gate commands without executing subprocesses or repository
+  configuration. It never marks discovered commands as passed; execution and exit-code evidence
+  remain Task 2.7b.
+- The Task 2.7a validation gate passed: focused validation-discovery tests completed 7 tests;
+  Ruff formatting and checks passed; mypy passed; and the full 192-test suite passed.
 - Checkpoint B was accepted on 2026-07-24 as a supervised-runner MVP checkpoint over the
   completed Phase 1 artifact and public-contract slices. Current focused checks prove CLI
   contract behavior without launching real Cline, fail-closed session outcome and finding
@@ -1822,6 +1833,7 @@ completed_slices:
   - task-2.5b
   - task-2.2
   - task-2.6
+  - task-2.7a
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -2521,9 +2533,34 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-24T20:03:40Z
+  - slice_id: task-2.7a
+    command: uv run pytest tests/unit/features/lifecycle_orchestration/application/test_validation_discovery.py
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:09:53Z
+  - slice_id: task-2.7a
+    command: uv run ruff format .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:10:10Z
+  - slice_id: task-2.7a
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:10:10Z
+  - slice_id: task-2.7a
+    command: uv run mypy .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:10:10Z
+  - slice_id: task-2.7a
+    command: uv run pytest
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:10:10Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-24T20:03:40Z
+updated_at: 2026-07-24T20:10:10Z
 completed_at: null
 ```
 
