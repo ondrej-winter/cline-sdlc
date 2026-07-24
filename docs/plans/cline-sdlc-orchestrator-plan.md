@@ -1393,7 +1393,7 @@ specification review before implementation proceeds.
 ### Phase 3
 
 - [x] Task 3.1: Implement rough idea to accepted idea brief.
-- [ ] Task 3.2: Implement idea artifact to accepted specification.
+- [x] Task 3.2: Implement idea artifact to accepted specification.
 - [ ] Task 3.3: Implement initial plan authoring.
 - [ ] Task 3.4: Implement initial independent plan review.
 - [ ] Task 3.5: Add bounded revision and blocked-plan behavior.
@@ -1825,6 +1825,27 @@ specification review before implementation proceeds.
 - The Task 3.1 broad validation gate passed after the progress update: Ruff formatting and
   checks, mypy, the full 215-test suite, and `git --no-pager diff --check` completed
   successfully.
+- Task 3.2 completed on 2026-07-24 as the idea-artifact to accepted-specification supervised
+  stage slice. It added application-owned specification-creation DTOs and the
+  `CreateSpecification` use case under `lifecycle_orchestration`, coordinating ordered preflight
+  and bounded session attempts through published application boundaries rather than direct
+  subprocess, terminal, Git, or filesystem I/O.
+- The Task 3.2 use case builds an explicit argument-array Cline request that asks for the
+  `spec-driven-development` skill, reads the accepted idea-brief input path, stops at the accepted
+  specification boundary, and verifies completion only when typed session evidence reports a
+  `spec_author` outcome plus exactly one selected changed `ArtifactKind.SPECIFICATION` path.
+  Preflight blockers, declined/blocked sessions, wrong roles, plan artifacts, missing artifacts,
+  and multiple artifacts do not complete the stage.
+- Task 3.2 added focused lifecycle orchestration contract tests for successful specification
+  creation, request source validation, preflight failure ordering, blocked user acceptance, wrong
+  session roles, mismatched artifacts, and multiple-artifact rejection. It does not yet wire the
+  stage into the bootstrap CLI or implement plan authoring; those remain later Phase 3 work.
+- The Task 3.2 focused validation passed: targeted Ruff fixes/checks and formatting for the new
+  DTO/use-case/test files passed, and
+  `uv run pytest tests/contract/features/lifecycle_orchestration/test_spec_stage.py` completed 7
+  tests successfully.
+- The Task 3.2 broad validation gate passed before this progress update: Ruff formatting and
+  checks, mypy, and the full 222-test suite completed successfully.
 
 ### Plan-review findings
 
@@ -1912,6 +1933,7 @@ completed_slices:
   - task-2.9
   - checkpoint-c-safe-execution-boundaries
   - task-3.1
+  - task-3.2
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -2805,9 +2827,46 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-24T20:53:50Z
+  - slice_id: task-3.2
+    command: >-
+      uv run ruff check src/cline_sdlc/features/lifecycle_orchestration/application/dtos/specification_stage.py src/cline_sdlc/features/lifecycle_orchestration/application/use_cases/create_specification.py tests/contract/features/lifecycle_orchestration/test_spec_stage.py --fix
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:58:28Z
+  - slice_id: task-3.2
+    command: >-
+      uv run ruff format src/cline_sdlc/features/lifecycle_orchestration/application/dtos/specification_stage.py src/cline_sdlc/features/lifecycle_orchestration/application/use_cases/create_specification.py tests/contract/features/lifecycle_orchestration/test_spec_stage.py
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:58:28Z
+  - slice_id: task-3.2
+    command: uv run pytest tests/contract/features/lifecycle_orchestration/test_spec_stage.py
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:58:28Z
+  - slice_id: task-3.2
+    command: uv run ruff format .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:59:16Z
+  - slice_id: task-3.2
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:59:16Z
+  - slice_id: task-3.2
+    command: uv run mypy .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:59:16Z
+  - slice_id: task-3.2
+    command: uv run pytest
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:59:16Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-24T20:53:50Z
+updated_at: 2026-07-24T20:59:16Z
 completed_at: null
 ```
 
