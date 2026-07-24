@@ -1366,7 +1366,7 @@ specification review before implementation proceeds.
 - [x] Task 0.1: Restore a trustworthy project baseline.
 - [x] Task 0.2: Add a deterministic fake-Cline contract harness.
 - [x] Task 0.3: Prove the real Cline CLI contracts.
-- [ ] Checkpoint A: Architecture viability accepted.
+- [x] Checkpoint A: Architecture viability superseded by supervised-runner MVP decision.
 
 ### Phase 1
 
@@ -1520,11 +1520,27 @@ specification review before implementation proceeds.
   emitted `0` parseable terminal outcomes even after wrapped-event extraction support, and
   pre-execution permission mediation plus interruption recovery observability remained
   unproven. No new parser refinement was justified by this output.
+- The next slice selected on 2026-07-24 is the Checkpoint A resolution/documentation slice,
+  not Task 1.1 implementation. This slice records that the Phase 0 capability evidence has
+  rejected the current CLI-wrapper readiness gate and that all Tasks 1.1 and later remain
+  unauthorized until a product/architecture decision either proves the missing contracts,
+  revises the CLI-wrapper proof path, or redirects the plan toward an SDK-based design.
+- Product direction was clarified on 2026-07-24: the intended MVP is a supervised Cline SDLC
+  workflow runner inspired by `../ritebook-shelf/tools/cline-skill-workflow`, not a fully
+  unattended safe orchestrator. The specification now records this pivot and defers
+  hook-based permission mediation, exact Cline terminal outcome enforcement, automatic Git
+  reconciliation/commits, and automatic partial-write recovery beyond the MVP.
+- Checkpoint A is therefore resolved by scope change rather than by proving the original
+  unattended CLI-wrapper contracts. The next implementation slice is Task 1.1a scoped to the
+  supervised runner: CLI input parsing, mutually exclusive stage selection, dry-run-friendly
+  command planning, and stage mapping. Later plan material should be revised to remove or
+  defer remaining unattended-orchestrator tasks before those areas are implemented.
 - Independent review iteration 1 found sequencing, boundary, sizing, and traceability gaps.
   Plan revision 2 resolves those findings through earlier validation support, ordered
   preflight, attached-interactive execution, explicit invocation approval, public contract
   ownership, smaller Phase 4 transactions, and acceptance traceability.
-- No implementation task is authorized beyond Phase 0 before Checkpoint A passes.
+- No unattended-safe implementation task is authorized by the original Checkpoint A evidence;
+  only supervised-runner MVP slices are authorized until the material plan is revised.
 
 ### Plan-review findings
 
@@ -1585,11 +1601,12 @@ review_iteration: 1
 review_readiness: changes_required
 digest_schema_version: 1
 material_digest: sha256:4f3efa4a1dbf4705cc33e6260196b4dbf36495f9863fcf1c718998a6011f18c3
-current_task: null
-current_slice: null
+current_task: task-1.1a
+current_slice: supervised-runner-cli-input-and-stage-mapping
 slice_start_commit: null
 partial_slice_paths: []
-completed_slices: []
+completed_slices:
+  - checkpoint-a-supervised-runner-scope-pivot
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -1785,14 +1802,14 @@ validation_evidence:
     result: failed
     exit_code: 1
     recorded_at: 2026-07-24T06:14:50Z
-blocker:
-  code: cline_cli_critical_contracts_rejected
-  summary: The supervised real-Cline proof command ran against Cline 3.0.46 in disposable repositories with isolated data and hooks and exited 1; required skills were reported missing, the session emitted 0 parseable terminal outcomes, and pre-execution permission mediation plus interruption recovery observability remained unproven. A follow-up adapter refinement can detect schema-versioned outcomes in common wrapped JSON event fields, but the 2026-07-24 real-Cline rerun still emitted 0 parseable terminal outcomes, so Checkpoint A cannot authorize Tasks 1.1 and later.
-  details_path: docs/research/cline-cli-capability-spike.md
-  proposed_operation: null
-  recorded_at: 2026-07-24T06:14:50Z
+  - slice_id: checkpoint-a-supervised-runner-scope-pivot
+    command: git --no-pager diff --check -- docs/specs/cline-sdlc-orchestrator-spec.md docs/plans/cline-sdlc-orchestrator-plan.md
+    result: not_run
+    exit_code: null
+    recorded_at: 2026-07-24T06:40:00Z
+blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-24T06:14:50Z
+updated_at: 2026-07-24T06:40:00Z
 completed_at: null
 ```
 
