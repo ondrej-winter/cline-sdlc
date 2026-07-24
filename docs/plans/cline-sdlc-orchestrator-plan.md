@@ -1374,7 +1374,7 @@ specification review before implementation proceeds.
 - [x] Task 1.2: Define session outcome and finding schemas.
 - [x] Task 1.3: Parse and validate plan lifecycle state.
 - [x] Task 1.4: Implement artifact regions and deterministic digests.
-- [ ] Task 1.5: Discover artifact locations and portable defaults.
+- [x] Task 1.5: Discover artifact locations and portable defaults.
 - [ ] Checkpoint B: Artifact and public contract accepted.
 
 ### Phase 2
@@ -1627,6 +1627,20 @@ specification review before implementation proceeds.
 - The Task 1.4 validation gate passed: focused region/digest tests completed 20 tests; Ruff
   fixes/checks and formatting passed; mypy passed; the broader artifact lifecycle suite
   completed 50 tests; and the full 103-test suite passed.
+- Task 1.5 completed on 2026-07-24 as the artifact-location selection slice. It added
+  application-owned artifact-kind, location-source, convention, request, result, and blocker
+  DTOs; an outbound convention-provider port for already-discovered safe host conventions; and
+  a pure `SelectArtifactLocation` use case under `artifact_lifecycle`.
+- The Task 1.5 selector gives explicit user paths precedence, then unambiguous safe host
+  conventions, then portable defaults under `docs/ideas/`, `docs/specs/`, and `docs/plans/`.
+  It normalizes repository-relative POSIX paths and fails closed for traversal, absolute paths,
+  backslash paths, doubled path separators, unsafe stems, unsafe conventions, and ambiguous
+  conventions before any artifact write.
+- Task 1.5 does not implement filesystem writes, symlink resolution against a real checkout,
+  Git inspection, or repository-configuration execution. Those remain adapter/preflight work for
+  later slices.
+- The Task 1.5 validation gate passed: focused artifact-location tests completed 16 tests; Ruff
+  fixes/checks and formatting passed; mypy passed; and the full 119-test suite passed.
 
 ### Plan-review findings
 
@@ -1699,6 +1713,7 @@ completed_slices:
   - task-1.2
   - task-1.3
   - task-1.4
+  - task-1.5
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -2099,9 +2114,39 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-24T10:29:02Z
+  - slice_id: task-1.5
+    command: uv run pytest tests/unit/features/artifact_lifecycle/application/test_artifact_locations.py
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T17:14:29Z
+  - slice_id: task-1.5
+    command: uv run ruff check . --fix
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T17:14:29Z
+  - slice_id: task-1.5
+    command: uv run ruff format .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T17:14:29Z
+  - slice_id: task-1.5
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T17:14:29Z
+  - slice_id: task-1.5
+    command: uv run mypy .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T17:14:29Z
+  - slice_id: task-1.5
+    command: uv run pytest
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T17:14:29Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-24T10:29:02Z
+updated_at: 2026-07-24T17:14:29Z
 completed_at: null
 ```
 
