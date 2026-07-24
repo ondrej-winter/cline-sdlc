@@ -6,6 +6,12 @@ import json
 from dataclasses import dataclass
 from typing import TypeGuard
 
+from cline_sdlc.features.artifact_lifecycle.domain.findings import (
+    Finding,
+    FindingSeverity,
+    FindingStatus,
+    PlanReviewReadiness,
+)
 from cline_sdlc.features.cline_execution.domain.outcome import (
     SESSION_OUTCOME_SCHEMA_VERSION,
     SessionBlocker,
@@ -113,10 +119,38 @@ def _outcome_from_mapping(value: dict[str, object]) -> SessionOutcome:
         artifact_paths=_string_tuple(value.get("artifact_paths")),
         changed_paths=_string_tuple(value.get("changed_paths")),
         validation=tuple(_validation_from_mapping(item) for item in _mapping_sequence(value.get("validation"))),
+        findings=tuple(_finding_from_mapping(item) for item in _mapping_sequence(value.get("findings"))),
         finding_ids=_string_tuple(value.get("finding_ids")),
+        review_readiness=_optional_review_readiness(value.get("review_readiness")),
         blocker=_blocker_from_mapping(value.get("blocker")),
         retryable=bool(value.get("retryable", False)),
     )
+
+
+def _finding_from_mapping(value: dict[str, object]) -> Finding:
+    disposition = value.get("disposition")
+    if disposition is not None and not isinstance(disposition, str):
+        message = "finding disposition must be a string or null"
+        raise TypeError(message)
+    return Finding(
+        id=_required_str(value, "id"),
+        severity=FindingSeverity(_required_str(value, "severity")),
+        status=FindingStatus(_required_str(value, "status")),
+        summary=_required_str(value, "summary"),
+        evidence=_required_str(value, "evidence"),
+        required_correction=_required_str(value, "required_correction"),
+        affected_sections=_string_tuple(value.get("affected_sections")),
+        disposition=disposition,
+    )
+
+
+def _optional_review_readiness(value: object) -> PlanReviewReadiness | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        message = "review_readiness must be a string or null"
+        raise TypeError(message)
+    return PlanReviewReadiness(value)
 
 
 def _validation_from_mapping(value: dict[str, object]) -> SessionValidationEvidence:

@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import PurePosixPath
 
+from cline_sdlc.features.artifact_lifecycle.domain.findings import Finding, FindingSet, PlanReviewReadiness
+
 SESSION_OUTCOME_SCHEMA_VERSION = 1
 
 
@@ -87,7 +89,9 @@ class SessionOutcome:
     artifact_paths: tuple[str, ...] = field(default_factory=tuple)
     changed_paths: tuple[str, ...] = field(default_factory=tuple)
     validation: tuple[SessionValidationEvidence, ...] = field(default_factory=tuple)
+    findings: tuple[Finding, ...] = field(default_factory=tuple)
     finding_ids: tuple[str, ...] = field(default_factory=tuple)
+    review_readiness: PlanReviewReadiness | None = None
     blocker: SessionBlocker | None = None
     retryable: bool = False
 
@@ -103,8 +107,10 @@ class SessionOutcome:
         object.__setattr__(self, "changed_paths", _normalized_unique_paths(self.changed_paths))
         object.__setattr__(self, "finding_ids", _non_empty_unique_values(self.finding_ids, field_name="finding_ids"))
 
-        if self.session_role in {SessionRole.PLAN_REVIEWER, SessionRole.FINAL_REVIEWER} and self.changed_paths:
-            message = "reviewer session outcomes must not report changed paths"
+        if self.session_role in {SessionRole.PLAN_REVIEWER, SessionRole.FINAL_REVIEWER}:
+            self._validate_reviewer_outcome()
+        elif self.findings or self.review_readiness is not None:
+            message = "only reviewer session outcomes may include findings or review readiness"
             raise ValueError(message)
         if self.status is SessionStatus.APPROVAL_REQUIRED:
             if self.blocker is None or self.blocker.proposed_operation is None:
@@ -112,6 +118,21 @@ class SessionOutcome:
                 raise ValueError(message)
         elif self.blocker is not None and self.blocker.proposed_operation is not None:
             message = "only approval-required outcomes may include a proposed operation"
+            raise ValueError(message)
+
+    def _validate_reviewer_outcome(self) -> None:
+        if self.changed_paths:
+            message = "reviewer session outcomes must not report changed paths"
+            raise ValueError(message)
+        if self.review_readiness is None:
+            message = "reviewer session outcomes must include review readiness"
+            raise ValueError(message)
+        finding_set = FindingSet(self.findings)
+        if self.finding_ids != tuple(finding.id for finding in self.findings):
+            message = "reviewer finding IDs must match complete findings in order"
+            raise ValueError(message)
+        if finding_set.readiness() is not self.review_readiness:
+            message = "reviewer readiness must agree with validated findings"
             raise ValueError(message)
 
 

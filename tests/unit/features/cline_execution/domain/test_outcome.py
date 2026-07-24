@@ -2,6 +2,12 @@
 
 import pytest
 
+from cline_sdlc.features.artifact_lifecycle.domain.findings import (
+    Finding,
+    FindingSeverity,
+    FindingStatus,
+    PlanReviewReadiness,
+)
 from cline_sdlc.features.cline_execution.domain.outcome import (
     SessionBlocker,
     SessionOutcome,
@@ -59,6 +65,51 @@ def test_reviewer_outcome_rejects_changed_paths() -> None:
             status=SessionStatus.COMPLETED,
             reason="review_ready",
             changed_paths=("docs/plans/example.md",),
+            review_readiness=PlanReviewReadiness.READY,
+        )
+
+
+def test_reviewer_outcome_accepts_complete_consistent_findings() -> None:
+    finding = Finding(
+        id="PLAN-001",
+        severity=FindingSeverity.MAJOR,
+        status=FindingStatus.OPEN,
+        summary="Validation scope is incomplete.",
+        evidence="The plan omits the broad quality gate.",
+        required_correction="Add the broad quality gate.",
+        affected_sections=("Verification",),
+    )
+
+    outcome = SessionOutcome(
+        session_role=SessionRole.PLAN_REVIEWER,
+        status=SessionStatus.COMPLETED,
+        reason="changes_required",
+        findings=(finding,),
+        finding_ids=(finding.id,),
+        review_readiness=PlanReviewReadiness.CHANGES_REQUIRED,
+    )
+
+    assert outcome.findings == (finding,)
+
+
+def test_reviewer_outcome_rejects_readiness_that_contradicts_findings() -> None:
+    finding = Finding(
+        id="PLAN-001",
+        severity=FindingSeverity.BLOCKING,
+        status=FindingStatus.OPEN,
+        summary="A blocker remains.",
+        evidence="The required behavior is undefined.",
+        required_correction="Define the required behavior.",
+    )
+
+    with pytest.raises(ValueError, match="readiness"):
+        SessionOutcome(
+            session_role=SessionRole.PLAN_REVIEWER,
+            status=SessionStatus.COMPLETED,
+            reason="review_ready",
+            findings=(finding,),
+            finding_ids=(finding.id,),
+            review_readiness=PlanReviewReadiness.READY,
         )
 
 

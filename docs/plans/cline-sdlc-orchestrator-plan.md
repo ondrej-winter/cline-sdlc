@@ -1395,7 +1395,7 @@ specification review before implementation proceeds.
 - [x] Task 3.1: Implement rough idea to accepted idea brief.
 - [x] Task 3.2: Implement idea artifact to accepted specification.
 - [x] Task 3.3: Implement initial plan authoring.
-- [ ] Task 3.4: Implement initial independent plan review.
+- [x] Task 3.4: Implement initial independent plan review.
 - [ ] Task 3.5: Add bounded revision and blocked-plan behavior.
 - [ ] Checkpoint D: Artifact boundaries accepted.
 
@@ -1871,6 +1871,28 @@ specification review before implementation proceeds.
 - The Task 3.3 broad validation gate passed after the progress update: Ruff formatting and checks,
   strict mypy over 187 source files, the full 237-test suite, `uv build`, and
   `git --no-pager diff --check` completed successfully.
+- Task 3.4 completed on 2026-07-24 as one fresh independent initial plan-review slice. It extended
+  typed Cline terminal outcomes and JSON parsing with complete finding records, ordered finding IDs,
+  and validated review readiness, while rejecting reviewer-reported changed paths and contradictory
+  findings/readiness combinations.
+- The `ReviewPlan` orchestration use case validates the authored plan before review, starts one
+  bounded `plan_reviewer` session with a read-only `review-implementation-plan` prompt, verifies the
+  full before/after repository snapshot, and re-reads and revalidates specification and plan content
+  after the session so unchanged dirty-path names cannot conceal reviewer writes.
+- Orchestrator-owned progress reconciliation applies complete findings and the first-review state
+  transition only after validated reviewer evidence. The filesystem adapter confines the plan path,
+  preserves canonical material content and the stored material digest, validates the complete
+  resulting region/state structure, and atomically replaces the plan after all checks pass.
+- A ready review produces `ready`/`ready`; unresolved blocking or major findings produce
+  `reviewing`/`changes_required`. Task 3.4 intentionally does not implement the bounded revision and
+  re-review loop, which remains Task 3.5.
+- Task 3.4 added outcome/parser unit tests, progress-writer unit tests, and lifecycle contract tests
+  covering ready and changes-required reviews, complete finding preservation, wrong roles,
+  repository writes, content changes hidden behind unchanged dirty paths, malformed progress
+  ordering, atomic-write failure, material preservation, and the legacy author wrong-role fixture.
+- The Task 3.4 focused validation passed with 9 review orchestration/filesystem regression tests.
+  The final broad gate passed with Ruff formatting and checks, strict mypy over 195 source files, the
+  full 249-test suite, `uv build`, and `git --no-pager diff --check`.
 
 ### Plan-review findings
 
@@ -1960,6 +1982,7 @@ completed_slices:
   - task-3.1
   - task-3.2
   - task-3.3
+  - task-3.4
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -2926,9 +2949,45 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-24T21:24:04Z
+  - slice_id: task-3.4
+    command: >-
+      uv run pytest tests/contract/features/lifecycle_orchestration/test_plan_review.py tests/unit/features/artifact_lifecycle/adapters/inbound/test_filesystem_plan_review.py
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T21:54:08Z
+  - slice_id: task-3.4
+    command: uv run ruff format .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T21:54:08Z
+  - slice_id: task-3.4
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T21:54:08Z
+  - slice_id: task-3.4
+    command: uv run mypy .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T21:54:08Z
+  - slice_id: task-3.4
+    command: uv run pytest
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T21:54:08Z
+  - slice_id: task-3.4
+    command: uv build
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T21:54:08Z
+  - slice_id: task-3.4
+    command: git --no-pager diff --check
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T21:54:08Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-24T21:24:04Z
+updated_at: 2026-07-24T21:54:08Z
 completed_at: null
 ```
 

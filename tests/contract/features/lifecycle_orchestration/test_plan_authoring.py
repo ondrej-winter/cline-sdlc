@@ -17,6 +17,7 @@ from cline_sdlc.features.artifact_lifecycle.application.dtos.authored_plan impor
     AuthoredPlanValidationRequest,
     AuthoredPlanValidationResult,
 )
+from cline_sdlc.features.artifact_lifecycle.domain.findings import PlanReviewReadiness
 from cline_sdlc.features.artifact_lifecycle.domain.plan_state import (
     PlanPhase,
     PlanState,
@@ -335,6 +336,7 @@ def _completed_attempt(
                 reason="initial_plan_authored",
                 artifact_paths=(artifact_path,),
                 changed_paths=(artifact_path,) if role is not SessionRole.PLAN_REVIEWER else (),
+                review_readiness=(PlanReviewReadiness.READY if role is SessionRole.PLAN_REVIEWER else None),
             ),
         ),
     )
