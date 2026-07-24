@@ -1394,7 +1394,7 @@ specification review before implementation proceeds.
 
 - [x] Task 3.1: Implement rough idea to accepted idea brief.
 - [x] Task 3.2: Implement idea artifact to accepted specification.
-- [ ] Task 3.3: Implement initial plan authoring.
+- [x] Task 3.3: Implement initial plan authoring.
 - [ ] Task 3.4: Implement initial independent plan review.
 - [ ] Task 3.5: Add bounded revision and blocked-plan behavior.
 - [ ] Checkpoint D: Artifact boundaries accepted.
@@ -1846,6 +1846,31 @@ specification review before implementation proceeds.
   tests successfully.
 - The Task 3.2 broad validation gate passed before this progress update: Ruff formatting and
   checks, mypy, and the full 222-test suite completed successfully.
+- Task 3.3 completed on 2026-07-24 as the accepted-specification to initial-plan supervised
+  stage slice. It added application-owned plan-authoring DTOs and the `AuthorPlan` use case under
+  `lifecycle_orchestration`, coordinating ordered preflight, authoritative validation-command
+  discovery, and one fresh bounded Cline session through published application boundaries.
+- The Task 3.3 author request uses an explicit argument array and asks for the
+  `planning-and-task-breakdown` skill. Its prompt requires repository-rule and implementation-
+  pattern inspection, records the accepted specification and selected plan paths plus discovered
+  validation commands, and stops after initial authoring without starting review or implementation.
+- Completion requires typed `plan_author` session evidence and the exact selected plan changed
+  path. A separate artifact-lifecycle validator then verifies strict UTF-8 plan content, material
+  and progress regions, initial `drafting`/`not_reviewed` state, required human-readable sections,
+  exact specification identity, and recomputed specification and material digests. A thin inbound
+  filesystem adapter confines both source paths to regular files under the repository root and
+  supplies parsed strict state to the application boundary.
+- Task 3.3 added focused validator, filesystem-adapter, and lifecycle contract tests covering the
+  successful flow, preflight and validation-discovery ordering, wrong role or changed path,
+  unreadable or invalid state content, missing sections, invalid initial state, path mismatch, and
+  stale digests. It does not start an independent plan review, implementation session, or wire this
+  stage into the bootstrap CLI; those remain later Phase 3 work.
+- The Task 3.3 focused validation passed: targeted Ruff fixes/checks and formatting, strict mypy
+  validation over the affected artifact-lifecycle and lifecycle-orchestration surfaces, and the 15
+  focused unit/contract tests completed successfully.
+- The Task 3.3 broad validation gate passed after the progress update: Ruff formatting and checks,
+  strict mypy over 187 source files, the full 237-test suite, `uv build`, and
+  `git --no-pager diff --check` completed successfully.
 
 ### Plan-review findings
 
@@ -1934,6 +1959,7 @@ completed_slices:
   - checkpoint-c-safe-execution-boundaries
   - task-3.1
   - task-3.2
+  - task-3.3
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -2864,9 +2890,45 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-24T20:59:16Z
+  - slice_id: task-3.3
+    command: >-
+      uv run pytest tests/unit/features/artifact_lifecycle/application/test_validate_authored_plan.py tests/unit/features/artifact_lifecycle/adapters/inbound/test_filesystem_authored_plan.py tests/contract/features/lifecycle_orchestration/test_plan_authoring.py
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T21:22:49Z
+  - slice_id: task-3.3
+    command: uv run ruff format .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T21:24:04Z
+  - slice_id: task-3.3
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T21:24:04Z
+  - slice_id: task-3.3
+    command: uv run mypy .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T21:24:04Z
+  - slice_id: task-3.3
+    command: uv run pytest
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T21:24:04Z
+  - slice_id: task-3.3
+    command: uv build
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T21:24:04Z
+  - slice_id: task-3.3
+    command: git --no-pager diff --check
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T21:24:04Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-24T20:59:16Z
+updated_at: 2026-07-24T21:24:04Z
 completed_at: null
 ```
 
