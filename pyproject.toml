@@ -14,6 +14,9 @@ authors = [
 ]
 dependencies = []
 
+[project.scripts]
+cline-sdlc = "cline_sdlc.bootstrap.cli:main"
+
 [dependency-groups]
 dev = [
     "mypy>=2.1.0",

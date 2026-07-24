@@ -1370,7 +1370,7 @@ specification review before implementation proceeds.
 
 ### Phase 1
 
-- [ ] Task 1.1: Define CLI invocation and terminal result contracts.
+- [x] Task 1.1: Define CLI invocation and terminal result contracts.
 - [ ] Task 1.2: Define session outcome and finding schemas.
 - [ ] Task 1.3: Parse and validate plan lifecycle state.
 - [ ] Task 1.4: Implement artifact regions and deterministic digests.
@@ -1572,6 +1572,17 @@ specification review before implementation proceeds.
 - The Task 1.1b focused validation passed: Ruff fixes/checks and formatting, mypy, and
   `uv run pytest tests/unit/features/lifecycle_orchestration/` completed successfully before
   the full quality gate.
+- Task 1.1c completed on 2026-07-24 as the supervised-runner bootstrap and packaging slice. It
+  added the `cline_sdlc.bootstrap.cli` console entry-point wiring, published the `cline-sdlc`
+  package script in `pyproject.toml`, and covered stdout/stderr plus exit-code behavior with
+  focused bootstrap unit tests.
+- The Task 1.1c console command delegates to the lifecycle CLI adapter and still never starts a
+  real Cline subprocess. Invalid invocations return the stable usage exit category, while valid
+  currently-unimplemented stage invocations return the blocked terminal result established in
+  Task 1.1b.
+- The Task 1.1c validation gate passed: focused bootstrap and lifecycle CLI tests, the required
+  `uvx --from . cline-sdlc --help` local packaging smoke, Ruff formatting and checks, mypy, the
+  full 43-test suite, `uv build`, and `git --no-pager diff --check` completed successfully.
 
 ### Plan-review findings
 
@@ -1632,14 +1643,15 @@ review_iteration: 1
 review_readiness: changes_required
 digest_schema_version: 1
 material_digest: sha256:4f3efa4a1dbf4705cc33e6260196b4dbf36495f9863fcf1c718998a6011f18c3
-current_task: task-1.1c
-current_slice: supervised-runner-bootstrap-console-entry-point
+current_task: task-1.2
+current_slice: session-outcome-and-finding-schemas
 slice_start_commit: null
 partial_slice_paths: []
 completed_slices:
   - checkpoint-a-supervised-runner-scope-pivot
   - task-1.1a
   - task-1.1b
+  - task-1.1c
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -1900,9 +1912,49 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-24T08:10:25Z
+  - slice_id: task-1.1c
+    command: uv run pytest tests/unit/bootstrap/ tests/unit/features/lifecycle_orchestration/
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T08:47:00Z
+  - slice_id: task-1.1c
+    command: uvx --from . cline-sdlc --help
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T08:47:00Z
+  - slice_id: task-1.1c
+    command: uv run ruff format .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T08:47:31Z
+  - slice_id: task-1.1c
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T08:47:31Z
+  - slice_id: task-1.1c
+    command: uv run mypy .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T08:47:31Z
+  - slice_id: task-1.1c
+    command: uv run pytest
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T08:47:31Z
+  - slice_id: task-1.1c
+    command: uv build
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T08:47:31Z
+  - slice_id: task-1.1c
+    command: git --no-pager diff --check
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T08:47:31Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-24T08:10:25Z
+updated_at: 2026-07-24T08:47:31Z
 completed_at: null
 ```
 
