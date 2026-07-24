@@ -12,7 +12,9 @@ license = "MIT"
 authors = [
     { name = "Ondřej Winter" },
 ]
-dependencies = []
+dependencies = [
+    "ruamel-yaml>=0.18.0",
+]
 
 [project.scripts]
 cline-sdlc = "cline_sdlc.bootstrap.cli:main"
