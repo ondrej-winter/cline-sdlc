@@ -1385,7 +1385,7 @@ specification review before implementation proceeds.
 - [x] Task 2.4: Implement the balanced operation policy.
 - [x] Task 2.5: Implement Git inspection and branch safety.
 - [x] Task 2.6: Add ignored run audit and redaction.
-- [ ] Task 2.7: Discover, classify, and execute validation commands.
+- [x] Task 2.7: Discover, classify, and execute validation commands.
 - [ ] Task 2.8: Coordinate ordered no-write preflight.
 - [ ] Task 2.9: Add attached interactive Cline execution.
 - [ ] Checkpoint C: Safe execution boundaries accepted.
@@ -1740,6 +1740,20 @@ specification review before implementation proceeds.
   remain Task 2.7b.
 - The Task 2.7a validation gate passed: focused validation-discovery tests completed 7 tests;
   Ruff formatting and checks passed; mypy passed; and the full 192-test suite passed.
+- Task 2.7b completed on 2026-07-24 as the validation-command execution and evidence slice. It
+  extended the lifecycle-orchestration validation DTOs with passed/failed/blocked execution
+  evidence, UTC timestamps, command-run observations, execution requests/results, and an
+  application-owned validation-runner port.
+- The Task 2.7b use case classifies each structured command through the operation-policy
+  application boundary before execution, runs only allowed commands through a subprocess-backed
+  outbound adapter, preserves actual exit codes, and records blocked evidence for policy denials,
+  timeouts, or process start failures without marking unrun commands as passed.
+- Task 2.7b does not discover repository validation commands beyond Task 2.7a, wire validation into
+  ordered preflight or slice sessions, or decide lifecycle advancement. Those remain Tasks 2.8 and
+  later orchestration slices.
+- The Task 2.7b validation gate passed: focused validation discovery/execution tests completed 12
+  tests; Ruff fixes/checks and formatting passed; mypy passed; the full 197-test suite passed; and
+  `git --no-pager diff --check` completed successfully.
 - Checkpoint B was accepted on 2026-07-24 as a supervised-runner MVP checkpoint over the
   completed Phase 1 artifact and public-contract slices. Current focused checks prove CLI
   contract behavior without launching real Cline, fail-closed session outcome and finding
@@ -1834,6 +1848,7 @@ completed_slices:
   - task-2.2
   - task-2.6
   - task-2.7a
+  - task-2.7b
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -2558,9 +2573,40 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-24T20:10:10Z
+  - slice_id: task-2.7b
+    command: >-
+      uv run pytest tests/unit/features/lifecycle_orchestration/application/test_validation_discovery.py tests/unit/features/lifecycle_orchestration/application/test_validation_execution.py tests/integration/features/lifecycle_orchestration/test_validation_execution.py
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:18:47Z
+  - slice_id: task-2.7b
+    command: uv run ruff check . --fix
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:19:12Z
+  - slice_id: task-2.7b
+    command: uv run ruff format .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:19:12Z
+  - slice_id: task-2.7b
+    command: uv run mypy .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:19:12Z
+  - slice_id: task-2.7b
+    command: uv run pytest
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:19:46Z
+  - slice_id: task-2.7b
+    command: git --no-pager diff --check
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:19:46Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-24T20:10:10Z
+updated_at: 2026-07-24T20:19:46Z
 completed_at: null
 ```
 

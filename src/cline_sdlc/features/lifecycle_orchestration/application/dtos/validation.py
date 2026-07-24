@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from enum import StrEnum
-from pathlib import PurePosixPath
+from pathlib import (
+    Path,
+    PurePosixPath,
+)
 
 
 class ValidationScope(StrEnum):
@@ -23,10 +28,20 @@ class ValidationCommandSource(StrEnum):
 
 
 class ValidationEvidenceStatus(StrEnum):
-    """Truthful status for validation evidence before command execution."""
+    """Truthful status for validation evidence."""
 
     NOT_RUN = "not_run"
+    PASSED = "passed"
+    FAILED = "failed"
     BLOCKED = "blocked"
+
+
+class ValidationCommandRunStatus(StrEnum):
+    """Observable status returned by a validation command runner."""
+
+    EXITED = "exited"
+    TIMED_OUT = "timed_out"
+    START_FAILED = "start_failed"
 
 
 @dataclass(frozen=True)
@@ -65,12 +80,85 @@ class ValidationCommandCandidate:
 
 @dataclass(frozen=True)
 class ValidationEvidence:
-    """Truthful validation evidence produced before execution is implemented."""
+    """Truthful validation evidence for a command candidate."""
 
     scope: ValidationScope
     command: ValidationCommand | None
     status: ValidationEvidenceStatus
     summary: str
+    exit_code: int | None = None
+    recorded_at: datetime | None = None
+    policy_rule_id: str | None = None
+
+    def __post_init__(self) -> None:
+        if not self.summary.strip():
+            message = "validation evidence summary must not be empty"
+            raise ValueError(message)
+        if self.status is ValidationEvidenceStatus.NOT_RUN and self.exit_code is not None:
+            message = "not-run validation evidence must not include an exit code"
+            raise ValueError(message)
+        if self.status is ValidationEvidenceStatus.PASSED and self.exit_code != 0:
+            message = "passed validation evidence must include exit code 0"
+            raise ValueError(message)
+        if self.status in {ValidationEvidenceStatus.FAILED, ValidationEvidenceStatus.BLOCKED} and self.exit_code == 0:
+            message = "failed or blocked validation evidence must not include exit code 0"
+            raise ValueError(message)
+        if self.recorded_at is not None and (
+            self.recorded_at.tzinfo is None or self.recorded_at.utcoffset() != UTC.utcoffset(self.recorded_at)
+        ):
+            message = "validation evidence recorded_at must be a UTC timestamp"
+            raise ValueError(message)
+
+
+@dataclass(frozen=True)
+class ValidationCommandRunRequest:
+    """Adapter request to execute one structured validation command."""
+
+    command: ValidationCommand
+    working_directory: Path
+    timeout_seconds: float
+
+    def __post_init__(self) -> None:
+        if not math.isfinite(self.timeout_seconds) or self.timeout_seconds <= 0:
+            message = "validation command timeout must be positive"
+            raise ValueError(message)
+
+
+@dataclass(frozen=True)
+class ValidationCommandRunResult:
+    """Adapter result for one validation command execution."""
+
+    status: ValidationCommandRunStatus
+    exit_code: int | None
+    stdout: str = ""
+    stderr: str = ""
+
+
+@dataclass(frozen=True)
+class ValidationExecutionRequest:
+    """Application request to classify and execute validation command candidates."""
+
+    commands: tuple[ValidationCommandCandidate, ...]
+    working_directory: Path
+    timeout_seconds: float = 300.0
+
+    def __post_init__(self) -> None:
+        if not math.isfinite(self.timeout_seconds) or self.timeout_seconds <= 0:
+            message = "validation execution timeout must be a finite positive number of seconds"
+            raise ValueError(message)
+
+
+@dataclass(frozen=True)
+class ValidationExecutionResult:
+    """Validation execution evidence and blockers for orchestration decisions."""
+
+    evidence: tuple[ValidationEvidence, ...] = ()
+    blockers: tuple[ValidationDiscoveryBlocker, ...] = field(default_factory=tuple)
+
+    @property
+    def ready(self) -> bool:
+        """Return whether no validation command was blocked or failed."""
+        return not self.blockers and all(item.status is ValidationEvidenceStatus.PASSED for item in self.evidence)
 
 
 @dataclass(frozen=True)
