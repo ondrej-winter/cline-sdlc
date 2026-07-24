@@ -1388,7 +1388,7 @@ specification review before implementation proceeds.
 - [x] Task 2.7: Discover, classify, and execute validation commands.
 - [x] Task 2.8: Coordinate ordered no-write preflight.
 - [x] Task 2.9: Add attached interactive Cline execution.
-- [ ] Checkpoint C: Safe execution boundaries accepted.
+- [x] Checkpoint C: Safe execution boundaries accepted.
 
 ### Phase 3
 
@@ -1780,6 +1780,18 @@ specification review before implementation proceeds.
 - The Task 2.9 focused validation passed: attached-interactive and existing subprocess session
   contract tests completed 14 tests; Ruff fixes/checks and formatting passed; mypy passed; the
   full 208-test suite passed; and `git --no-pager diff --check` completed successfully.
+- Checkpoint C was accepted on 2026-07-24 as the supervised-runner safe execution boundary
+  checkpoint over the completed Phase 2 slices. Current evidence covers the fake-Cline
+  subprocess contract matrix, capability and skill preflight blockers, bounded retry decisions
+  owned by lifecycle orchestration, fail-closed balanced operation classification, Git branch and
+  path-safety inspection, ignored/redacted run summaries, ordered no-write stage preflight,
+  attached interactive execution, and truthful validation-command evidence. This checkpoint does
+  not claim the deferred fully unattended orchestration guarantees from the pre-pivot plan.
+- The Checkpoint C validation gate passed after the progress update: focused Cline execution
+  contract tests, Phase 2 lifecycle orchestration tests, operation-policy tests,
+  repository-coordination integration tests, run-audit unit/integration tests, validation execution
+  integration tests, Ruff formatting and checks, mypy, the full 208-test suite, and
+  `git --no-pager diff --check` completed successfully.
 - Checkpoint B was accepted on 2026-07-24 as a supervised-runner MVP checkpoint over the
   completed Phase 1 artifact and public-contract slices. Current focused checks prove CLI
   contract behavior without launching real Cline, fail-closed session outcome and finding
@@ -1876,6 +1888,8 @@ completed_slices:
   - task-2.7a
   - task-2.7b
   - task-2.8
+  - task-2.9
+  - checkpoint-c-safe-execution-boundaries
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -2702,9 +2716,40 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-24T20:40:04Z
+  - slice_id: checkpoint-c-safe-execution-boundaries
+    command: >-
+      uv run pytest tests/contract/features/cline_execution/test_interactive_session.py tests/contract/features/cline_execution/test_subprocess_session_runner.py
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:43:51Z
+  - slice_id: checkpoint-c-safe-execution-boundaries
+    command: uv run ruff format .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:43:55Z
+  - slice_id: checkpoint-c-safe-execution-boundaries
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:43:55Z
+  - slice_id: checkpoint-c-safe-execution-boundaries
+    command: uv run mypy .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:43:55Z
+  - slice_id: checkpoint-c-safe-execution-boundaries
+    command: uv run pytest
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:43:55Z
+  - slice_id: checkpoint-c-safe-execution-boundaries
+    command: git --no-pager diff --check
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:43:55Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-24T20:40:04Z
+updated_at: 2026-07-24T20:43:55Z
 completed_at: null
 ```
 
