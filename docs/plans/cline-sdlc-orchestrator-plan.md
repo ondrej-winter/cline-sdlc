@@ -1541,6 +1541,23 @@ specification review before implementation proceeds.
   ownership, smaller Phase 4 transactions, and acceptance traceability.
 - No unattended-safe implementation task is authorized by the original Checkpoint A evidence;
   only supervised-runner MVP slices are authorized until the material plan is revised.
+- Task 1.1a completed on 2026-07-24 as the first supervised-runner MVP implementation
+  slice. It added the `lifecycle_orchestration` feature slice with explicit input-kind and
+  lifecycle-stage domain values, an application use case for stage selection, invocation DTOs,
+  and an inbound CLI parsing adapter that validates exactly one explicit input before any
+  Cline execution can start.
+- The Task 1.1a parser rejects missing or multiple inputs, empty rough ideas, missing file
+  inputs, directory paths where files are required, and non-finite timeouts. It maps `--idea`,
+  `--idea-file`, `--spec-file`, and `--plan-file` to the supervised runner stages without
+  content guessing and carries dry-run-friendly common options (`--timeout`, `--cline-command`,
+  `--json`, `--verbose`, and `--dry-run`) as typed invocation data.
+- Task 1.1a does not implement terminal-result JSON serialization, process exit mapping,
+  bootstrap console-script packaging, Cline subprocess execution, or later unattended
+  orchestration behavior. The next implementation slice is Task 1.1b for terminal result,
+  diagnostics, and exit-category mapping.
+- The Task 1.1a validation gate passed: focused lifecycle CLI parser tests, Ruff fixes/checks
+  and formatting, mypy, the full 36-test suite, and `git --no-pager diff --check` completed
+  successfully.
 
 ### Plan-review findings
 
@@ -1601,12 +1618,13 @@ review_iteration: 1
 review_readiness: changes_required
 digest_schema_version: 1
 material_digest: sha256:4f3efa4a1dbf4705cc33e6260196b4dbf36495f9863fcf1c718998a6011f18c3
-current_task: task-1.1a
-current_slice: supervised-runner-cli-input-and-stage-mapping
+current_task: task-1.1b
+current_slice: supervised-runner-terminal-result-and-exit-mapping
 slice_start_commit: null
 partial_slice_paths: []
 completed_slices:
   - checkpoint-a-supervised-runner-scope-pivot
+  - task-1.1a
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -1807,9 +1825,44 @@ validation_evidence:
     result: not_run
     exit_code: null
     recorded_at: 2026-07-24T06:40:00Z
+  - slice_id: task-1.1a
+    command: uv run pytest tests/unit/features/lifecycle_orchestration/adapters/inbound/
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T08:02:43Z
+  - slice_id: task-1.1a
+    command: uv run ruff check . --fix
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T08:03:10Z
+  - slice_id: task-1.1a
+    command: uv run ruff format .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T08:03:10Z
+  - slice_id: task-1.1a
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T08:03:10Z
+  - slice_id: task-1.1a
+    command: uv run mypy .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T08:03:10Z
+  - slice_id: task-1.1a
+    command: uv run pytest
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T08:03:10Z
+  - slice_id: task-1.1a
+    command: git --no-pager diff --check
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T08:03:10Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-24T06:40:00Z
+updated_at: 2026-07-24T08:03:10Z
 completed_at: null
 ```
 
