@@ -1379,7 +1379,7 @@ specification review before implementation proceeds.
 
 ### Phase 2
 
-- [ ] Task 2.1: Implement the Cline subprocess adapter.
+- [x] Task 2.1: Implement the Cline subprocess adapter.
 - [ ] Task 2.2: Coordinate bounded session attempts.
 - [ ] Task 2.3: Add capability and skill preflight.
 - [x] Task 2.4: Implement the balanced operation policy.
@@ -1656,6 +1656,16 @@ specification review before implementation proceeds.
   slices.
 - The Task 2.4 validation gate passed: focused operation-policy tests completed 25 tests; Ruff
   fixes/checks and formatting passed; mypy passed; and the full 144-test suite passed.
+- Task 2.1 completed on 2026-07-24 as the supervised-runner Cline subprocess session boundary.
+  It added application-owned session request/result DTOs, a session-runner outbound port, the
+  `RunClineSession` use case, and a subprocess-backed outbound adapter that executes explicit
+  argument arrays with a caller-provided working directory and finite timeout.
+- The Task 2.1 adapter captures process exit, non-zero exit, timeout, stdout/stderr, malformed
+  JSON lines, duplicate terminal outcomes, and validated schema-versioned terminal outcomes as
+  typed observations. It does not perform workflow retry, inspect Git, enforce operation policy,
+  or decide lifecycle advancement; those remain later orchestration slices.
+- The Task 2.1 validation gate passed: focused Cline execution contract/unit tests completed 33
+  tests; Ruff fixes/checks and formatting passed; and mypy passed.
 
 ### Plan-review findings
 
@@ -1730,6 +1740,7 @@ completed_slices:
   - task-1.4
   - task-1.5
   - task-2.4
+  - task-2.1
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -2190,9 +2201,35 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-24T17:38:09Z
+  - slice_id: task-2.1
+    command: >-
+      uv run pytest tests/contract/features/cline_execution/test_subprocess_session_runner.py tests/unit/features/cline_execution/
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T17:53:14Z
+  - slice_id: task-2.1
+    command: uv run ruff check . --fix
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T17:52:43Z
+  - slice_id: task-2.1
+    command: uv run ruff format .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T17:52:43Z
+  - slice_id: task-2.1
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T17:52:43Z
+  - slice_id: task-2.1
+    command: uv run mypy .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T17:52:43Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-24T17:38:09Z
+updated_at: 2026-07-24T17:53:14Z
 completed_at: null
 ```
 
