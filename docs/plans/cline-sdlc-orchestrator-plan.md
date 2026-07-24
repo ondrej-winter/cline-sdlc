@@ -1384,7 +1384,7 @@ specification review before implementation proceeds.
 - [x] Task 2.3: Add capability and skill preflight.
 - [x] Task 2.4: Implement the balanced operation policy.
 - [x] Task 2.5: Implement Git inspection and branch safety.
-- [ ] Task 2.6: Add ignored run audit and redaction.
+- [x] Task 2.6: Add ignored run audit and redaction.
 - [ ] Task 2.7: Discover, classify, and execute validation commands.
 - [ ] Task 2.8: Coordinate ordered no-write preflight.
 - [ ] Task 2.9: Add attached interactive Cline execution.
@@ -1717,6 +1717,18 @@ specification review before implementation proceeds.
 - The Task 2.2 focused validation passed: lifecycle-orchestration unit tests completed 23 tests;
   Ruff fixes/checks and formatting passed; mypy passed; the full 178-test suite passed; and
   `git --no-pager diff --check` completed successfully.
+- Task 2.6 completed on 2026-07-24 as the ignored run audit and redaction slice. It added the
+  `run_audit` feature slice with pure domain redaction, application-owned run-audit DTOs, an
+  outbound audit-store port, the `RecordRunSummary` use case, and a filesystem-backed outbound
+  adapter for versioned JSON summaries under `.cline-sdlc/runs/<run-id>/`.
+- The Task 2.6 filesystem adapter establishes `.cline-sdlc/` as an ignored local run destination
+  before writing summaries, preserves existing ignore-file content, rejects unsafe run IDs and
+  symlink escapes, and keeps application orchestration free of direct filesystem I/O. It does not
+  wire run audit into ordered lifecycle preflight or aggregate real session/attempt events yet;
+  those remain later orchestration slices.
+- The Task 2.6 focused validation passed: run-audit unit and integration tests completed 7 tests;
+  Ruff formatting and checks passed; mypy passed; the full 185-test suite passed; and
+  `git --no-pager diff --check` completed successfully.
 - Checkpoint B was accepted on 2026-07-24 as a supervised-runner MVP checkpoint over the
   completed Phase 1 artifact and public-contract slices. Current focused checks prove CLI
   contract behavior without launching real Cline, fail-closed session outcome and finding
@@ -1809,6 +1821,7 @@ completed_slices:
   - task-2.5a
   - task-2.5b
   - task-2.2
+  - task-2.6
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -2478,9 +2491,39 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-24T19:55:12Z
+  - slice_id: task-2.6
+    command: uv run pytest tests/unit/features/run_audit/ tests/integration/features/run_audit/
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:02:02Z
+  - slice_id: task-2.6
+    command: uv run ruff format .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:02:44Z
+  - slice_id: task-2.6
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:02:44Z
+  - slice_id: task-2.6
+    command: uv run mypy .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:02:44Z
+  - slice_id: task-2.6
+    command: uv run pytest
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:03:40Z
+  - slice_id: task-2.6
+    command: git --no-pager diff --check
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T20:03:40Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-24T19:55:12Z
+updated_at: 2026-07-24T20:03:40Z
 completed_at: null
 ```
 
