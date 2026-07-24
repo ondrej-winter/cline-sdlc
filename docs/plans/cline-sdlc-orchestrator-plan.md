@@ -1506,6 +1506,13 @@ specification review before implementation proceeds.
   Tasks 1.1 and later are still unauthorized until the product owner reviews the evidence and
   either revises the CLI-wrapper proof path, establishes supported Cline configuration that
   proves the critical contracts, or makes an SDK-direction decision.
+- Task 0.3 received a follow-up proof-adapter refinement on 2026-07-24: supervised session
+  outcome extraction now supports top-level JSON objects plus known Cline-style wrapped event
+  fields (`message`, `content`, `text`, `data`, and `payload`) when those fields contain the
+  orchestrator's schema-versioned terminal outcome. Fake-backed tests prove wrapped-object and
+  wrapped-text extraction. Checkpoint A still remains blocked until the manual real-Cline proof
+  is rerun and shows whether real `cline --json` provides one reliable terminal outcome through
+  one of those event shapes or another supported channel.
 - Independent review iteration 1 found sequencing, boundary, sizing, and traceability gaps.
   Plan revision 2 resolves those findings through earlier validation support, ordered
   preflight, attached-interactive execution, explicit invocation approval, public contract
@@ -1760,14 +1767,19 @@ validation_evidence:
     result: failed
     exit_code: 1
     recorded_at: 2026-07-23T21:22:57Z
+  - slice_id: task-0.3-wrapped-json-event-outcome-extraction
+    command: uv run pytest tests/unit/features/cline_execution/adapters/outbound/test_cli_capability_probe.py
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T06:04:18Z
 blocker:
   code: cline_cli_critical_contracts_rejected
-  summary: The supervised real-Cline proof command ran against Cline 3.0.46 in a disposable repository with isolated data and hooks and exited 1; required skills were reported missing, the session emitted 0 parseable terminal outcomes, and pre-execution permission mediation plus interruption recovery observability remained unproven. Task 0.3 is complete as a proof/rejection slice, but Checkpoint A cannot authorize Tasks 1.1 and later until product review decides whether to revise the CLI-wrapper proof path, configure/prove supported Cline behavior, or move toward an SDK direction.
+  summary: The supervised real-Cline proof command ran against Cline 3.0.46 in a disposable repository with isolated data and hooks and exited 1; required skills were reported missing, the session emitted 0 parseable terminal outcomes, and pre-execution permission mediation plus interruption recovery observability remained unproven. A follow-up adapter refinement can now detect schema-versioned outcomes in common wrapped JSON event fields, but this has only been proven with fake-backed tests and must be rerun against real Cline before Checkpoint A can authorize Tasks 1.1 and later.
   details_path: docs/research/cline-cli-capability-spike.md
   proposed_operation: null
-  recorded_at: 2026-07-23T21:22:57Z
+  recorded_at: 2026-07-24T06:04:18Z
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-23T21:22:57Z
+updated_at: 2026-07-24T06:04:18Z
 completed_at: null
 ```
 

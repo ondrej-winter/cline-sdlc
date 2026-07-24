@@ -2,7 +2,7 @@
 
 import json
 import subprocess
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeGuard
 
 from cline_sdlc.features.cline_execution.domain.capability import (
     CapabilityCriticality,
@@ -201,13 +201,53 @@ def _terminal_outcomes(stdout: str) -> tuple[dict[str, object], ...]:
             value = json.loads(line)
         except json.JSONDecodeError:
             continue
-        if (
-            isinstance(value, dict)
-            and value.get("schema_version") == 1
-            and value.get("status") in _SUCCESSFUL_SESSION_STATUSES
-        ):
-            outcomes.append(value)
+        outcomes.extend(_candidate_outcomes(value))
     return tuple(outcomes)
+
+
+def _candidate_outcomes(value: object) -> tuple[dict[str, object], ...]:
+    if _is_terminal_outcome(value):
+        return (value,)
+    if not isinstance(value, dict):
+        return ()
+
+    candidates = (
+        value.get("message"),
+        value.get("content"),
+        value.get("text"),
+        value.get("data"),
+        value.get("payload"),
+    )
+    outcomes: list[dict[str, object]] = []
+    for candidate in candidates:
+        if _is_terminal_outcome(candidate):
+            outcomes.append(candidate)
+        elif isinstance(candidate, str):
+            parsed = _json_object_from_text(candidate)
+            if _is_terminal_outcome(parsed):
+                outcomes.append(parsed)
+    return tuple(outcomes)
+
+
+def _json_object_from_text(text: str) -> dict[str, object] | None:
+    stripped = text.strip()
+    if not stripped.startswith("{") or not stripped.endswith("}"):
+        return None
+    try:
+        value = json.loads(stripped)
+    except json.JSONDecodeError:
+        return None
+    if isinstance(value, dict):
+        return value
+    return None
+
+
+def _is_terminal_outcome(value: object) -> TypeGuard[dict[str, object]]:
+    return (
+        isinstance(value, dict)
+        and value.get("schema_version") == 1
+        and value.get("status") in _SUCCESSFUL_SESSION_STATUSES
+    )
 
 
 def _terminal_outcome_observation(outcomes: tuple[dict[str, object], ...]) -> CapabilityObservation:

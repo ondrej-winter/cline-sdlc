@@ -80,6 +80,11 @@ evidence without starting lifecycle work:
   detection, permission-mediation evidence, interruption-recovery evidence,
   duplicate-outcome rejection, and bounded timeout reporting without real Cline,
   network access, or developer repository state.
+- The supervised probe now extracts candidate terminal outcomes from top-level
+  JSON lines and known Cline-style wrapped event fields (`message`, `content`,
+  `text`, `data`, and `payload`). This narrows the earlier evidence gap where
+  `cline --json` may emit event envelopes rather than the orchestrator's terminal
+  outcome as the top-level JSON object.
 - `tests/manual/cline_execution/prove_real_cline_capability.py` now provides a
   supervised proof command for explicitly selected real Cline executables. It
   requires caller-supplied disposable repository, isolated data, and hook
@@ -133,6 +138,13 @@ direction. Any continuation must still prove or explicitly redesign:
 - timeout/interruption cleanup and write attribution;
 - real Cline skill availability probing behavior without unintended network-backed
   side effects.
+
+The next supervised proof run should specifically determine whether real
+`cline --json` emits the orchestrator terminal outcome as a known wrapped event
+field, a top-level object, another stable event shape, ordinary prose only, or no
+recoverable outcome at all. Passing fake-backed wrapped-event tests is not itself
+Checkpoint A evidence; it only makes the proof adapter capable of recognizing the
+most likely structured event envelopes.
 
 If any critical contract cannot be proven, implementation must stop for product
 review and an SDK-direction decision rather than weakening the specification.

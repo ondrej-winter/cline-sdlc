@@ -44,6 +44,12 @@ def _run_session_scenario(scenario: str) -> None:
         _write_outcome()
         _write_outcome()
         return
+    if scenario == "wrapped-message-outcome":
+        _write_wrapped_outcome("message")
+        return
+    if scenario == "wrapped-content-text-outcome":
+        _write_wrapped_outcome_text("content")
+        return
     if scenario == "timeout":
         time.sleep(10.0)
         return
@@ -58,18 +64,25 @@ def _argument_after(flag: str) -> str | None:
 
 
 def _write_outcome() -> None:
-    sys.stdout.write(
-        json.dumps(
-            {
-                "schema_version": 1,
-                "status": "completed",
-                "changed_paths": [],
-                "permission_mediation": True,
-                "interruption_recovery": True,
-            }
-        )
-        + "\n"
-    )
+    sys.stdout.write(json.dumps(_outcome_payload()) + "\n")
+
+
+def _write_wrapped_outcome(key: str) -> None:
+    sys.stdout.write(json.dumps({"type": "assistant", key: _outcome_payload()}) + "\n")
+
+
+def _write_wrapped_outcome_text(key: str) -> None:
+    sys.stdout.write(json.dumps({"type": "assistant", key: json.dumps(_outcome_payload())}) + "\n")
+
+
+def _outcome_payload() -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "status": "completed",
+        "changed_paths": [],
+        "permission_mediation": True,
+        "interruption_recovery": True,
+    }
 
 
 if __name__ == "__main__":

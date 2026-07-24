@@ -73,6 +73,40 @@ def test_supervised_session_probe_can_prove_critical_contracts(tmp_path: Path) -
     assert report.critical_capabilities_proven
 
 
+def test_supervised_session_probe_extracts_wrapped_message_outcome(tmp_path: Path) -> None:
+    fake_cline = Path(__file__).with_name("fake_helping_cline.py")
+
+    report = SubprocessClineCapabilityProbe().probe(
+        CapabilityProbeRequest(
+            command=(sys.executable, str(fake_cline), "--fake-session-scenario", "wrapped-message-outcome"),
+            supervised_session_probe=True,
+            repository_root=tmp_path,
+        )
+    )
+
+    statuses = {observation.name: observation.status for observation in report.observations}
+    assert statuses["exactly_one_machine_detectable_terminal_outcome"] is CapabilityStatus.PROVEN
+    assert statuses["pre_execution_permission_mediation"] is CapabilityStatus.PROVEN
+    assert statuses["interruption_recovery_observability"] is CapabilityStatus.PROVEN
+
+
+def test_supervised_session_probe_extracts_wrapped_content_text_outcome(tmp_path: Path) -> None:
+    fake_cline = Path(__file__).with_name("fake_helping_cline.py")
+
+    report = SubprocessClineCapabilityProbe().probe(
+        CapabilityProbeRequest(
+            command=(sys.executable, str(fake_cline), "--fake-session-scenario", "wrapped-content-text-outcome"),
+            supervised_session_probe=True,
+            repository_root=tmp_path,
+        )
+    )
+
+    statuses = {observation.name: observation.status for observation in report.observations}
+    assert statuses["exactly_one_machine_detectable_terminal_outcome"] is CapabilityStatus.PROVEN
+    assert statuses["pre_execution_permission_mediation"] is CapabilityStatus.PROVEN
+    assert statuses["interruption_recovery_observability"] is CapabilityStatus.PROVEN
+
+
 def test_supervised_session_probe_fails_closed_for_duplicate_outcomes(tmp_path: Path) -> None:
     fake_cline = Path(__file__).with_name("fake_helping_cline.py")
 
