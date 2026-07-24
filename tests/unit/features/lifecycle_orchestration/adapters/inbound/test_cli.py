@@ -1,14 +1,16 @@
-"""Tests for supervised runner CLI input parsing and stage mapping."""
+"""Tests for supervised runner CLI input parsing and terminal result rendering."""
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 
 import pytest
 
-from cline_sdlc.features.lifecycle_orchestration.adapters.inbound.cli import parse_cli_invocation
+from cline_sdlc.features.lifecycle_orchestration.adapters.inbound.cli import parse_cli_invocation, run_cli_invocation
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.invocation import InvocationParseError
 from cline_sdlc.features.lifecycle_orchestration.domain.stage import LifecycleStage, StageInputKind
+from cline_sdlc.features.lifecycle_orchestration.domain.terminal_result import ExitCategory
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -116,3 +118,50 @@ def test_rejects_non_finite_timeout() -> None:
 
     assert isinstance(result, InvocationParseError)
     assert "finite positive" in result.message
+
+
+def test_invalid_invocation_renders_usage_exit_result_without_json_mode() -> None:
+    result = run_cli_invocation([])
+
+    assert result.exit_code == ExitCategory.USAGE_ERROR
+    assert result.stderr == ""
+    assert result.terminal_result.status.value == "invalid_invocation"
+    assert result.stdout.startswith("cline-sdlc: invalid_invocation:")
+    payload = json.loads(result.stdout.splitlines()[-1])
+    assert payload["status"] == "invalid_invocation"
+    assert payload["blocker"]["code"] == "invalid_invocation"
+
+
+def test_json_mode_emits_only_one_terminal_result() -> None:
+    result = run_cli_invocation(["--idea", "Preview", "--json"])
+
+    assert result.exit_code == ExitCategory.BLOCKED
+    assert result.stderr == ""
+    assert result.stdout.endswith("\n")
+    assert len(result.stdout.splitlines()) == 1
+    payload = json.loads(result.stdout)
+    assert payload == {
+        "blocker": {
+            "code": "dry_run_only",
+            "summary": "Task 1.1b renders terminal results; Cline execution is not implemented in this slice.",
+        },
+        "input_path": None,
+        "output_paths": [],
+        "plan_material_digest": None,
+        "reason": "dry_run_preview",
+        "schema_version": 1,
+        "specification_digest": None,
+        "stage": "idea_refinement",
+        "status": "blocked",
+    }
+
+
+def test_file_input_terminal_result_reports_normalized_input_path(tmp_path: Path) -> None:
+    plan_file = tmp_path / "plan.md"
+    plan_file.write_text("plan", encoding="utf-8")
+
+    result = run_cli_invocation(["--plan-file", "plan.md", "--json"], cwd=tmp_path)
+
+    payload = json.loads(result.stdout)
+    assert payload["stage"] == "plan_implementation"
+    assert payload["input_path"] == plan_file.as_posix()

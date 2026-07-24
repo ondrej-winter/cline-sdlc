@@ -1558,6 +1558,20 @@ specification review before implementation proceeds.
 - The Task 1.1a validation gate passed: focused lifecycle CLI parser tests, Ruff fixes/checks
   and formatting, mypy, the full 36-test suite, and `git --no-pager diff --check` completed
   successfully.
+- Task 1.1b completed on 2026-07-24 as the supervised-runner terminal result and
+  exit-mapping slice. It added explicit lifecycle terminal statuses, stable process exit
+  categories, schema-versioned terminal-result DTOs, blocker diagnostics, JSON serialization,
+  and a testable CLI rendering boundary that never starts Cline in this slice.
+- The Task 1.1b renderer maps invalid invocations to usage exit code 2, maps dry-run/currently
+  unimplemented execution to a blocked terminal result, emits JSON-only stdout when `--json` is
+  requested, and keeps normal-mode human diagnostics concise while preserving one structured
+  terminal payload.
+- Task 1.1b does not implement bootstrap console-script packaging, `uvx` execution, or real
+  Cline subprocess/session execution. The next implementation slice is Task 1.1c for bootstrap
+  wiring, console entry point, and local packaging smoke.
+- The Task 1.1b focused validation passed: Ruff fixes/checks and formatting, mypy, and
+  `uv run pytest tests/unit/features/lifecycle_orchestration/` completed successfully before
+  the full quality gate.
 
 ### Plan-review findings
 
@@ -1618,13 +1632,14 @@ review_iteration: 1
 review_readiness: changes_required
 digest_schema_version: 1
 material_digest: sha256:4f3efa4a1dbf4705cc33e6260196b4dbf36495f9863fcf1c718998a6011f18c3
-current_task: task-1.1b
-current_slice: supervised-runner-terminal-result-and-exit-mapping
+current_task: task-1.1c
+current_slice: supervised-runner-bootstrap-console-entry-point
 slice_start_commit: null
 partial_slice_paths: []
 completed_slices:
   - checkpoint-a-supervised-runner-scope-pivot
   - task-1.1a
+  - task-1.1b
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -1860,9 +1875,34 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-24T08:03:10Z
+  - slice_id: task-1.1b
+    command: uv run ruff check . --fix
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T08:10:25Z
+  - slice_id: task-1.1b
+    command: uv run ruff format .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T08:10:25Z
+  - slice_id: task-1.1b
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T08:10:25Z
+  - slice_id: task-1.1b
+    command: uv run mypy .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T08:10:25Z
+  - slice_id: task-1.1b
+    command: uv run pytest tests/unit/features/lifecycle_orchestration/
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T08:10:25Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-24T08:03:10Z
+updated_at: 2026-07-24T08:10:25Z
 completed_at: null
 ```
 

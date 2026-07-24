@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import math
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,13 +14,20 @@ from cline_sdlc.features.lifecycle_orchestration.application.dtos.invocation imp
     InvocationRequest,
     InvocationSource,
 )
+from cline_sdlc.features.lifecycle_orchestration.application.dtos.terminal_result import TerminalBlocker, TerminalResult
 from cline_sdlc.features.lifecycle_orchestration.application.use_cases.select_stage import SelectLifecycleStage
+from cline_sdlc.features.lifecycle_orchestration.domain.terminal_result import (
+    TerminalStatus,
+    exit_category_for_status,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
 DEFAULT_TIMEOUT_SECONDS = 1_800.0
 INVALID_TIMEOUT_MESSAGE = "--timeout must be a finite positive number of seconds"
+USAGE_ERROR_REASON = "invalid_invocation"
+DRY_RUN_REASON = "dry_run_preview"
 
 
 class _ArgumentParser(argparse.ArgumentParser):
@@ -34,6 +42,16 @@ class ParsedCliInvocation:
     request: InvocationRequest
 
 
+@dataclass(frozen=True)
+class CliRunResult:
+    """Rendered CLI result and process exit code for one invocation."""
+
+    exit_code: int
+    stdout: str
+    stderr: str
+    terminal_result: TerminalResult
+
+
 def parse_cli_invocation(argv: Sequence[str], *, cwd: Path | None = None) -> ParsedCliInvocation | InvocationParseError:
     """Parse CLI arguments into an application-owned invocation request."""
     parser = _build_parser()
@@ -45,6 +63,55 @@ def parse_cli_invocation(argv: Sequence[str], *, cwd: Path | None = None) -> Par
         return InvocationParseError(message=str(err))
 
     return ParsedCliInvocation(request=SelectLifecycleStage().execute(request))
+
+
+def run_cli_invocation(argv: Sequence[str], *, cwd: Path | None = None) -> CliRunResult:
+    """Run the currently implemented CLI boundary without starting Cline."""
+    parsed = parse_cli_invocation(argv, cwd=cwd)
+    if isinstance(parsed, InvocationParseError):
+        result = TerminalResult(
+            status=TerminalStatus.INVALID_INVOCATION,
+            reason=USAGE_ERROR_REASON,
+            blocker=TerminalBlocker(code="invalid_invocation", summary=parsed.message),
+        )
+        return _render_cli_result(result, emit_json=_argv_requests_json(argv))
+
+    result = TerminalResult(
+        status=TerminalStatus.BLOCKED,
+        reason=DRY_RUN_REASON,
+        stage=parsed.request.stage,
+        input_path=_input_path(parsed.request),
+        blocker=TerminalBlocker(
+            code="dry_run_only",
+            summary="Task 1.1b renders terminal results; Cline execution is not implemented in this slice.",
+        ),
+    )
+    return _render_cli_result(result, emit_json=parsed.request.emit_json)
+
+
+def _render_cli_result(result: TerminalResult, *, emit_json: bool) -> CliRunResult:
+    payload = json.dumps(result.to_payload(), sort_keys=True, separators=(",", ":"))
+    exit_code = int(exit_category_for_status(result.status))
+    if emit_json:
+        return CliRunResult(exit_code=exit_code, stdout=f"{payload}\n", stderr="", terminal_result=result)
+    diagnostic = _human_diagnostic(result)
+    return CliRunResult(exit_code=exit_code, stdout=f"{diagnostic}\n{payload}\n", stderr="", terminal_result=result)
+
+
+def _human_diagnostic(result: TerminalResult) -> str:
+    summary = result.blocker.summary if result.blocker is not None else result.reason
+    return f"cline-sdlc: {result.status.value}: {summary}"
+
+
+def _argv_requests_json(argv: Sequence[str]) -> bool:
+    return "--json" in argv
+
+
+def _input_path(request: InvocationRequest) -> str | None:
+    value = request.source.value
+    if isinstance(value, Path):
+        return value.as_posix()
+    return None
 
 
 def _build_parser() -> argparse.ArgumentParser:
