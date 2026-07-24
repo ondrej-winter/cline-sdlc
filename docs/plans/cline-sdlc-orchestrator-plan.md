@@ -1381,7 +1381,7 @@ specification review before implementation proceeds.
 
 - [x] Task 2.1: Implement the Cline subprocess adapter.
 - [ ] Task 2.2: Coordinate bounded session attempts.
-- [ ] Task 2.3: Add capability and skill preflight.
+- [x] Task 2.3: Add capability and skill preflight.
 - [x] Task 2.4: Implement the balanced operation policy.
 - [ ] Task 2.5: Implement Git inspection and branch safety.
 - [ ] Task 2.6: Add ignored run audit and redaction.
@@ -1666,6 +1666,18 @@ specification review before implementation proceeds.
   or decide lifecycle advancement; those remain later orchestration slices.
 - The Task 2.1 validation gate passed: focused Cline execution contract/unit tests completed 33
   tests; Ruff fixes/checks and formatting passed; and mypy passed.
+- Task 2.3 completed on 2026-07-24 as the supervised-runner Cline capability and skill
+  preflight slice. It added application-owned preflight request/result/blocker DTOs and the
+  `PreflightClineCapabilities` use case, which probes an explicit Cline command through the
+  existing capability-probe port and converts missing or unproven critical capability evidence
+  into typed actionable blockers before any lifecycle stage session can start.
+- The Task 2.3 slice also hardened the subprocess capability probe to fail closed for missing
+  executables, help/version probe timeouts, and supervised probe process-launch failures instead
+  of leaking adapter exceptions across the application boundary. It does not wire preflight into
+  lifecycle orchestration, start Cline stage sessions, inspect Git, write lifecycle artifacts, or
+  enforce hook-based operation mediation; those remain later orchestration slices.
+- The Task 2.3 validation gate passed: focused Cline execution tests completed 30 tests; Ruff
+  fixes/checks and formatting passed; mypy passed; and the full 159-test suite passed.
 - Checkpoint B was accepted on 2026-07-24 as a supervised-runner MVP checkpoint over the
   completed Phase 1 artifact and public-contract slices. Current focused checks prove CLI
   contract behavior without launching real Cline, fail-closed session outcome and finding
@@ -1754,6 +1766,7 @@ completed_slices:
   - checkpoint-b-artifact-public-contract
   - task-2.4
   - task-2.1
+  - task-2.3
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -2296,9 +2309,39 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-24T18:11:30Z
+  - slice_id: task-2.3
+    command: uv run pytest tests/unit/features/cline_execution/
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T19:30:00Z
+  - slice_id: task-2.3
+    command: uv run ruff check . --fix
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T19:30:27Z
+  - slice_id: task-2.3
+    command: uv run ruff format .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T19:30:27Z
+  - slice_id: task-2.3
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T19:30:27Z
+  - slice_id: task-2.3
+    command: uv run mypy .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T19:30:27Z
+  - slice_id: task-2.3
+    command: uv run pytest
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-24T19:30:27Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-24T18:11:30Z
+updated_at: 2026-07-24T19:30:27Z
 completed_at: null
 ```
 

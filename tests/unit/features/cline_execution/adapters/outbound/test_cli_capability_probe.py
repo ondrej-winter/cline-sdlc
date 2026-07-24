@@ -53,6 +53,15 @@ def test_probe_records_missing_required_skill() -> None:
     assert not report.critical_capabilities_proven
 
 
+def test_probe_fails_closed_for_missing_executable() -> None:
+    report = SubprocessClineCapabilityProbe().probe(CapabilityProbeRequest(command=("/definitely/missing/cline",)))
+
+    statuses = {observation.name: observation.status for observation in report.observations}
+    assert statuses["json_output"] is CapabilityStatus.MISSING
+    assert statuses["exactly_one_machine_detectable_terminal_outcome"] is CapabilityStatus.UNPROVEN
+    assert not report.critical_capabilities_proven
+
+
 def test_supervised_session_probe_can_prove_critical_contracts(tmp_path: Path) -> None:
     fake_cline = Path(__file__).with_name("fake_helping_cline.py")
 

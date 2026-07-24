@@ -56,13 +56,23 @@ class SubprocessClineCapabilityProbe:
 
 
 def _run(arguments: Sequence[str]) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(  # noqa: S603
-        list(arguments),
-        capture_output=True,
-        check=False,
-        text=True,
-        timeout=_PROBE_TIMEOUT_SECONDS,
-    )
+    try:
+        return subprocess.run(  # noqa: S603
+            list(arguments),
+            capture_output=True,
+            check=False,
+            text=True,
+            timeout=_PROBE_TIMEOUT_SECONDS,
+        )
+    except OSError as err:
+        return subprocess.CompletedProcess(args=list(arguments), returncode=127, stdout="", stderr=str(err))
+    except subprocess.TimeoutExpired as err:
+        return subprocess.CompletedProcess(
+            args=list(arguments),
+            returncode=124,
+            stdout=_timeout_text(err.stdout),
+            stderr=_timeout_text(err.stderr),
+        )
 
 
 def _run_with_timeout(arguments: Sequence[str], timeout_seconds: float) -> subprocess.CompletedProcess[str] | None:
@@ -74,8 +84,16 @@ def _run_with_timeout(arguments: Sequence[str], timeout_seconds: float) -> subpr
             text=True,
             timeout=timeout_seconds,
         )
-    except subprocess.TimeoutExpired:
+    except OSError, subprocess.TimeoutExpired:
         return None
+
+
+def _timeout_text(value: str | bytes | None) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return value
 
 
 def _first_non_empty_line(text: str) -> str | None:
