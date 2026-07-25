@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import json
 import subprocess
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from cline_sdlc.features.run_audit.adapters.outbound.filesystem_store import FilesystemRunAuditStore
 from cline_sdlc.features.run_audit.application.dtos.run_audit import (
+    InvocationApprovalRecord,
     RunAuditEvent,
     RunAuditRecord,
     RunAuditRequest,
@@ -85,6 +87,31 @@ def test_rejects_audit_root_symlink_escape(tmp_path: Path) -> None:
 
     assert result.status is RunAuditStatus.FAILED
     assert result.blockers[0].code == "audit_path_symlink_escape"
+
+
+def test_invocation_approval_is_idempotent_but_immutable(tmp_path: Path) -> None:
+    repository = _initialized_repository(tmp_path)
+    record = InvocationApprovalRecord(
+        schema_version=1,
+        run_id="run-approval",
+        profile="balanced",
+        starting_head="a" * 40,
+        approved_at="2026-07-25T12:00:00Z",
+        specification_digest=f"sha256:{'b' * 64}",
+        material_digest=f"sha256:{'c' * 64}",
+        remediation_envelope_applicable=True,
+    )
+    store = FilesystemRunAuditStore()
+
+    first = store.store_approval(repository.as_posix(), record)
+    retry = store.store_approval(repository.as_posix(), record)
+    conflict = store.store_approval(repository.as_posix(), replace(record, starting_head="d" * 40))
+
+    assert first.recorded
+    assert retry.recorded
+    assert not conflict.recorded
+    assert conflict.blocker is not None
+    assert conflict.blocker.code == "invocation_approval_conflict"
 
 
 def _initialized_repository(tmp_path: Path) -> Path:

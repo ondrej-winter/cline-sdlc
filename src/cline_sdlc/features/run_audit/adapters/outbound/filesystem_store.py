@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 from cline_sdlc.features.run_audit.application.dtos.run_audit import (
+    InvocationApprovalRecord,
+    InvocationApprovalRecordResult,
     RunAuditBlocker,
     RunAuditRecord,
     RunAuditRequest,
@@ -14,12 +16,10 @@ from cline_sdlc.features.run_audit.application.dtos.run_audit import (
     RunAuditStatus,
 )
 
-if TYPE_CHECKING:
-    from pathlib import Path
-
 AUDIT_ROOT = ".cline-sdlc"
 RUNS_DIRECTORY = "runs"
 SUMMARY_FILENAME = "summary.json"
+APPROVAL_FILENAME = "approval.json"
 IGNORE_RULE = f"{AUDIT_ROOT}/"
 
 
@@ -50,6 +50,42 @@ class FilesystemRunAuditStore:
             status=RunAuditStatus.RECORDED,
             summary_path=relative_summary_path,
             record=record,
+        )
+
+    def store_approval(
+        self,
+        repository_root: str,
+        record: InvocationApprovalRecord,
+    ) -> InvocationApprovalRecordResult:
+        """Create an ignored immutable approval file or verify an identical retry."""
+        blocker = _validate_run_id(record.run_id)
+        if blocker is not None:
+            return InvocationApprovalRecordResult(recorded=False, blocker=blocker)
+        root = Path(repository_root).resolve(strict=False)
+        run_directory = root / AUDIT_ROOT / RUNS_DIRECTORY / record.run_id
+        blocker = _path_blocker(root, run_directory)
+        if blocker is not None:
+            return InvocationApprovalRecordResult(recorded=False, blocker=blocker)
+        blocker = _ensure_ignore_rule(root)
+        if blocker is not None:
+            return InvocationApprovalRecordResult(recorded=False, blocker=blocker)
+        run_directory.mkdir(parents=True, exist_ok=True)
+        approval_path = run_directory / APPROVAL_FILENAME
+        payload = json.dumps(asdict(record), indent=2, sort_keys=True) + "\n"
+        if approval_path.exists() and approval_path.read_text(encoding="utf-8") != payload:
+            return InvocationApprovalRecordResult(
+                recorded=False,
+                blocker=RunAuditBlocker(
+                    code="invocation_approval_conflict",
+                    summary="run already has a different immutable invocation approval",
+                    path=approval_path.relative_to(root).as_posix(),
+                ),
+            )
+        if not approval_path.exists():
+            approval_path.write_text(payload, encoding="utf-8")
+        return InvocationApprovalRecordResult(
+            recorded=True,
+            approval_path=approval_path.relative_to(root).as_posix(),
         )
 
 

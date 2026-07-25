@@ -60,6 +60,20 @@ class RunAuditRecord:
 
 
 @dataclass(frozen=True)
+class InvocationApprovalRecord:
+    """Versioned immutable invocation approval persisted before implementation."""
+
+    schema_version: int
+    run_id: str
+    profile: str
+    starting_head: str
+    approved_at: str
+    specification_digest: str
+    material_digest: str
+    remediation_envelope_applicable: bool
+
+
+@dataclass(frozen=True)
 class RunAuditRequest:
     """Application request to redact and persist one run summary."""
 
@@ -83,3 +97,12 @@ class RunAuditResult:
     def recorded(self) -> bool:
         """Return whether the summary was safely recorded."""
         return self.status is RunAuditStatus.RECORDED
+
+
+@dataclass(frozen=True)
+class InvocationApprovalRecordResult:
+    """Result of immutable invocation approval persistence."""
+
+    recorded: bool
+    approval_path: str | None = None
+    blocker: RunAuditBlocker | None = None

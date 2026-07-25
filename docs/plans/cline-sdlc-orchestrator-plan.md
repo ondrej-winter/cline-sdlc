@@ -1472,7 +1472,7 @@ specification review before implementation proceeds.
 ### Phase 4
 
 - [x] Task 4.1a: Select the next plan slice from reconciled progress.
-- [ ] Task 4.1b: Reconcile Git ownership and record invocation approval.
+- [x] Task 4.1b: Reconcile Git ownership and record invocation approval.
 - [ ] Task 4.2: Execute one bounded slice session.
 - [ ] Task 4.3: Independently reconcile one slice.
 - [ ] Task 4.4: Create one explicit atomic slice commit.
@@ -2006,9 +2006,20 @@ specification review before implementation proceeds.
   Git, filesystem, clock, subprocess, Cline, or write effects.
 - Task 4.1a focused validation passed 18 tests. The full gate passed Ruff formatting and checks,
   strict mypy over 205 source files, all 288 tests with 87% coverage, `uv build`, and
-  `git --no-pager diff --check`. Task 4.1b is the next production implementation slice and remains
-  responsible for Git ownership, committed transitions, digests, dirty-path reconciliation, and
-  immutable invocation approval.
+  `git --no-pager diff --check`.
+- Task 4.1b completed on 2026-07-25 as a fail-closed repository-coordination slice. It validates the
+  current specification and plan digests, observes reachable Git history and dirty paths through a
+  read-only adapter, proves each completed slice has one correctly attributed owning commit that
+  introduced its plan transition, reconciles partial progress, and delegates final deterministic
+  selection to Task 4.1a.
+- Task 4.1b records one balanced-profile invocation approval under ignored run-audit state before
+  returning authorization or accepting later ownership reconciliation. Identical retries are
+  idempotent; changed approval payloads, duplicate or missing owners, stale digests, and unrecorded
+  dirty paths block without starting Cline or writing lifecycle artifacts.
+- Task 4.1b focused validation passed 12 reconciliation, audit-persistence, and compatibility tests.
+  The full gate passed Ruff formatting and checks, strict mypy over 213 source files, all 295 tests
+  with 87% coverage, `uv build`, and `git --no-pager diff --check`. Task 4.2 is the next production
+  implementation slice.
 
 ### Plan-review findings
 
@@ -2103,6 +2114,7 @@ completed_slices:
   - checkpoint-d-artifact-boundaries
   - automation-scope-realignment
   - task-4.1a
+  - task-4.1b
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -3217,9 +3229,45 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-25T08:02:07Z
+  - slice_id: task-4.1b
+    command: >-
+      uv run pytest tests/integration/features/repository_coordination/test_reconciliation.py tests/integration/features/run_audit/test_filesystem_store.py tests/unit/features/run_audit/application/test_record_run_summary.py
+    result: passed (12 tests)
+    exit_code: 0
+    recorded_at: 2026-07-25T14:17:59Z
+  - slice_id: task-4.1b
+    command: uv run ruff format .
+    result: passed (213 files unchanged)
+    exit_code: 0
+    recorded_at: 2026-07-25T14:17:59Z
+  - slice_id: task-4.1b
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-25T14:17:59Z
+  - slice_id: task-4.1b
+    command: uv run mypy .
+    result: passed (213 source files)
+    exit_code: 0
+    recorded_at: 2026-07-25T14:17:59Z
+  - slice_id: task-4.1b
+    command: uv run pytest
+    result: passed (295 tests, 87% coverage)
+    exit_code: 0
+    recorded_at: 2026-07-25T14:17:59Z
+  - slice_id: task-4.1b
+    command: uv build
+    result: passed (source distribution and wheel)
+    exit_code: 0
+    recorded_at: 2026-07-25T14:17:59Z
+  - slice_id: task-4.1b
+    command: git --no-pager diff --check
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-25T14:17:59Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-25T08:02:07Z
+updated_at: 2026-07-25T14:17:59Z
 completed_at: null
 ```
 
