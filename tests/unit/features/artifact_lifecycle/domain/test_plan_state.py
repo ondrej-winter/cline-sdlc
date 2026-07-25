@@ -59,9 +59,10 @@ def test_state_rejects_invalid_scalar_and_sequence_fields(field: str, value: obj
         ready_state(**{field: value})
 
 
-def test_implementing_state_requires_active_slice_fields() -> None:
-    with pytest.raises(ValueError, match="active slice"):
-        ready_state(phase=PlanPhase.IMPLEMENTING)
+def test_implementing_state_may_be_clean_between_atomic_slices() -> None:
+    state = ready_state(phase=PlanPhase.IMPLEMENTING)
+
+    assert not state.has_active_slice
 
 
 def test_active_slice_fields_must_be_set_together() -> None:

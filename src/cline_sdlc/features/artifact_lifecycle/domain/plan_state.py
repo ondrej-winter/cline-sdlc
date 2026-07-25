@@ -151,9 +151,8 @@ class PlanState:
         if self.phase not in {PlanPhase.IMPLEMENTING, PlanPhase.BLOCKED} and self.has_active_slice:
             message = "active slice fields are only valid while implementing or blocked"
             raise ValueError(message)
-        if self.phase is PlanPhase.IMPLEMENTING and not self.has_active_slice:
-            message = "implementing state must identify the active slice"
-            raise ValueError(message)
+        # An implementing plan may be between atomic slices. Active fields are
+        # required only while a slice has attributable uncommitted work.
         if self.phase is PlanPhase.BLOCKED and self.blocker is None:
             message = "blocked state must include a blocker"
             raise ValueError(message)

@@ -1475,7 +1475,7 @@ specification review before implementation proceeds.
 - [x] Task 4.1b: Reconcile Git ownership and record invocation approval.
 - [x] Task 4.2: Execute one bounded slice session.
 - [x] Task 4.3: Independently reconcile one slice.
-- [ ] Task 4.4: Create one explicit atomic slice commit.
+- [x] Task 4.4: Create one explicit atomic slice commit.
 - [ ] Task 4.5: Add serial transaction looping.
 - [ ] Task 4.6: Add signal handling and cross-process resume.
 - [ ] Checkpoint E: Core implementation loop accepted.
@@ -2066,6 +2066,24 @@ specification review before implementation proceeds.
   The full gate passed Ruff formatting over 219 files, Ruff checks, strict mypy over 219 source
   files, all 328 tests with 87% coverage, `uv build`, and `git --no-pager diff --check`. Task 4.4 is
   now the next production implementation slice.
+- Task 4.4 completed on 2026-07-25 as a repository-coordination application and outbound-adapter
+  slice. It added immutable commit request, Git request/observation, blocker, recovery, and result
+  DTOs; an application-owned `GitSliceCommitterPort`; and a `CommitSlice` use case that strictly
+  inspects current and updated plan bytes before authorizing repository effects.
+- Commit authorization fails closed unless work identity, material/specification identity, the
+  completed-slice transition, cleared active/partial state, exact committed paths, and the final
+  commit message agree. The message contains unique work, slice, implementation-kind, and material
+  digest trailers, while plan progress deliberately excludes the new commit's own object ID.
+- The Git CLI adapter verifies the starting HEAD, exact dirty paths, empty index, and authorized
+  plan bytes; atomically writes the progress update; stages only explicit reconciled paths; and
+  commits non-interactively with hooks enabled. Hook or commit failure clears only the candidate
+  paths from the index and preserves attributable working-tree changes for recovery. Implementing
+  plans may therefore be clean between atomic slices while active fields remain all-or-none when
+  uncommitted slice work exists.
+- Task 4.4 focused validation passed all 5 integration tests. The full gate passed Ruff formatting
+  over 24 files with no changes, Ruff checks, strict mypy over 224 source files, all 333 tests with
+  87% coverage, `uv build` producing the source distribution and wheel, and
+  `git --no-pager diff --check`. Task 4.5 is now the next production implementation slice.
 
 ### Plan-review findings
 
@@ -2164,6 +2182,7 @@ completed_slices:
   - task-2.4b
   - task-4.2
   - task-4.3
+  - task-4.4
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -3419,9 +3438,44 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-25T19:57:27Z
+  - slice_id: task-4.4
+    command: uv run pytest tests/integration/features/repository_coordination/test_slice_commit.py
+    result: passed (5 tests)
+    exit_code: 0
+    recorded_at: 2026-07-25T20:26:12Z
+  - slice_id: task-4.4
+    command: uv run ruff format .
+    result: passed (24 files unchanged)
+    exit_code: 0
+    recorded_at: 2026-07-25T20:26:12Z
+  - slice_id: task-4.4
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-25T20:26:12Z
+  - slice_id: task-4.4
+    command: uv run mypy .
+    result: passed (224 source files)
+    exit_code: 0
+    recorded_at: 2026-07-25T20:26:12Z
+  - slice_id: task-4.4
+    command: uv run pytest
+    result: passed (333 tests, 87% coverage)
+    exit_code: 0
+    recorded_at: 2026-07-25T20:26:12Z
+  - slice_id: task-4.4
+    command: uv build
+    result: passed (source distribution and wheel)
+    exit_code: 0
+    recorded_at: 2026-07-25T20:26:12Z
+  - slice_id: task-4.4
+    command: git --no-pager diff --check
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-25T20:26:12Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-25T19:57:27Z
+updated_at: 2026-07-25T20:26:12Z
 completed_at: null
 ```
 
