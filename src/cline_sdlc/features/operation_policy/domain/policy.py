@@ -65,11 +65,24 @@ class OperationDecision:
     rule_id: str
     summary: str
     proposed_operation: str
+    accepted_material_requirement: str | None = None
 
     @property
     def is_allowed(self) -> bool:
         """Return whether the operation may proceed automatically."""
         return self.status is OperationDecisionStatus.ALLOWED
+
+
+@dataclass(frozen=True)
+class PlannedOperation:
+    """Domain authorization for one exact accepted-plan operation."""
+
+    kind: str
+    executable: str
+    arguments: tuple[str, ...]
+    material_requirement: str
+    destination: str | None = None
+    owned_paths: tuple[str, ...] = ()
 
 
 _SECRET_TOKENS = frozenset(("token", "secret", "password", "passwd", "credential", "keychain"))
@@ -111,6 +124,25 @@ _DENIED_GIT_SUBCOMMANDS = frozenset(
 _ALLOWED_UV_RUN_TOOLS = frozenset(("ruff", "mypy", "pytest"))
 _MINIMUM_UV_RUN_ARGUMENTS = 2
 _DANGEROUS_GIT_FLAGS = frozenset(("--force", "-f", "--hard", "--delete", "-D", "--no-verify"))
+_PLANNED_UV_DEPENDENCY_SUBCOMMANDS = frozenset(("add", "lock", "remove", "sync"))
+_DEPENDENCY_MANIFEST_PATHS = frozenset(("pyproject.toml", "uv.lock"))
+_NETWORK_WRITE_FLAGS = frozenset(
+    (
+        "--data",
+        "--data-binary",
+        "--data-raw",
+        "--form",
+        "--method",
+        "--post-data",
+        "--post-file",
+        "--request",
+        "--upload-file",
+        "-F",
+        "-T",
+        "-X",
+        "-d",
+    )
+)
 
 type _ExecutablePolicy = tuple[frozenset[str], str, str]
 _EXECUTABLE_POLICIES: tuple[_ExecutablePolicy, ...] = (
@@ -125,11 +157,22 @@ _EXECUTABLE_POLICIES: tuple[_ExecutablePolicy, ...] = (
 )
 
 
-def classify_operation(operation: CommandOperation) -> OperationDecision:
+def classify_operation(
+    operation: CommandOperation,
+    *,
+    authorization: PlannedOperation | None = None,
+) -> OperationDecision:
     """Classify one structured operation according to the balanced profile."""
     secret_decision = _deny_if_contains_secret_reference(operation)
     if secret_decision is not None:
         return secret_decision
+
+    planned_decision = _classify_planned_operation(
+        operation,
+        authorization=authorization,
+    )
+    if planned_decision is not None:
+        return planned_decision
 
     executable = operation.executable_name
     policy_decision = _deny_by_executable_policy(operation, executable=executable)
@@ -143,6 +186,111 @@ def classify_operation(operation: CommandOperation) -> OperationDecision:
         operation,
         rule_id="deny_unclassified_operation",
         summary="operation risk could not be classified confidently",
+    )
+
+
+def _classify_planned_operation(
+    operation: CommandOperation,
+    *,
+    authorization: PlannedOperation | None,
+) -> OperationDecision | None:
+    if authorization is None:
+        return None
+    if operation.executable != authorization.executable or operation.arguments != authorization.arguments:
+        return _deny(
+            operation,
+            rule_id="deny_planned_operation_mismatch",
+            summary="operation does not exactly match accepted plan authorization",
+        )
+    if not authorization.material_requirement:
+        return _deny(
+            operation,
+            rule_id="deny_invalid_plan_authorization",
+            summary="accepted plan authorization has no material requirement",
+        )
+    if authorization.kind == "dependency":
+        return _classify_planned_dependency(
+            operation,
+            owned_paths=authorization.owned_paths,
+            material_requirement=authorization.material_requirement,
+        )
+    if authorization.kind == "network":
+        return _classify_planned_network(
+            operation,
+            destination=authorization.destination,
+            material_requirement=authorization.material_requirement,
+        )
+    return _deny(
+        operation,
+        rule_id="deny_invalid_plan_authorization",
+        summary="accepted plan authorization uses an unsupported operation class",
+    )
+
+
+def _classify_planned_dependency(
+    operation: CommandOperation,
+    *,
+    owned_paths: tuple[str, ...],
+    material_requirement: str,
+) -> OperationDecision:
+    if operation.executable_name != "uv" or not operation.arguments:
+        return _deny(
+            operation,
+            rule_id="deny_unclassified_planned_dependency",
+            summary="planned dependency operation is not a classifiable uv command",
+        )
+    if operation.arguments[0] not in _PLANNED_UV_DEPENDENCY_SUBCOMMANDS:
+        return _deny(
+            operation,
+            rule_id="deny_unclassified_planned_dependency",
+            summary="planned uv subcommand is not a supported dependency operation",
+        )
+    if not _DEPENDENCY_MANIFEST_PATHS.issubset(owned_paths):
+        return _deny(
+            operation,
+            rule_id="deny_incomplete_dependency_ownership",
+            summary="planned dependency changes must own pyproject.toml and uv.lock together",
+        )
+    return _allow(
+        operation,
+        rule_id="allow_planned_dependency_operation",
+        summary="exact accepted-plan dependency operation is allowed",
+        material_requirement=material_requirement,
+    )
+
+
+def _classify_planned_network(
+    operation: CommandOperation,
+    *,
+    destination: str | None,
+    material_requirement: str,
+) -> OperationDecision:
+    if operation.executable_name not in {"curl", "wget"}:
+        return _deny(
+            operation,
+            rule_id="deny_unclassified_planned_network",
+            summary="planned network executable is not supported",
+        )
+    if destination is None or not destination.startswith("https://") or destination not in operation.arguments:
+        return _deny(
+            operation,
+            rule_id="deny_network_destination_mismatch",
+            summary="planned network operation must name its exact HTTPS destination",
+        )
+    if any(
+        argument in _NETWORK_WRITE_FLAGS or any(argument.startswith(f"{flag}=") for flag in _NETWORK_WRITE_FLAGS)
+        for argument in operation.arguments
+    ):
+        return _deny(
+            operation,
+            rule_id="deny_network_external_effect",
+            summary="network writes and publication are not allowed",
+        )
+    return _allow(
+        operation,
+        rule_id="allow_planned_network_operation",
+        summary="exact accepted-plan bounded network operation is allowed",
+        material_requirement=material_requirement,
     )
 
 
@@ -217,12 +365,19 @@ def _deny_if_contains_secret_reference(operation: CommandOperation) -> Operation
     return None
 
 
-def _allow(operation: CommandOperation, *, rule_id: str, summary: str) -> OperationDecision:
+def _allow(
+    operation: CommandOperation,
+    *,
+    rule_id: str,
+    summary: str,
+    material_requirement: str | None = None,
+) -> OperationDecision:
     return OperationDecision(
         status=OperationDecisionStatus.ALLOWED,
         rule_id=rule_id,
         summary=summary,
         proposed_operation=operation.redacted_command(),
+        accepted_material_requirement=material_requirement,
     )
 
 

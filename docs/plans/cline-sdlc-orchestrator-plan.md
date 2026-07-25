@@ -1452,7 +1452,7 @@ specification review before implementation proceeds.
 - [x] Task 2.2: Coordinate bounded session attempts.
 - [x] Task 2.3: Add capability and skill preflight.
 - [x] Task 2.4: Implement the balanced operation policy.
-- [ ] Task 2.4b: Authorize planned dependency and network operations.
+- [x] Task 2.4b: Authorize planned dependency and network operations.
 - [x] Task 2.5: Implement Git inspection and branch safety.
 - [x] Task 2.6: Add ignored run audit and redaction.
 - [x] Task 2.7: Discover, classify, and execute validation commands.
@@ -2018,8 +2018,27 @@ specification review before implementation proceeds.
   dirty paths block without starting Cline or writing lifecycle artifacts.
 - Task 4.1b focused validation passed 12 reconciliation, audit-persistence, and compatibility tests.
   The full gate passed Ruff formatting and checks, strict mypy over 213 source files, all 295 tests
-  with 87% coverage, `uv build`, and `git --no-pager diff --check`. Task 4.2 is the next production
-  implementation slice.
+  with 87% coverage, `uv build`, and `git --no-pager diff --check`.
+- Task 2.4b completed on 2026-07-25 as the accepted-plan operation-authorization extension required
+  before Task 4.2. It added application-owned immutable authorization context for exact dependency
+  or bounded network operations, including the accepted material requirement, executable, argument
+  array, optional HTTPS destination, and normalized owned paths.
+- Task 2.4b preserves Task 2.4's default denial behavior when no authorization is supplied. Planned
+  dependency authorization is limited to exact classifiable `uv add`, `uv remove`, `uv lock`, or
+  `uv sync` commands and requires coordinated ownership of both `pyproject.toml` and `uv.lock`.
+  Planned network authorization is limited to an exact `curl` or `wget` HTTPS read whose destination
+  appears in the authorized argument array; upload, request-method, form, and data flags remain hard
+  stops.
+- Secret references are classified before accepted-plan authorization, and executable or argument
+  mismatches, unsafe authorization paths, unsupported dependency tools, non-HTTPS destinations,
+  network writes, and unplanned operations fail closed. Allowed decisions record the accepted
+  material requirement and a redacted proposed-operation summary without treating arbitrary shell
+  text as authorization. This slice classifies operations only; Task 4.2 remains responsible for
+  bounded session execution and operation-record coordination.
+- Task 2.4b focused validation passed 36 operation-policy tests plus focused Ruff formatting/checks
+  and strict mypy over 13 source files. The full gate passed Ruff formatting and checks, strict mypy
+  over 213 source files, all 306 tests with 87% coverage, `uv build`, and
+  `git --no-pager diff --check`. Task 4.2 is now the next production implementation slice.
 
 ### Plan-review findings
 
@@ -2115,6 +2134,7 @@ completed_slices:
   - automation-scope-realignment
   - task-4.1a
   - task-4.1b
+  - task-2.4b
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -3265,9 +3285,44 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-25T14:17:59Z
+  - slice_id: task-2.4b
+    command: uv run pytest tests/unit/features/operation_policy/
+    result: passed (36 tests)
+    exit_code: 0
+    recorded_at: 2026-07-25T18:43:21Z
+  - slice_id: task-2.4b
+    command: uv run ruff format .
+    result: passed (213 files unchanged)
+    exit_code: 0
+    recorded_at: 2026-07-25T18:43:21Z
+  - slice_id: task-2.4b
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-25T18:43:21Z
+  - slice_id: task-2.4b
+    command: uv run mypy .
+    result: passed (213 source files)
+    exit_code: 0
+    recorded_at: 2026-07-25T18:43:21Z
+  - slice_id: task-2.4b
+    command: uv run pytest
+    result: passed (306 tests, 87% coverage)
+    exit_code: 0
+    recorded_at: 2026-07-25T18:43:21Z
+  - slice_id: task-2.4b
+    command: uv build
+    result: passed (source distribution and wheel)
+    exit_code: 0
+    recorded_at: 2026-07-25T18:43:21Z
+  - slice_id: task-2.4b
+    command: git --no-pager diff --check
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-25T18:43:21Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-25T14:17:59Z
+updated_at: 2026-07-25T18:43:21Z
 completed_at: null
 ```
 
