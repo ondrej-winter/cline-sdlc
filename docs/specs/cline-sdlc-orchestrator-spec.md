@@ -5,32 +5,32 @@
 - Artifact type: product and behavior specification
 - Date: 2026-07-23
 - Source brief: `docs/ideas/cline-sdlc-orchestrator.md`
-- Decision state: MVP scope pivot accepted on 2026-07-24
-- Intended scope: portable supervised Cline SDLC workflow runner
+- Decision state: serial plan-implementation automation accepted on 2026-07-25
+- Intended scope: portable Cline SDLC orchestrator with bounded unattended plan implementation
 
 ## MVP scope decision
 
-The MVP is a supervised workflow runner inspired by
-`../ritebook-shelf/tools/cline-skill-workflow`, not a fully unattended safe
-orchestrator. It should productize the same pragmatic model for SDLC stages:
-discover or accept one bounded work item, build a stage-specific prompt, invoke
-the Cline CLI with explicit argument arrays, write logs and summaries, and leave
-major lifecycle and risk decisions under human control.
+The MVP automates the manual workflow in which a user invokes a fresh Cline task
+for the next accepted plan slice, allows Cline to inspect and plan before acting,
+reviews the resulting changes, and repeats with a new session. One `--plan-file`
+invocation performs that sequence serially for all remaining slices. Each slice
+uses a fresh Cline context, is bounded by accepted plan material, updates plan
+progress, passes independent validation and Git reconciliation, and receives one
+local atomic commit before later work starts.
 
-The following stricter unattended-orchestrator capabilities are deferred beyond
-the MVP unless a later specification revision reintroduces them with supporting
-evidence:
+Invoking `--plan-file` is the human approval boundary for the exact current
+specification and plan material digests. Within that approved material, the
+orchestrator may authorize each fresh session to move from inspection/planning to
+acting without another prompt. A session must stop instead of inventing a new
+material decision or exceeding the accepted slice.
 
-- hook-based or SDK-based pre-execution permission mediation;
-- exactly-one structured Cline terminal outcome enforcement;
-- automatic Git reconciliation, staging, slice commits, and commit trailers;
-- automatic recovery from partial writes after interruption;
-- unattended final review, remediation, and completion commits.
-
-For the MVP, human review of artifacts, working-tree changes, Cline logs, and
-run summaries is the safety boundary. Cline exit codes and JSON output may inform
-the runner result, but ordinary Cline JSON event streams are not treated as a
-hard lifecycle state protocol.
+The implementation remains fail-closed. Secrets, credential stores, production
+data, destructive or system-level operations, remote publication, and deployment
+are hard stops. Explicitly planned local dependency changes and network access may
+run when their executable and arguments are classifiable and bounded by accepted
+plan material. Automatic Git reconciliation, local slice commits, bounded recovery,
+final review, remediation, and finalization are therefore in scope rather than
+deferred.
 
 ## Objective
 
@@ -38,9 +38,9 @@ Build a standalone Python 3 command-line application that coordinates one
 bounded software development lifecycle stage per invocation through the Cline
 CLI.
 The application must accept one rough idea or one repository artifact, invoke
-the existing stage-specific Agent Skills in supervised Cline sessions, persist
-logs and summaries that help the user review what happened, and stop at the next
-major artifact boundary.
+the existing stage-specific Agent Skills in bounded Cline sessions, persist logs
+and summaries, and stop at the next major artifact boundary. Plan implementation
+is one major stage and may contain multiple serial fresh-session slice transactions.
 
 The application is for engineers who want to reduce manual coordination between
 idea refinement, specification, planning, plan review, and incremental
@@ -54,18 +54,18 @@ The `cline-sdlc` package must be installable and runnable as a Python CLI throug
 
 Focused Agent Skills already define the detailed procedures for idea refinement,
 specification, planning, plan review, incremental implementation, testing, and
-quality gates. The missing MVP capability is a portable runner around those
-skills: input selection, prompt construction, subprocess coordination, bounded
-stage execution, dry-run support, Cline logs, run summaries, and clear handoff
-to the human reviewer.
+quality gates. The missing MVP capability is a portable orchestrator around those
+skills: input selection, subprocess coordination, bounded stage execution, dry-run
+support, Cline logs, run summaries, slice reconciliation, and local commits.
 
-Cline CLI is the execution engine for the MVP. The runner owns process
-coordination but does not replace Cline, reproduce specialist skill instructions,
-or claim unattended completion guarantees from free-form prose.
+Cline CLI is the execution engine for the MVP. The orchestrator owns process and
+transaction coordination but does not replace Cline or reproduce specialist skill
+instructions. It establishes completion only from validated artifacts, process
+observations, validation evidence, and Git state, never from free-form prose alone.
 
-Repository-visible Markdown artifacts remain the portable source of truth for
-human review. Cline session identifiers, CLI event logs, summaries, and
-Checkpoints support diagnosis and handoff but do not establish unattended
+Repository-visible Markdown artifacts plus reconciled Git history remain the
+portable source of truth. Cline session identifiers, CLI event logs, summaries,
+and Checkpoints support diagnosis and handoff but do not independently establish
 lifecycle phase, plan readiness, approval, or completed work.
 
 ## Assumptions
@@ -74,24 +74,23 @@ lifecycle phase, plan readiness, approval, or completed work.
    operate outside Git when the user chooses an output location.
 2. Cline CLI provides non-interactive invocation, JSON/event output when
    requested, bounded timeouts, and optional isolated data directories suitable
-   for supervised workflow execution.
+   for bounded workflow execution.
 3. The required stage skills are installed or discoverable by each Cline
    session.
 4. Markdown artifacts can contain a fenced YAML state block that is readable by
    humans and parsed safely by the orchestrator.
-5. A fresh Cline session can provide process exit status and logs sufficient for
-   human review, but it is not required to emit a dedicated lifecycle terminal
-   outcome for the MVP.
-6. The initial release does not create automatic commits. Users review, stage,
-   and commit artifacts or implementation changes themselves.
+5. A fresh Cline session provides process observations and a machine-detectable
+   outcome sufficient for independent reconciliation; ordinary prose is not
+   authoritative lifecycle state.
+6. Plan implementation creates one local atomic commit per independently verified
+   slice. Other artifact-producing stages leave changes for human review.
 7. The application may depend on Git, `uvx`, Python 3.14 or newer, and the Cline
    CLI, but must not require this repository's directory layout or maintenance
    tooling when used in another repository.
 
-If later releases require unattended implementation, assumptions about structured
-outcomes, permission mediation, and recovery must be proven before those
-capabilities are reintroduced. An SDK-based orchestrator remains the preferred
-future direction when deterministic human-in-the-loop policies are required.
+If the CLI cannot provide enforceable operation mediation or attributable recovery,
+the implementation must stop and revisit the transport or SDK direction rather
+than weaken these contracts.
 
 ## Product boundaries
 
@@ -100,30 +99,26 @@ future direction when deterministic human-in-the-loop policies are required.
 - one `cline-sdlc` entry point runnable through `uvx`;
 - rough-idea, idea-file, specification-file, and implementation-plan-file inputs;
 - exactly one major lifecycle stage per invocation;
-- direct attachment or normal subprocess execution for supervised Cline sessions;
+- direct attachment or normal subprocess execution for bounded Cline sessions;
 - stage-specific prompt generation that asks Cline to use the relevant Agent Skill;
 - dry-run preview of generated Cline commands and prompts;
 - optional bounded timeout, Cline executable, provider, model, thinking effort,
   auto-approval, and isolated data-directory options;
 - per-run log directories and JSON summaries similar to `cline-skill-workflow`;
-- optional Git status/diff reporting for human review;
+- Git reconciliation, explicit staging, local atomic slice commits, and bounded recovery;
+- serial fresh-session implementation of every remaining accepted plan slice;
+- final review, bounded remediation, broad validation, and plan finalization;
 - machine-readable runner results and actionable human diagnostics.
 
 ### Out of scope
 
 - automatic cascading across two or more major lifecycle stages;
 - Cline SDK or Agent Team orchestration;
-- hook-based or SDK-enforced pre-execution permission mediation;
-- exact structured terminal outcome enforcement;
-- automatic Git staging, commits, trailers, or commit ownership reconciliation;
-- automatic partial-write recovery after interruption;
-- unattended final review, remediation, or completion;
 - Ritebook or other product-specific integration;
 - pushes, pull requests, issue updates, releases, publication, or deployment;
 - concurrent implementation sessions or concurrent repository writers;
 - database-backed workflow state;
 - arbitrary approval profiles;
-- automatic dependency installation or network access;
 - fully unattended execution in an untrusted workspace;
 - mandatory architecture, language, test framework, or artifact directory
   conventions in host repositories;
@@ -392,6 +387,13 @@ plan material digests for the duration of that invocation. Preflight must reject
 a plan that is not review-ready, has unresolved blocking findings, has an invalid
 state block, or has a stored specification or material digest that does not match
 the current accepted specification and canonical material content.
+
+That invocation also authorizes each fresh slice session to inspect the assigned
+slice, produce its implementation approach, and proceed to acting without a new
+human prompt, provided the approach remains within accepted material and the
+operation policy. The orchestrator supplies the accepted specification, plan, and
+current slice as durable context; it does not duplicate the detailed implementation
+procedure already owned by the relevant Agent Skills.
 
 The orchestrator must then:
 
@@ -738,6 +740,11 @@ Within the current repository and assigned slice, the orchestrator may allow:
 - creation of test fixtures that do not contain credentials or production data;
 - local formatting, linting, static analysis, tests, and builds already defined
   by the repository;
+- local dependency addition, removal, upgrade, and lockfile updates explicitly
+  required by the accepted current slice;
+- bounded network access explicitly required by the accepted current slice when
+  the destination and command are classifiable and do not involve credentials,
+  production data, publication, or deployment;
 - non-interactive Git status, diff, log, show, and branch inspection;
 - the orchestrator's local slice commit after independent reconciliation;
 - writes to the ignored run-log directory;
@@ -751,9 +758,8 @@ inspection; prompt instructions alone are insufficient permission enforcement.
 
 The MVP must not automatically execute:
 
-- network access, downloads, remote API calls, or package-index access;
-- dependency addition, removal, upgrade, or lockfile regeneration caused by a
-  dependency decision;
+- unplanned network access, downloads, remote API calls, or package-index access;
+- unplanned dependency changes or lockfile regeneration;
 - credential, token, keychain, secret-store, or production-data access;
 - destructive filesystem operations outside narrowly scoped generated files;
 - database migrations against non-ephemeral data;
@@ -1143,9 +1149,12 @@ explicit human-approved exception outside unattended execution.
 
 - [ ] Read-only inspection, bounded workspace edits, known local validation, and
       the orchestrator's slice commit can proceed without routine approval.
-- [ ] Network, dependencies, credentials, destructive actions, external effects,
-      material decisions, and unclassified commands stop with the exact proposed
-      operation recorded.
+- [ ] Planned, classifiable local dependency changes and bounded network access
+      may proceed; unplanned equivalents stop with the exact proposed operation
+      recorded.
+- [ ] Credentials, production data, destructive or system actions, remote
+      publication or deployment, material decisions, and unclassified commands
+      always stop with the exact proposed operation recorded.
 - [ ] The orchestrator never pushes, publishes, deploys, rewrites history, deletes
       branches, or executes streamed remote scripts.
 - [ ] Ambiguity, spec contradiction, material drift, unavailable context, or

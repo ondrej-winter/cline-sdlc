@@ -43,7 +43,7 @@ rollout exercises, packaging smoke test, and repository quality gate pass.
   CLI-wrapper architecture.
 - Pushes, pull requests, releases, publishing, deployment, or other remote effects.
 - Concurrent implementation sessions or repository writers.
-- Database-backed state, arbitrary approval profiles, or automatic dependency changes.
+- Database-backed state, arbitrary approval profiles, or unplanned dependency changes.
 - Reimplementing the detailed procedures already owned by stage-specific Agent Skills.
 - Imposing this repository's architecture or validation commands on host repositories.
 
@@ -56,7 +56,7 @@ rollout exercises, packaging smoke test, and repository quality gate pass.
   developer's Git repository, wall-clock dependence, or uncontrolled filesystem effects.
 - Use `uv`, Ruff, mypy, and pytest through the project configuration in `pyproject.toml`.
 - Runtime dependencies belong in `[project].dependencies`; dependency changes must update
-  `pyproject.toml` and `uv.lock` together and require explicit approval.
+  `pyproject.toml` and `uv.lock` together and must be explicit in accepted plan material.
 - The implementation must use argument-array subprocess execution and explicit working
   directories; it must not use shell interpolation for untrusted values.
 - The default implementation branch cannot be a protected branch. Disposable Git
@@ -154,13 +154,21 @@ or adapters.
     approval record containing the run ID, profile, starting HEAD, timestamp, and exact
     specification and material digests before implementation reconciliation. Every slice,
     remediation, and finalization decision is tied to that record and stops on divergence.
+12. **Accepted plan material authorizes serial plan-and-act execution.** One `--plan-file`
+    invocation selects and completes all remaining dependency-ready slices serially. Each slice
+    starts in a fresh Cline context, may move from inspection/planning to acting without another
+    human prompt, and receives one local commit only after independent reconciliation. Planned,
+    classifiable local dependency and network operations are allowed; secrets, production data,
+    destructive/system operations, remote publication, and deployment remain hard stops.
 
 ## Readiness and authorization labels
 
 - **Phase 0 — ready for supervised implementation:** Tasks 0.1–0.3 may proceed to establish
   the baseline and collect capability evidence.
-- **Phases 1–6 — gated:** Tasks 1.1 and later are unauthorized until the specification is
-  explicitly accepted and Checkpoint A passes without weakening its contracts.
+- **Phases 1–3 — complete:** Their accepted checkpoints establish the contracts and bounded
+  artifact-producing stages required by serial implementation.
+- **Phases 4–6 — gated by their stated dependencies:** The accepted 2026-07-25 automation
+  decision authorizes these tasks without reviving the superseded supervised-only restriction.
 - **Unattended-ready claim — gated:** The implementation must not be described as
   unattended-ready until Checkpoint F evidence is reviewed and accepted by the product owner.
 
@@ -535,6 +543,37 @@ unclassifiable requests.
 
 **Estimated scope:** Medium.
 
+### Task 2.4b: Authorize planned dependency and network operations
+
+**Description:** Extend the balanced operation policy with accepted-plan authorization context
+so explicitly planned local dependency changes and bounded network operations can be classified
+without weakening the existing fail-closed command model.
+
+**Acceptance criteria:**
+
+- Dependency and network operations remain denied unless the current accepted slice explicitly
+  requires the exact class of operation and its executable, arguments, and destination are
+  classifiable.
+- Planned local dependency changes require coordinated `pyproject.toml` and `uv.lock` ownership.
+- Credential access, production data, destructive or system operations, remote publication or
+  deployment, material decisions, and unclassifiable commands remain hard stops.
+- Classification records the accepted material requirement and safe proposed operation without
+  storing secrets or treating arbitrary shell text as authorization.
+- Existing Task 2.4 denial behavior remains the default when no accepted-plan authorization is
+  supplied.
+
+**Verification:**
+
+- `uv run pytest tests/unit/features/operation_policy/`
+
+**Dependencies:** Task 2.4, Task 4.1b, and the accepted 2026-07-25 automation-scope decision.
+
+**Likely paths:** `src/cline_sdlc/features/operation_policy/application/dtos/`,
+`src/cline_sdlc/features/operation_policy/application/use_cases/classify_operation.py`,
+`src/cline_sdlc/features/operation_policy/domain/policy.py`, tests.
+
+**Estimated scope:** Small to medium.
+
 ### Task 2.5: Implement Git inspection and branch safety
 
 **Description:** Add Git ports and an argument-array adapter for repository root, HEAD,
@@ -844,37 +883,66 @@ review-loop service, tests.
 
 ## Phase 4: Serial implementation transactions
 
-### Task 4.1: Reconcile progress and select the next slice
+### Task 4.1a: Select the next plan slice from reconciled progress
 
-**Description:** Recompute plan/specification digests, derive unique owning commits from
-trailers, record the bounded invocation approval, verify progress/evidence, reconcile partial
-state and dirty paths, and select a resumable or earliest dependency-ready slice.
+**Description:** Add pure plan-progress reconciliation that validates stable task/slice
+definitions, completion evidence supplied through application DTOs, and dependency ordering,
+then selects a recorded partial slice or the earliest dependency-ready incomplete slice. This
+slice defines no Git adapter behavior and performs no writes.
 
 **Acceptance criteria:**
 
 - A valid partial slice is selected before all other work.
-- Completed slices require one unique reachable owning commit with the expected trailers
-  and committed plan transition.
-- Ambiguous ownership, missing files, conflicting evidence, or material divergence stops
-  without writes.
-- Re-running after a committed slice never repeats it.
-- Before reconciliation or any implementation session, the ignored run summary records one
-  immutable invocation approval containing the run ID, balanced profile, starting HEAD, UTC
-  timestamp, specification digest, material digest, and remediation-envelope applicability.
-- Every later slice, remediation, broad-check, and finalization decision references that
-  approval record and stops when either digest diverges.
+- Otherwise the earliest incomplete slice whose declared dependencies are complete is selected.
+- Completed slices, unsatisfied dependencies, duplicate identifiers, unknown dependencies,
+  cycles, and conflicting partial-state evidence fail closed or are excluded as appropriate.
+- Re-running with the same reconciled progress is deterministic and never selects a completed
+  slice.
+- Selection is pure and testable without Git, filesystem, clock, subprocess, or Cline effects.
 
 **Verification:**
 
 - `uv run pytest tests/unit/features/lifecycle_orchestration/test_slice_selection.py`
-- `uv run pytest tests/integration/features/repository_coordination/test_reconciliation.py`
 
 **Dependencies:** Checkpoints C and D, including Task 2.8 ordered preflight.
 
-**Likely paths:** `src/cline_sdlc/features/repository_coordination/application/use_cases/reconcile_plan.py`,
+**Likely paths:**
+`src/cline_sdlc/features/lifecycle_orchestration/application/dtos/slice_selection.py`,
 `src/cline_sdlc/features/lifecycle_orchestration/application/use_cases/select_slice.py`, tests.
 
-**Estimated scope:** Medium, split pure selection from Git reconciliation.
+**Estimated scope:** Small to medium.
+
+### Task 4.1b: Reconcile Git ownership and record invocation approval
+
+**Description:** Recompute plan/specification digests, derive unique owning commits from
+trailers and committed plan transitions, reconcile partial state and dirty paths against Task
+4.1a inputs, and record the bounded invocation approval before an implementation session.
+
+**Acceptance criteria:**
+
+- Completed slices require one unique reachable owning commit with the expected trailers and
+  committed plan transition.
+- Ambiguous ownership, missing files, conflicting evidence, or material divergence stops without
+  lifecycle writes or implementation sessions.
+- Before reconciliation or any implementation session, the ignored run summary records one
+  immutable invocation approval containing the run ID, balanced profile, starting HEAD, UTC
+  timestamp, specification digest, material digest, and remediation-envelope applicability.
+- Every later slice, remediation, broad-check, and finalization decision references that approval
+  record and stops when either digest diverges.
+- The selected slice supplied to later orchestration is consistent with Task 4.1a and observed Git
+  state.
+
+**Verification:**
+
+- `uv run pytest tests/integration/features/repository_coordination/test_reconciliation.py`
+
+**Dependencies:** Task 4.1a and Task 2.6 audit persistence.
+
+**Likely paths:**
+`src/cline_sdlc/features/repository_coordination/application/use_cases/reconcile_plan.py`,
+repository reconciliation DTOs/ports, integration tests.
+
+**Estimated scope:** Medium.
 
 ### Task 4.2: Execute one bounded slice session
 
@@ -896,7 +964,7 @@ repair attempt without deciding commit eligibility.
 
 - `uv run pytest tests/contract/features/lifecycle_orchestration/test_slice_execution.py`
 
-**Dependencies:** Task 4.1 and Tasks 2.1–2.9.
+**Dependencies:** Task 4.1b, Task 2.4b, and Tasks 2.1–2.9.
 
 **Likely paths:** `src/cline_sdlc/features/lifecycle_orchestration/application/use_cases/execute_slice.py`,
 slice-session DTOs, tests.
@@ -1160,8 +1228,8 @@ configuration, limitations, and the supervised proof requirement.
 - `README.md` documents `uvx` installation/execution, every supported option, the 30-minute
   default timeout, examples for all four inputs, JSON output, and stable exit categories.
 - Documentation explains protected branches, prohibited operations, artifact commit
-  requirements, ignored logs, blockers, partial-slice recovery, and no automatic network or
-  dependency installation.
+  requirements, ignored logs, blockers, partial-slice recovery, and the distinction between
+  accepted-plan-authorized dependency/network operations and unplanned operations that stop.
 - Capability-spike conclusions and the current unattended-readiness status are linked from
   the README.
 - Any environment-backed configuration is synchronized with a canonical settings reference
@@ -1261,12 +1329,12 @@ remain in the task-level tests rather than being duplicated here.
 | CLI and stage boundaries | 1.1, 2.8, 3.1–3.5, 6.1 | B, D, F |
 | Idea and specification stages | 1.5, 2.9, 3.1–3.2 | C, D, F |
 | Plan authoring and review | 1.2–1.5, 2.7–2.8, 3.3–3.5 | B, D |
-| State and approval | 1.3–1.4, 4.1, 4.3, 5.3–5.4 | B, E, F |
-| Implementation and Git safety | 2.5, 4.1–4.6, 5.4 | C, E, F |
-| Permissions and stop behavior | 0.3, 2.2–2.4, 2.7–2.9, 4.3 | A, C, E |
+| State and approval | 1.3–1.4, 4.1a–4.1b, 4.3, 5.3–5.4 | B, E, F |
+| Implementation and Git safety | 2.5, 4.1a–4.6, 5.4 | C, E, F |
+| Permissions and stop behavior | 0.3, 2.2–2.4b, 2.7–2.9, 4.3 | A, C, E |
 | Failure and resumption | 0.2–0.3, 2.1–2.2, 4.2–4.6 | A, C, E, F |
 | Final quality gate | 2.7, 5.1–5.4 | E, F |
-| Auditability and portability | 1.5, 2.6, 4.1, 6.1–6.4 | C, F |
+| Auditability and portability | 1.5, 2.6, 4.1b, 6.1–6.4 | C, F |
 | Packaging and rollout proof | 1.1c, 6.1–6.4 | F |
 
 ## Cross-cutting test strategy
@@ -1320,7 +1388,8 @@ or the developer's global Git configuration.
 - This plan treats the supplied specification as the authoritative planning source. Its
   current draft status must become explicitly accepted before Checkpoint A authorizes
   production feature implementation.
-- The user will explicitly approve any runtime dependency before it is added.
+- Runtime dependency changes are authorized only when explicit in accepted plan material and
+  still update `pyproject.toml` and `uv.lock` together.
 - Development and automated commits will occur on a non-protected feature branch or in
   disposable repositories, not on `master`.
 - The host provides Git, Python 3.14+, `uvx`, and a separately installed compatible Cline
@@ -1383,6 +1452,7 @@ specification review before implementation proceeds.
 - [x] Task 2.2: Coordinate bounded session attempts.
 - [x] Task 2.3: Add capability and skill preflight.
 - [x] Task 2.4: Implement the balanced operation policy.
+- [ ] Task 2.4b: Authorize planned dependency and network operations.
 - [x] Task 2.5: Implement Git inspection and branch safety.
 - [x] Task 2.6: Add ignored run audit and redaction.
 - [x] Task 2.7: Discover, classify, and execute validation commands.
@@ -1401,7 +1471,8 @@ specification review before implementation proceeds.
 
 ### Phase 4
 
-- [ ] Task 4.1: Reconcile progress and select the next slice.
+- [ ] Task 4.1a: Select the next plan slice from reconciled progress.
+- [ ] Task 4.1b: Reconcile Git ownership and record invocation approval.
 - [ ] Task 4.2: Execute one bounded slice session.
 - [ ] Task 4.3: Independently reconcile one slice.
 - [ ] Task 4.4: Create one explicit atomic slice commit.
@@ -1915,6 +1986,16 @@ specification review before implementation proceeds.
   reviewer sessions are independently read-only, bounded revisions preserve finding traceability,
   and unresolved final reviews terminate explicitly as blocked. Deferred Phase 4 and Phase 5
   unattended Git implementation, commit, and recovery behavior remains inactive.
+- The product decision accepted on 2026-07-25 supersedes the earlier supervised-only restriction:
+  one `--plan-file` invocation will process all remaining dependency-ready slices serially, use a
+  fresh Cline context for each slice, authorize plan-to-act transition only within the accepted
+  specification and plan material, independently reconcile and validate changes, and create one
+  local atomic commit per verified slice. Planned and classifiable local dependency or bounded
+  network operations may proceed; credentials, production data, destructive/system operations,
+  remote publication/deployment, material decisions, and unclassifiable commands remain hard
+  stops. Task 2.4b records the required policy extension instead of claiming the completed Task
+  2.4 already permits those operations. Former Task 4.1 is now Task 4.1a and Task 4.1b; Task 4.1a
+  is the next production implementation slice.
 
 ### Plan-review findings
 
@@ -1969,12 +2050,12 @@ work_id: cline-sdlc-orchestrator
 profile: balanced
 phase: reviewing
 specification: docs/specs/cline-sdlc-orchestrator-spec.md
-specification_digest: sha256:07f4125ea4b2a860595fccd87f6d049f9f01b2ab716e36536095fb4be0d3d962
-plan_revision: 2
+specification_digest: sha256:26cca7b9a8bc5f05aac07a4f313a40d6d28f852eb63874e4551981f2591b2321
+plan_revision: 3
 review_iteration: 1
 review_readiness: changes_required
 digest_schema_version: 1
-material_digest: sha256:4f3efa4a1dbf4705cc33e6260196b4dbf36495f9863fcf1c718998a6011f18c3
+material_digest: sha256:3f80814ce5f43cf262f3641ad5966236fe871705f728972fc9c6e13294f2c88c
 current_task: null
 current_slice: null
 slice_start_commit: null
@@ -2007,6 +2088,7 @@ completed_slices:
   - task-3.4
   - task-3.5
   - checkpoint-d-artifact-boundaries
+  - automation-scope-realignment
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -3050,9 +3132,45 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-24T22:22:09Z
+  - slice_id: automation-scope-realignment
+    command: >-
+      uv run pytest tests/unit/features/artifact_lifecycle/domain/test_regions.py tests/unit/features/artifact_lifecycle/domain/test_digests.py tests/unit/features/artifact_lifecycle/domain/test_plan_state.py tests/unit/features/artifact_lifecycle/adapters/inbound/test_state_yaml.py
+    result: passed (44 tests)
+    exit_code: 0
+    recorded_at: 2026-07-25T07:45:34Z
+  - slice_id: automation-scope-realignment
+    command: uv run ruff format .
+    result: passed (202 files unchanged)
+    exit_code: 0
+    recorded_at: 2026-07-25T07:45:34Z
+  - slice_id: automation-scope-realignment
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-25T07:45:34Z
+  - slice_id: automation-scope-realignment
+    command: uv run mypy .
+    result: passed (202 source files)
+    exit_code: 0
+    recorded_at: 2026-07-25T07:45:34Z
+  - slice_id: automation-scope-realignment
+    command: uv run pytest
+    result: passed (270 tests, 87% coverage)
+    exit_code: 0
+    recorded_at: 2026-07-25T07:45:34Z
+  - slice_id: automation-scope-realignment
+    command: uv build
+    result: passed (source distribution and wheel)
+    exit_code: 0
+    recorded_at: 2026-07-25T07:45:34Z
+  - slice_id: automation-scope-realignment
+    command: git --no-pager diff --check
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-25T07:45:34Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-24T22:22:09Z
+updated_at: 2026-07-25T07:45:34Z
 completed_at: null
 ```
 
