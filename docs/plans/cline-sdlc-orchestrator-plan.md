@@ -1474,7 +1474,7 @@ specification review before implementation proceeds.
 - [x] Task 4.1a: Select the next plan slice from reconciled progress.
 - [x] Task 4.1b: Reconcile Git ownership and record invocation approval.
 - [x] Task 4.2: Execute one bounded slice session.
-- [ ] Task 4.3: Independently reconcile one slice.
+- [x] Task 4.3: Independently reconcile one slice.
 - [ ] Task 4.4: Create one explicit atomic slice commit.
 - [ ] Task 4.5: Add serial transaction looping.
 - [ ] Task 4.6: Add signal handling and cross-process resume.
@@ -2053,6 +2053,19 @@ specification review before implementation proceeds.
   The full gate passed Ruff formatting and checks, strict mypy over 216 source files, all 314 tests
   with 87% coverage, `uv build`, and `git --no-pager diff --check`. Task 4.3 is now the next
   production implementation slice.
+- Task 4.3 completed on 2026-07-25 as a lifecycle-orchestration application slice. It added
+  immutable reconciliation request, result, blocker, recovery, and commit-candidate DTOs plus a
+  `ReconcileSlice` use case that independently compares approved digests, the slice start commit,
+  Task 4.2 execution evidence, operation decisions, focused validation, and repository inspection.
+- Reconciliation requires normalized repository-relative paths and exact agreement between
+  independently observed dirty paths, terminal session paths, and aggregate Task 4.2 paths within
+  the explicit expected scope. Safe attributable failures require recovery; unsafe or ambiguous
+  observations block without claiming ownership. Success creates an immutable commit candidate
+  only; staging and commit remain Task 4.4 responsibilities.
+- Task 4.3 focused validation passed 14 contract tests plus affected Ruff and strict mypy checks.
+  The full gate passed Ruff formatting over 219 files, Ruff checks, strict mypy over 219 source
+  files, all 328 tests with 87% coverage, `uv build`, and `git --no-pager diff --check`. Task 4.4 is
+  now the next production implementation slice.
 
 ### Plan-review findings
 
@@ -2150,6 +2163,7 @@ completed_slices:
   - task-4.1b
   - task-2.4b
   - task-4.2
+  - task-4.3
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -3370,9 +3384,44 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-25T18:52:53Z
+  - slice_id: task-4.3
+    command: uv run pytest tests/contract/features/lifecycle_orchestration/test_slice_reconciliation.py
+    result: passed (14 tests)
+    exit_code: 0
+    recorded_at: 2026-07-25T19:57:27Z
+  - slice_id: task-4.3
+    command: uv run ruff format .
+    result: passed (219 files unchanged)
+    exit_code: 0
+    recorded_at: 2026-07-25T19:57:27Z
+  - slice_id: task-4.3
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-25T19:57:27Z
+  - slice_id: task-4.3
+    command: uv run mypy .
+    result: passed (219 source files)
+    exit_code: 0
+    recorded_at: 2026-07-25T19:57:27Z
+  - slice_id: task-4.3
+    command: uv run pytest
+    result: passed (328 tests, 87% coverage)
+    exit_code: 0
+    recorded_at: 2026-07-25T19:57:27Z
+  - slice_id: task-4.3
+    command: uv build
+    result: passed (source distribution and wheel)
+    exit_code: 0
+    recorded_at: 2026-07-25T19:57:27Z
+  - slice_id: task-4.3
+    command: git --no-pager diff --check
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-25T19:57:27Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-25T18:52:53Z
+updated_at: 2026-07-25T19:57:27Z
 completed_at: null
 ```
 
