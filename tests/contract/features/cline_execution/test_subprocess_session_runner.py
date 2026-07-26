@@ -1,6 +1,7 @@
 """Contract tests for the subprocess-backed Cline session runner."""
 
 import signal
+from threading import Event
 from typing import TYPE_CHECKING
 
 import pytest
@@ -89,6 +90,20 @@ def test_timeout_returns_bounded_process_result(fake_cline: FakeClineFactory, tm
     assert result.process_status is ClineSessionProcessStatus.TIMED_OUT
     assert result.exit_code is None
     assert result.timed_out
+    assert result.terminal_outcomes == ()
+
+
+def test_interruption_request_returns_bounded_process_result(fake_cline: FakeClineFactory, tmp_path: Path) -> None:
+    interruption = Event()
+    interruption.set()
+
+    result = SubprocessClineSessionRunner(interruption).run(
+        _request(fake_cline(FakeClineRequest("delayed", delay_seconds=10.0)), tmp_path)
+    )
+
+    assert result.process_status is ClineSessionProcessStatus.INTERRUPTED
+    assert result.exit_code is None
+    assert result.interrupted
     assert result.terminal_outcomes == ()
 
 

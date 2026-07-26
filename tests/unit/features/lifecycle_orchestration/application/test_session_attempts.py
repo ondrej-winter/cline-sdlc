@@ -133,18 +133,38 @@ def test_blocks_retry_when_repository_state_changes_after_protocol_failure() -> 
     assert len(runner.requests) == 1
 
 
-def test_timeout_blocks_retry() -> None:
+def test_timeout_interrupts_without_retry_and_preserves_dirty_paths() -> None:
     runner = RecordingRunner(
         results=[ClineSessionResult(process_status=ClineSessionProcessStatus.TIMED_OUT, exit_code=None)],
+        requests=[],
+    )
+    inspector = RecordingRepositoryInspector(
+        snapshots=[_snapshot(), _snapshot(dirty_paths=("src/partial.py",))],
+        requests=[],
+    )
+
+    result = RunSessionAttempts(runner=runner, repository_inspector=inspector).execute(_request())
+
+    assert result.status is SessionAttemptStatus.INTERRUPTED
+    assert result.blocker is not None
+    assert result.blocker.code == "session_timed_out"
+    assert result.changed_paths == ("src/partial.py",)
+    assert len(runner.requests) == 1
+
+
+def test_signal_interruption_stops_without_retry() -> None:
+    runner = RecordingRunner(
+        results=[ClineSessionResult(process_status=ClineSessionProcessStatus.INTERRUPTED, exit_code=None)],
         requests=[],
     )
     inspector = RecordingRepositoryInspector(snapshots=[_snapshot(), _snapshot()], requests=[])
 
     result = RunSessionAttempts(runner=runner, repository_inspector=inspector).execute(_request())
 
-    assert result.status is SessionAttemptStatus.BLOCKED
+    assert result.status is SessionAttemptStatus.INTERRUPTED
     assert result.blocker is not None
-    assert result.blocker.code == "session_retry_not_safe"
+    assert result.blocker.code == "session_interrupted"
+    assert len(runner.requests) == 1
 
 
 def test_approval_required_outcome_blocks_without_retry() -> None:

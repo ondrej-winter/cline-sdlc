@@ -1477,7 +1477,7 @@ specification review before implementation proceeds.
 - [x] Task 4.3: Independently reconcile one slice.
 - [x] Task 4.4: Create one explicit atomic slice commit.
 - [x] Task 4.5: Add serial transaction looping.
-- [ ] Task 4.6: Add signal handling and cross-process resume.
+- [x] Task 4.6: Add signal handling and cross-process resume.
 - [ ] Checkpoint E: Core implementation loop accepted.
 
 ### Phase 5
@@ -2096,8 +2096,26 @@ specification review before implementation proceeds.
   transactions, one commit per slice, immutable approval reuse, refreshed later HEAD preservation,
   and fail-fast stop behavior. The full gate passed Ruff formatting over 28 files, Ruff checks,
   strict mypy over 228 source files, all 335 tests with 87% coverage, `uv build` producing the source
-  distribution and wheel, and `git --no-pager diff --check`. Task 4.6 is now the next production
-  implementation slice.
+  distribution and wheel, and `git --no-pager diff --check`.
+- Task 4.6 completed on 2026-07-26 across the `cline_execution`, `lifecycle_orchestration`,
+  `repository_coordination`, and bootstrap boundaries. Subprocess sessions now run in an isolated
+  process group, observe a cooperative SIGINT/SIGTERM token, and use bounded TERM-then-KILL cleanup
+  for signals and timeouts. Interruption is a first-class status from the child result through the
+  session-attempt, slice-execution, and serial-plan results.
+- Interrupted or timed-out sessions capture the post-session dirty-path observation, do not retry,
+  and stop before independent reconciliation, commit creation, or later slice selection. A bootstrap
+  signal context restores prior handlers after use; production implementation-stage composition is
+  intentionally deferred until the existing application loop receives its concrete CLI composition
+  root rather than adding a parallel entry point.
+- Cross-process recovery continues to use persisted plan progress and Git observations: reconciliation
+  requires the recorded starting HEAD and a non-empty observed dirty-path subset of the recorded partial
+  ownership, and existing partial-first selection resumes that same slice before new work. The ignored
+  run-summary boundary remains optional recovery evidence and no PID or lock file is authoritative.
+- Task 4.6 focused validation passed 30 contract, unit, integration, and end-to-end tests, including the
+  required cross-process resume test. The full gate passed Ruff formatting over 231 files, Ruff checks,
+  strict mypy over 231 source files, all 341 tests with 87% coverage, `uv build` producing the source
+  distribution and wheel, and `git --no-pager diff --check`. Checkpoint E remains pending its complete
+  injected-failure acceptance proof.
 
 ### Plan-review findings
 
@@ -2198,6 +2216,7 @@ completed_slices:
   - task-4.3
   - task-4.4
   - task-4.5
+  - task-4.6
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -3523,9 +3542,45 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-26T02:50:15Z
+  - slice_id: task-4.6
+    command: >-
+      uv run pytest tests/contract/features/cline_execution/test_subprocess_session_runner.py tests/unit/bootstrap/test_signals.py tests/unit/features/lifecycle_orchestration/application/test_session_attempts.py tests/e2e/test_plan_implementation_serial.py tests/e2e/test_plan_implementation_resume.py tests/integration/features/repository_coordination/test_reconciliation.py
+    result: passed (30 tests)
+    exit_code: 0
+    recorded_at: 2026-07-26T17:41:49Z
+  - slice_id: task-4.6
+    command: uv run ruff format .
+    result: passed (231 files formatted or unchanged)
+    exit_code: 0
+    recorded_at: 2026-07-26T17:41:49Z
+  - slice_id: task-4.6
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-26T17:41:49Z
+  - slice_id: task-4.6
+    command: uv run mypy .
+    result: passed (231 source files)
+    exit_code: 0
+    recorded_at: 2026-07-26T17:41:49Z
+  - slice_id: task-4.6
+    command: uv run pytest
+    result: passed (341 tests, 87% coverage)
+    exit_code: 0
+    recorded_at: 2026-07-26T17:41:49Z
+  - slice_id: task-4.6
+    command: uv build
+    result: passed (source distribution and wheel)
+    exit_code: 0
+    recorded_at: 2026-07-26T17:41:49Z
+  - slice_id: task-4.6
+    command: git --no-pager diff --check
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-26T17:41:49Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-26T02:50:15Z
+updated_at: 2026-07-26T17:41:49Z
 completed_at: null
 ```
 

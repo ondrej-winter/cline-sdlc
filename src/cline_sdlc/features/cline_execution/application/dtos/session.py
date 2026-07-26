@@ -18,6 +18,7 @@ class ClineSessionProcessStatus(StrEnum):
 
     EXITED = "exited"
     TIMED_OUT = "timed_out"
+    INTERRUPTED = "interrupted"
     START_FAILED = "start_failed"
 
 
@@ -56,6 +57,11 @@ class ClineSessionResult:
     def timed_out(self) -> bool:
         """Return whether the parent bounded the child by timeout."""
         return self.process_status is ClineSessionProcessStatus.TIMED_OUT
+
+    @property
+    def interrupted(self) -> bool:
+        """Return whether the parent stopped the child after an interruption request."""
+        return self.process_status is ClineSessionProcessStatus.INTERRUPTED
 
     @property
     def has_exactly_one_terminal_outcome(self) -> bool:

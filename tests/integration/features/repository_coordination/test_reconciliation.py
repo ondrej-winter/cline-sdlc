@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
@@ -13,6 +14,7 @@ from cline_sdlc.features.artifact_lifecycle.domain.digests import (
     compute_specification_digest,
 )
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.slice_selection import (
+    PartialSliceProgress,
     PlanSliceDefinition,
     PlanTaskDefinition,
     SliceCompletionEvidence,
@@ -38,6 +40,17 @@ if TYPE_CHECKING:
 SPECIFICATION_PATH = "docs/spec.md"
 PLAN_PATH = "docs/plan.md"
 APPROVED_AT = datetime(2026, 7, 25, 12, 0, tzinfo=UTC)
+
+
+@dataclass(frozen=True)
+class PlanStateFixture:
+    """Progress fields needed to construct a reconciled plan fixture."""
+
+    completed: tuple[str, ...] = ()
+    current_task: str | None = None
+    current_slice: str | None = None
+    slice_start_commit: str | None = None
+    partial_paths: tuple[str, ...] = ()
 
 
 def test_authorizes_next_slice_after_verifying_unique_owning_commit(tmp_path: Path) -> None:
@@ -124,6 +137,36 @@ def test_blocks_unrecorded_dirty_paths(tmp_path: Path) -> None:
     assert _blocker_code(result) == "unexpected_dirty_paths"
 
 
+def test_authorizes_recorded_partial_slice_with_explainable_dirty_path_subset(tmp_path: Path) -> None:
+    repository = _initialized_repository(tmp_path)
+    specification = b"# Specification\n"
+    _write(repository, SPECIFICATION_PATH, specification)
+    _write(repository, PLAN_PATH, _plan(specification))
+    _git(repository, "add", SPECIFICATION_PATH, PLAN_PATH)
+    _git(repository, "commit", "-m", "Add ready plan")
+    starting_head = _git_stdout(repository, "rev-parse", "HEAD")
+    plan = _partial_plan(specification, starting_head)
+    _write(repository, PLAN_PATH, plan)
+
+    result = _reconciler().execute(
+        _request(
+            repository,
+            specification,
+            plan,
+            partial_slice=PartialSliceProgress(
+                task_id="task-1",
+                slice_id="slice-1",
+                paths=(PLAN_PATH, "src/partial.py"),
+            ),
+        )
+    )
+
+    assert result.status is PlanReconciliationStatus.AUTHORIZED
+    assert result.selection is not None
+    assert result.selection.slice_id == "slice-1"
+    assert result.selection.resuming_partial is True
+
+
 def _repository_with_completed_slice(tmp_path: Path) -> tuple[Path, bytes]:
     repository = _initialized_repository(tmp_path)
     specification = b"# Specification\n"
@@ -145,7 +188,9 @@ def _request(
     plan: bytes,
     *,
     run_id: str = "run-1",
+    partial_slice: PartialSliceProgress | None = None,
 ) -> PlanReconciliationRequest:
+    completed = () if partial_slice is not None else ("slice-1",)
     return PlanReconciliationRequest(
         repository_root=repository,
         run_id=run_id,
@@ -162,8 +207,9 @@ def _request(
                     slices=(PlanSliceDefinition(slice_id="slice-2", dependencies=("slice-1",)),),
                 ),
             ),
-            completed_slice_ids=("slice-1",),
-            completion_evidence=(SliceCompletionEvidence(slice_id="slice-1", completed=True),),
+            completed_slice_ids=completed,
+            completion_evidence=tuple(SliceCompletionEvidence(slice_id=item, completed=True) for item in completed),
+            partial_slice=partial_slice,
         ),
     )
 
@@ -177,9 +223,34 @@ def _reconciler() -> ReconcilePlan:
     )
 
 
-def _plan(specification: bytes, *, completed: tuple[str, ...] = ()) -> bytes:
+def _plan(
+    specification: bytes,
+    *,
+    completed: tuple[str, ...] = (),
+) -> bytes:
+    return _plan_state(specification, PlanStateFixture(completed=completed))
+
+
+def _partial_plan(specification: bytes, slice_start_commit: str) -> bytes:
+    return _plan_state(
+        specification,
+        PlanStateFixture(
+            current_task="task-1",
+            current_slice="slice-1",
+            slice_start_commit=slice_start_commit,
+            partial_paths=(PLAN_PATH, "src/partial.py"),
+        ),
+    )
+
+
+def _plan_state(specification: bytes, state: PlanStateFixture) -> bytes:
     specification_digest = compute_specification_digest(specification)
-    completed_yaml = "[]" if not completed else "\n" + "\n".join(f"  - {item}" for item in completed)
+    phase = "implementing" if state.current_slice is not None else "ready"
+    completed_yaml = "[]" if not state.completed else "\n" + "\n".join(f"  - {item}" for item in state.completed)
+    partial_yaml = "[]" if not state.partial_paths else "\n" + "\n".join(f"  - {item}" for item in state.partial_paths)
+    current_task_yaml = state.current_task or "null"
+    current_slice_yaml = state.current_slice or "null"
+    slice_start_commit_yaml = state.slice_start_commit or "null"
     template = f"""# Plan
 
 <!-- cline-sdlc-material:start -->
@@ -195,7 +266,7 @@ Test reconciliation.
 schema_version: 1
 work_id: test-work
 profile: balanced
-phase: ready
+phase: {phase}
 specification: {SPECIFICATION_PATH}
 specification_digest: {specification_digest}
 plan_revision: 1
@@ -203,10 +274,10 @@ review_iteration: 1
 review_readiness: ready
 digest_schema_version: 1
 material_digest: sha256:{"0" * 64}
-current_task: null
-current_slice: null
-slice_start_commit: null
-partial_slice_paths: []
+current_task: {current_task_yaml}
+current_slice: {current_slice_yaml}
+slice_start_commit: {slice_start_commit_yaml}
+partial_slice_paths: {partial_yaml}
 completed_slices: {completed_yaml}
 remediation_records: []
 validation_evidence: []

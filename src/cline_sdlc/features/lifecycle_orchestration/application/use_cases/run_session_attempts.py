@@ -60,6 +60,16 @@ class RunSessionAttempts:
             )
             observations.append(observation)
 
+            if session_result.interrupted or session_result.timed_out:
+                return SessionAttemptResult(
+                    status=SessionAttemptStatus.INTERRUPTED,
+                    attempts=tuple(observations),
+                    blocker=SessionAttemptBlocker(
+                        code="session_interrupted" if session_result.interrupted else "session_timed_out",
+                        summary="the active session was interrupted safely",
+                    ),
+                    changed_paths=after_snapshot.dirty_paths if after_snapshot is not None else (),
+                )
             if session_result.has_exactly_one_terminal_outcome:
                 return _result_for_terminal_outcome(observations, session_result)
             if retry_reason is None:

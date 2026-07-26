@@ -226,9 +226,13 @@ def _session_failure(
         blocker = result.blocker
         return _result(
             (
-                SliceExecutionStatus.BLOCKED
-                if result.status is SessionAttemptStatus.BLOCKED
-                else SliceExecutionStatus.FAILED
+                SliceExecutionStatus.INTERRUPTED
+                if result.status is SessionAttemptStatus.INTERRUPTED
+                else (
+                    SliceExecutionStatus.BLOCKED
+                    if result.status is SessionAttemptStatus.BLOCKED
+                    else SliceExecutionStatus.FAILED
+                )
             ),
             evidence,
             blocker=SliceExecutionBlocker(

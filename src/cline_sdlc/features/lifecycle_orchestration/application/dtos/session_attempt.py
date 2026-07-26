@@ -23,6 +23,7 @@ class SessionAttemptStatus(StrEnum):
     COMPLETED = "completed"
     BLOCKED = "blocked"
     FAILED = "failed"
+    INTERRUPTED = "interrupted"
 
 
 class SessionRetryReason(StrEnum):

@@ -110,9 +110,13 @@ class ImplementPlan:
             if execution.status is not SliceExecutionStatus.COMPLETED:
                 blocker = execution.blocker
                 status = (
-                    PlanImplementationStatus.BLOCKED
-                    if execution.status is SliceExecutionStatus.BLOCKED
-                    else PlanImplementationStatus.FAILED
+                    PlanImplementationStatus.INTERRUPTED
+                    if execution.status is SliceExecutionStatus.INTERRUPTED
+                    else (
+                        PlanImplementationStatus.BLOCKED
+                        if execution.status is SliceExecutionStatus.BLOCKED
+                        else PlanImplementationStatus.FAILED
+                    )
                 )
                 return _stopped(
                     status,

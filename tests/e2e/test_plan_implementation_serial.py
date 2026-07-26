@@ -211,6 +211,31 @@ def test_non_completed_transaction_starts_no_later_slice() -> None:
     assert result.blocker.code == "approval_required"
 
 
+def test_interrupted_transaction_starts_no_reconciliation_or_commit() -> None:
+    execution = RecordingExecution(
+        [
+            SliceExecutionResult(
+                status=SliceExecutionStatus.INTERRUPTED,
+                changed_paths=(PLAN_PATH, "src/slice-1.py"),
+                blocker=SliceExecutionBlocker("session_interrupted", "the active session was interrupted safely"),
+            )
+        ]
+    )
+    reconciliation = RecordingReconciliation()
+    commit = RecordingCommit(list(SLICE_COMMITS))
+    progress = RecordingProgress([])
+
+    result = _use_case(progress, execution, reconciliation, commit).execute(
+        PlanImplementationRequest(approval=_approval(), initial_selection=_selection(SLICE_IDS[0]))
+    )
+
+    assert result.status is PlanImplementationStatus.INTERRUPTED
+    assert result.completed_slice_ids == ()
+    assert result.commits == ()
+    assert reconciliation.requests == []
+    assert commit.requests == []
+
+
 def _use_case(
     progress: RecordingProgress,
     execution: RecordingExecution,

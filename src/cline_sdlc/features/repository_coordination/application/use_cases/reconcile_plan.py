@@ -164,8 +164,13 @@ def _partial_state_blocker(
         return None
     if current.slice_start_commit != head_commit:
         return _blocked("partial_slice_head_mismatch", "partial slice must resume from its recorded starting HEAD")
-    if set(dirty_paths) != set(current.partial_slice_paths):
-        return _blocked("partial_slice_paths_mismatch", "observed dirty paths must match recorded partial slice paths")
+    observed = set(dirty_paths)
+    recorded = set(current.partial_slice_paths)
+    if not observed or not observed.issubset(recorded):
+        return _blocked(
+            "partial_slice_paths_mismatch",
+            "observed dirty paths must be a non-empty subset of recorded partial slice paths",
+        )
     return None
 
 

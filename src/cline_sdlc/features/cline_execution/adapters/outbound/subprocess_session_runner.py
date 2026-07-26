@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import os
+import signal
 import subprocess
-from typing import TYPE_CHECKING
+import time
+from contextlib import suppress
+from typing import TYPE_CHECKING, Protocol
 
 from cline_sdlc.features.cline_execution.adapters.outbound.terminal_outcomes import (
     parse_terminal_outcomes,
-    timeout_output,
 )
 from cline_sdlc.features.cline_execution.application.dtos.session import (
     ClineSessionProcessStatus,
@@ -17,27 +20,33 @@ from cline_sdlc.features.cline_execution.application.dtos.session import (
 if TYPE_CHECKING:
     from cline_sdlc.features.cline_execution.application.dtos.session import ClineSessionRequest
 
+_POLL_INTERVAL_SECONDS = 0.05
+_TERMINATION_GRACE_SECONDS = 1.0
+
+
+class InterruptionPort(Protocol):
+    """Expose whether the parent received a stop request."""
+
+    def is_set(self) -> bool:
+        """Return whether active work should stop."""
+
 
 class SubprocessClineSessionRunner:
     """Execute one explicit Cline argument array with a finite timeout."""
 
+    def __init__(self, interruption: InterruptionPort | None = None) -> None:
+        self._interruption = interruption
+
     def run(self, request: ClineSessionRequest) -> ClineSessionResult:
         """Run the subprocess and convert captured output into typed observations."""
         try:
-            completed = subprocess.run(  # noqa: S603
+            process = subprocess.Popen(  # noqa: S603
                 list(request.command),
                 cwd=request.working_directory,
-                capture_output=True,
-                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
-                timeout=request.timeout_seconds,
-            )
-        except subprocess.TimeoutExpired as err:
-            return ClineSessionResult(
-                process_status=ClineSessionProcessStatus.TIMED_OUT,
-                exit_code=None,
-                stdout=timeout_output(err.stdout),
-                stderr=timeout_output(err.stderr),
+                start_new_session=True,
             )
         except OSError as err:
             return ClineSessionResult(
@@ -46,12 +55,50 @@ class SubprocessClineSessionRunner:
                 stderr=str(err),
             )
 
-        parsed = parse_terminal_outcomes(completed.stdout)
+        deadline = time.monotonic() + request.timeout_seconds
+        while True:
+            if self._interruption is not None and self._interruption.is_set():
+                stdout, stderr = _stop_process(process)
+                return ClineSessionResult(
+                    process_status=ClineSessionProcessStatus.INTERRUPTED,
+                    exit_code=None,
+                    stdout=stdout,
+                    stderr=stderr,
+                )
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                stdout, stderr = _stop_process(process)
+                return ClineSessionResult(
+                    process_status=ClineSessionProcessStatus.TIMED_OUT,
+                    exit_code=None,
+                    stdout=stdout,
+                    stderr=stderr,
+                )
+            try:
+                stdout, stderr = process.communicate(timeout=min(_POLL_INTERVAL_SECONDS, remaining))
+                break
+            except subprocess.TimeoutExpired:
+                continue
+
+        parsed = parse_terminal_outcomes(stdout)
         return ClineSessionResult(
             process_status=ClineSessionProcessStatus.EXITED,
-            exit_code=completed.returncode,
-            stdout=completed.stdout,
-            stderr=completed.stderr,
+            exit_code=process.returncode,
+            stdout=stdout,
+            stderr=stderr,
             terminal_outcomes=parsed.outcomes,
             malformed_output_lines=parsed.malformed_lines,
         )
+
+
+def _stop_process(process: subprocess.Popen[str]) -> tuple[str, str]:
+    """Terminate the child's process group, escalating after a bounded grace period."""
+    with suppress(ProcessLookupError):
+        os.killpg(process.pid, signal.SIGTERM)
+    try:
+        stdout, stderr = process.communicate(timeout=_TERMINATION_GRACE_SECONDS)
+    except subprocess.TimeoutExpired:
+        with suppress(ProcessLookupError):
+            os.killpg(process.pid, signal.SIGKILL)
+        stdout, stderr = process.communicate()
+    return stdout, stderr

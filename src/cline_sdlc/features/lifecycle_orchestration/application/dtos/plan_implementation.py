@@ -17,6 +17,7 @@ class PlanImplementationStatus(StrEnum):
     COMPLETED = "completed"
     BLOCKED = "blocked"
     FAILED = "failed"
+    INTERRUPTED = "interrupted"
     RECOVERY_REQUIRED = "recovery_required"
 
 
