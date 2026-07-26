@@ -17,7 +17,9 @@ from cline_sdlc.features.lifecycle_orchestration.application.dtos.slice_executio
     SliceExecutionStatus,
 )
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.slice_reconciliation import (
+    PartialSliceRecovery,
     SliceCommitCandidate,
+    SliceReconciliationBlocker,
     SliceReconciliationRequest,
     SliceReconciliationResult,
     SliceReconciliationStatus,
@@ -37,6 +39,8 @@ from cline_sdlc.features.lifecycle_orchestration.application.use_cases.implement
 from cline_sdlc.features.repository_coordination.application.dtos.reconciliation import InvocationApproval
 from cline_sdlc.features.repository_coordination.application.dtos.repository import RepositoryInspectionRequest
 from cline_sdlc.features.repository_coordination.application.dtos.slice_commit import (
+    SliceCommitBlocker,
+    SliceCommitRecovery,
     SliceCommitRequest,
     SliceCommitResult,
     SliceCommitStatus,
@@ -63,10 +67,13 @@ class RecordingExecution:
 
 @dataclass
 class RecordingReconciliation:
+    results: list[SliceReconciliationResult] = field(default_factory=list)
     requests: list[SliceReconciliationRequest] = field(default_factory=list)
 
     def execute(self, request: SliceReconciliationRequest) -> SliceReconciliationResult:
         self.requests.append(request)
+        if self.results:
+            return self.results.pop(0)
         return SliceReconciliationResult(
             status=SliceReconciliationStatus.COMMIT_CANDIDATE,
             commit_candidate=SliceCommitCandidate(
@@ -84,10 +91,13 @@ class RecordingReconciliation:
 @dataclass
 class RecordingCommit:
     commits: list[str]
+    results: list[SliceCommitResult] = field(default_factory=list)
     requests: list[SliceCommitRequest] = field(default_factory=list)
 
     def execute(self, request: SliceCommitRequest) -> SliceCommitResult:
         self.requests.append(request)
+        if self.results:
+            return self.results.pop(0)
         return SliceCommitResult(status=SliceCommitStatus.COMMITTED, commit=self.commits.pop(0))
 
 
@@ -234,6 +244,84 @@ def test_interrupted_transaction_starts_no_reconciliation_or_commit() -> None:
     assert result.commits == ()
     assert reconciliation.requests == []
     assert commit.requests == []
+
+
+def test_material_drift_recovery_starts_no_commit_or_later_slice() -> None:
+    blocker = SliceReconciliationBlocker(
+        code="material_digest_diverged",
+        summary="plan material no longer matches invocation approval",
+    )
+    reconciliation = RecordingReconciliation(
+        results=[
+            SliceReconciliationResult(
+                status=SliceReconciliationStatus.RECOVERY_REQUIRED,
+                recovery=PartialSliceRecovery(
+                    task_id="task-serial",
+                    slice_id=SLICE_IDS[0],
+                    slice_start_commit=STARTING_HEAD,
+                    paths=(PLAN_PATH, "src/slice-1.py"),
+                    blocker=blocker,
+                ),
+                blocker=blocker,
+            )
+        ]
+    )
+    execution = RecordingExecution([_completed_execution()])
+    commit = RecordingCommit(list(SLICE_COMMITS))
+    progress = RecordingProgress([_selected(SLICE_IDS[1])])
+
+    result = _use_case(progress, execution, reconciliation, commit).execute(
+        PlanImplementationRequest(approval=_approval(), initial_selection=_selection(SLICE_IDS[0]))
+    )
+
+    assert result.status is PlanImplementationStatus.RECOVERY_REQUIRED
+    assert result.completed_slice_ids == ()
+    assert result.commits == ()
+    assert result.blocker is not None
+    assert result.blocker.code == "material_digest_diverged"
+    assert len(execution.requests) == 1
+    assert len(reconciliation.requests) == 1
+    assert commit.requests == []
+
+
+def test_hook_failure_recovery_starts_no_later_slice() -> None:
+    blocker = SliceCommitBlocker(
+        code="slice_commit_failed",
+        summary="Git hook rejected the verified slice commit",
+        evidence="hook rejected",
+    )
+    commit = RecordingCommit(
+        list(SLICE_COMMITS),
+        results=[
+            SliceCommitResult(
+                status=SliceCommitStatus.RECOVERY_REQUIRED,
+                recovery=SliceCommitRecovery(
+                    task_id="task-serial",
+                    slice_id=SLICE_IDS[0],
+                    slice_start_commit=STARTING_HEAD,
+                    paths=(PLAN_PATH, "src/slice-1.py"),
+                    blocker=blocker,
+                ),
+                blocker=blocker,
+            )
+        ],
+    )
+    execution = RecordingExecution([_completed_execution()])
+    reconciliation = RecordingReconciliation()
+    progress = RecordingProgress([_selected(SLICE_IDS[1])])
+
+    result = _use_case(progress, execution, reconciliation, commit).execute(
+        PlanImplementationRequest(approval=_approval(), initial_selection=_selection(SLICE_IDS[0]))
+    )
+
+    assert result.status is PlanImplementationStatus.RECOVERY_REQUIRED
+    assert result.completed_slice_ids == ()
+    assert result.commits == ()
+    assert result.blocker is not None
+    assert result.blocker.code == "slice_commit_failed"
+    assert len(execution.requests) == 1
+    assert len(reconciliation.requests) == 1
+    assert len(commit.requests) == 1
 
 
 def _use_case(

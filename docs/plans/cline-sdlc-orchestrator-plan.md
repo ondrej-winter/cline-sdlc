@@ -1478,7 +1478,7 @@ specification review before implementation proceeds.
 - [x] Task 4.4: Create one explicit atomic slice commit.
 - [x] Task 4.5: Add serial transaction looping.
 - [x] Task 4.6: Add signal handling and cross-process resume.
-- [ ] Checkpoint E: Core implementation loop accepted.
+- [x] Checkpoint E: Core implementation loop accepted.
 
 ### Phase 5
 
@@ -2114,8 +2114,20 @@ specification review before implementation proceeds.
 - Task 4.6 focused validation passed 30 contract, unit, integration, and end-to-end tests, including the
   required cross-process resume test. The full gate passed Ruff formatting over 231 files, Ruff checks,
   strict mypy over 231 source files, all 341 tests with 87% coverage, `uv build` producing the source
-  distribution and wheel, and `git --no-pager diff --check`. Checkpoint E remains pending its complete
-  injected-failure acceptance proof.
+  distribution and wheel, and `git --no-pager diff --check`.
+- Checkpoint E was accepted on 2026-07-26 after completing the transaction-level injected-failure proof.
+  The serial end-to-end fixture now injects material-digest divergence during independent reconciliation
+  and hook/commit recovery after a verified candidate, proving both failures preserve zero completed
+  slices, create no commit, and start no later slice. Existing bounded-session, slice-execution,
+  reconciliation, commit, and resume suites jointly cover malformed outcomes, timeout and signal stops,
+  one focused-validation repair limit, unexpected and ignored paths, attributable hook failure, material
+  drift, partial-first resume, and completed-slice non-repetition.
+- No production correction was required: the composed `ImplementPlan` boundary already propagated
+  interruption, blocked, failed, and recovery-required results fail closed. Checkpoint E focused validation
+  passed 41 tests across the complete Phase 4 matrix. The full gate passed Ruff formatting over 231 files,
+  Ruff checks, strict mypy over 231 source files, all 343 tests with 88% coverage, `uv build` producing the
+  source distribution and wheel, and `git --no-pager diff --check`. Task 5.1 is now the next authorized
+  production implementation slice.
 
 ### Plan-review findings
 
@@ -2217,6 +2229,7 @@ completed_slices:
   - task-4.4
   - task-4.5
   - task-4.6
+  - checkpoint-e-core-implementation-loop
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -3578,9 +3591,45 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-26T17:41:49Z
+  - slice_id: checkpoint-e-core-implementation-loop
+    command: >-
+      uv run pytest tests/unit/features/lifecycle_orchestration/application/test_session_attempts.py tests/contract/features/lifecycle_orchestration/test_slice_execution.py tests/contract/features/lifecycle_orchestration/test_slice_reconciliation.py tests/integration/features/repository_coordination/test_slice_commit.py tests/e2e/test_plan_implementation_serial.py tests/e2e/test_plan_implementation_resume.py
+    result: passed (41 tests)
+    exit_code: 0
+    recorded_at: 2026-07-26T17:54:04Z
+  - slice_id: checkpoint-e-core-implementation-loop
+    command: uv run ruff format .
+    result: passed (231 files unchanged)
+    exit_code: 0
+    recorded_at: 2026-07-26T17:54:04Z
+  - slice_id: checkpoint-e-core-implementation-loop
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-26T17:54:04Z
+  - slice_id: checkpoint-e-core-implementation-loop
+    command: uv run mypy .
+    result: passed (231 source files)
+    exit_code: 0
+    recorded_at: 2026-07-26T17:54:04Z
+  - slice_id: checkpoint-e-core-implementation-loop
+    command: uv run pytest
+    result: passed (343 tests, 88% coverage)
+    exit_code: 0
+    recorded_at: 2026-07-26T17:54:04Z
+  - slice_id: checkpoint-e-core-implementation-loop
+    command: uv build
+    result: passed (source distribution and wheel)
+    exit_code: 0
+    recorded_at: 2026-07-26T17:54:04Z
+  - slice_id: checkpoint-e-core-implementation-loop
+    command: git --no-pager diff --check
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-26T17:54:04Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-26T17:41:49Z
+updated_at: 2026-07-26T17:54:04Z
 completed_at: null
 ```
 
