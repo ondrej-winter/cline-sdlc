@@ -1489,7 +1489,7 @@ specification review before implementation proceeds.
 
 ### Phase 6
 
-- [ ] Task 6.1: Build portable end-to-end host fixtures.
+- [x] Task 6.1: Build portable end-to-end host fixtures.
 - [ ] Task 6.2: Complete user and operator documentation.
 - [ ] Task 6.3: Add cross-platform packaging and quality CI.
 - [ ] Task 6.4: Execute and record the supervised rollout proof.
@@ -2172,8 +2172,20 @@ specification review before implementation proceeds.
   completion, then return without writes, a Cline session, or another commit. The focused integration and
   end-to-end suite passes all 6 scenarios. The full gate passed Ruff formatting over 249 files, Ruff checks,
   strict mypy over 249 source files, all 376 tests with 87% coverage, `uv build` producing the source
-  distribution and wheel, and `git --no-pager diff --check`. Task 6.1 is now the next authorized production
-  implementation slice.
+  distribution and wheel, and `git --no-pager diff --check`.
+- Task 6.1 completed on 2026-07-26 with an isolated disposable Git host that uses non-default idea,
+  specification, and plan paths plus a repository-specific `tools/verify-host` command surface. Production
+  application use cases prove that rough-idea, idea-file, specification-file, and plan-file inputs stop at their
+  specified artifact boundaries. Deterministic scenarios cover malformed outcomes, prohibited operations,
+  interruption and partial-slice resume, material drift, remediable and material findings, and an injected test
+  secret; generated artifacts and the redacted run summary remain understandable without session history. A real
+  fixture Git history inspection proves exact per-slice and finalization path ownership and confirms the injected
+  secret is absent. The focused portable-host suite passes all 11 scenarios, the complete end-to-end suite passes
+  all 25 scenarios, and the full gate passed Ruff formatting over 252 files, Ruff checks, strict mypy over 252
+  source files, all 387 tests with 87% coverage, `uv build` producing the source distribution and wheel, and
+  `git --no-pager diff --check`. This is application-level portable-host evidence using deterministic Cline and
+  repository-effect test adapters; it does not claim installed CLI-to-host execution because the production CLI
+  composition root remains `dry_run_only`. Task 6.2 is now the next authorized production implementation slice.
 
 ### Plan-review findings
 
@@ -2280,6 +2292,7 @@ completed_slices:
   - task-5.2
   - task-5.3
   - task-5.4
+  - task-6.1
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -3834,9 +3847,50 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-26T19:09:04Z
+  - slice_id: task-6.1
+    command: >-
+      uv run pytest tests/e2e/test_portable_host_boundaries.py tests/e2e/test_portable_host_safety.py -q
+    result: passed (11 tests)
+    exit_code: 0
+    recorded_at: 2026-07-26T19:32:00Z
+  - slice_id: task-6.1
+    command: uv run pytest tests/e2e/ -q
+    result: passed (25 tests)
+    exit_code: 0
+    recorded_at: 2026-07-26T19:32:00Z
+  - slice_id: task-6.1
+    command: uv run ruff format .
+    result: passed (252 files unchanged)
+    exit_code: 0
+    recorded_at: 2026-07-26T19:32:00Z
+  - slice_id: task-6.1
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-26T19:32:00Z
+  - slice_id: task-6.1
+    command: uv run mypy .
+    result: passed (252 source files)
+    exit_code: 0
+    recorded_at: 2026-07-26T19:32:00Z
+  - slice_id: task-6.1
+    command: uv run pytest
+    result: passed (387 tests, 87% coverage)
+    exit_code: 0
+    recorded_at: 2026-07-26T19:32:00Z
+  - slice_id: task-6.1
+    command: uv build
+    result: passed (source distribution and wheel)
+    exit_code: 0
+    recorded_at: 2026-07-26T19:32:00Z
+  - slice_id: task-6.1
+    command: git --no-pager diff --check
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-26T19:32:00Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-26T19:09:04Z
+updated_at: 2026-07-26T19:32:00Z
 completed_at: null
 ```
 
