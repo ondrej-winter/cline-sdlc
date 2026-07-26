@@ -1494,7 +1494,7 @@ specification review before implementation proceeds.
 - [x] Task 6.1: Build portable end-to-end host fixtures.
 - [x] Task 6.2: Complete user and operator documentation.
 - [x] Task 6.3: Add packaging, quality, and patch-release CI.
-- [ ] Task 6.4: Execute and record the supervised rollout proof.
+- [x] Task 6.4: Execute and record the supervised rollout proof.
 - [ ] Checkpoint F: Portable MVP proof accepted.
 
 ### Current planning status
@@ -2208,6 +2208,21 @@ specification review before implementation proceeds.
   trusted-publishing credentials. The equivalent local macOS gate passed all 388 tests with 87% coverage plus build
   and packaging smoke; no release was triggered locally. Task 6.4 is now the next authorized implementation slice,
   and Checkpoint F remains open pending the supervised rollout proof.
+- Task 6.4 completed on 2026-07-26 as a supervised rollout evidence slice with a blocked readiness decision. It added
+  `docs/research/cline-sdlc-rollout-proof.md`, mapped specification rollout steps 1–8 to the available evidence, and
+  recorded that no real-Cline disposable-host rollout was executed because the current console boundary remains
+  `dry_run_only` and the prior Cline CLI capability spike did not prove structured terminal outcomes, pre-execution
+  permission mediation, interruption recovery observability, or required-skill availability. Automated fake-backed
+  unit, contract, integration, and portable end-to-end tests remain valuable application evidence, but they do not
+  satisfy the supervised real-Cline rollout proof. The project must not be described as unattended-ready. Checkpoint F
+  remains open pending product-owner review and either a successful future real-Cline proof or an approved execution
+  boundary redesign.
+- Checkpoint F was reviewed on 2026-07-26 as a blocked checkpoint rather than an accepted MVP proof. The review confirms
+  Tasks 6.1–6.4 are complete and documented, but the checkpoint acceptance criteria requiring a successful real-Cline
+  supervised rollout are not satisfied. The plan remains in blocked state with no active implementation slice, and the
+  next material work is outside this accepted plan: either rerun the supervised proof after configuring or upgrading a
+  Cline boundary that proves the missing contracts, or record an approved architecture decision for a replacement
+  execution boundary.
 
 ### Plan-review findings
 
@@ -2260,12 +2275,12 @@ specification review before implementation proceeds.
 schema_version: 1
 work_id: cline-sdlc-orchestrator
 profile: balanced
-phase: reviewing
+phase: blocked
 specification: docs/specs/cline-sdlc-orchestrator-spec.md
 specification_digest: sha256:26cca7b9a8bc5f05aac07a4f313a40d6d28f852eb63874e4551981f2591b2321
 plan_revision: 4
 review_iteration: 1
-review_readiness: changes_required
+review_readiness: blocked
 digest_schema_version: 1
 material_digest: sha256:9bd9c8534860aa6960d3301053b56b61da88bf357e86804fc16a59427e3fac13
 current_task: null
@@ -2317,6 +2332,8 @@ completed_slices:
   - task-6.1
   - task-6.2
   - task-6.3
+  - task-6.4
+  - checkpoint-f-blocked-readiness-review
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -3995,9 +4012,23 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-26T19:50:05Z
-blocker: null
+  - slice_id: task-6.4
+    command: Review docs/research/cline-sdlc-rollout-proof.md against specification rollout steps 1-8
+    result: passed (blocked readiness decision recorded; real-Cline rollout not claimed)
+    exit_code: 0
+    recorded_at: 2026-07-26T20:03:30Z
+  - slice_id: checkpoint-f-blocked-readiness-review
+    command: Review Checkpoint F acceptance criteria against completed Tasks 6.1-6.4 and rollout proof evidence
+    result: not_run (checkpoint remains blocked; successful real-Cline rollout proof absent)
+    exit_code: null
+    recorded_at: 2026-07-26T20:07:30Z
+blocker:
+  code: checkpoint_f_rollout_blocked
+  summary: >-
+    Supervised real-Cline rollout proof did not pass; the current console boundary remains dry_run_only and the project
+    is not unattended-ready pending a future successful proof or approved execution-boundary redesign.
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-26T19:50:05Z
+updated_at: 2026-07-26T20:07:30Z
 completed_at: null
 ```
 
