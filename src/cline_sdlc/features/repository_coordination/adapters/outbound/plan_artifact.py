@@ -34,12 +34,17 @@ class StrictPlanArtifactInspector:
                 specification_path=state.specification,
                 specification_digest=state.specification_digest,
                 material_digest=material_digest,
+                phase=state.phase,
                 completed_slice_ids=state.completed_slices,
                 current_task=state.current_task,
                 current_slice=state.current_slice,
                 slice_start_commit=state.slice_start_commit,
                 partial_slice_paths=state.partial_slice_paths,
                 remediation_records=state.remediation_records,
+                validation_evidence=state.validation_evidence,
+                blocker=state.blocker,
+                updated_at=state.updated_at,
+                completed_at=state.completed_at,
             )
         )
 

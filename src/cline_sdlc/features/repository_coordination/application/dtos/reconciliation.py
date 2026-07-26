@@ -10,7 +10,12 @@ from pathlib import Path  # noqa: TC003 - Runtime dataclass boundary intentional
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from cline_sdlc.features.artifact_lifecycle.domain.plan_state import RemediationRecord
+    from cline_sdlc.features.artifact_lifecycle.domain.plan_state import (
+        PlanBlocker,
+        PlanPhase,
+        RemediationRecord,
+        ValidationEvidence,
+    )
     from cline_sdlc.features.lifecycle_orchestration.application.dtos.slice_selection import (
         SelectedSlice,
         SliceSelectionRequest,
@@ -67,12 +72,17 @@ class PlanArtifactEvidence:
     specification_path: str
     specification_digest: str
     material_digest: str
+    phase: PlanPhase
     completed_slice_ids: tuple[str, ...]
     current_task: str | None
     current_slice: str | None
     slice_start_commit: str | None
     partial_slice_paths: tuple[str, ...]
     remediation_records: tuple[RemediationRecord, ...]
+    validation_evidence: tuple[ValidationEvidence, ...]
+    blocker: PlanBlocker | None
+    updated_at: datetime
+    completed_at: datetime | None
 
 
 @dataclass(frozen=True)
