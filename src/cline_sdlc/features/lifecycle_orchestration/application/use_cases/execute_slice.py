@@ -93,7 +93,7 @@ class ExecuteSlice:
 
         first_session = self._run_session(request, repair=False)
         evidence.sessions.append(first_session)
-        session_failure = _session_failure(first_session, evidence=evidence)
+        session_failure = _session_failure(first_session, expected_role=request.session_role, evidence=evidence)
         if session_failure is not None:
             return session_failure
 
@@ -113,7 +113,7 @@ class ExecuteSlice:
         repair_session = self._run_session(request, repair=True)
         evidence.sessions.append(repair_session)
         evidence.repair_attempts = 1
-        repair_failure = _session_failure(repair_session, evidence=evidence)
+        repair_failure = _session_failure(repair_session, expected_role=request.session_role, evidence=evidence)
         if repair_failure is not None:
             return repair_failure
 
@@ -185,17 +185,21 @@ def _prompt(request: SliceExecutionRequest, *, repair: bool) -> str:
         " ".join((operation.executable, *operation.arguments)) for operation in request.operations
     )
     expected_paths = request.expected_paths or ("No pre-authorized path list; report every observed changed path.",)
-    responsibility = (
-        "Repair only the current slice so its focused validation passes."
-        if repair
-        else "Implement only the current approved slice, including its focused tests and progress update."
-    )
+    if request.session_role is SessionRole.REMEDIATION:
+        responsibility = (
+            "Correct only the approved final-review finding and update its progress-only remediation record."
+        )
+    elif repair:
+        responsibility = "Repair only the current slice so its focused validation passes."
+    else:
+        responsibility = "Implement only the current approved slice, including its focused tests and progress update."
     return "\n".join(
         (
             responsibility,
             "Use the incremental-implementation and test-driven-development skills where applicable.",
             "Do not work on later slices, stage files, create commits, or change material plan content.",
-            "Return exactly one typed implementation terminal outcome with changed paths and validation run.",
+            f"Return exactly one typed {request.session_role.value} terminal outcome "
+            "with changed paths and validation run.",
             f"Approved run: {request.approval.run_id}",
             f"Current task: {request.selection.task_id}",
             f"Current slice: {request.selection.slice_id}",
@@ -220,6 +224,7 @@ def _prompt(request: SliceExecutionRequest, *, repair: bool) -> str:
 def _session_failure(
     result: SessionAttemptResult,
     *,
+    expected_role: SessionRole,
     evidence: _ExecutionEvidence,
 ) -> SliceExecutionResult | None:
     if result.status is not SessionAttemptStatus.COMPLETED or result.terminal_session_result is None:
@@ -241,13 +246,13 @@ def _session_failure(
             ),
         )
     outcome = result.terminal_session_result.terminal_outcomes[0]
-    if outcome.session_role is not SessionRole.IMPLEMENTATION:
+    if outcome.session_role is not expected_role:
         return _result(
             SliceExecutionStatus.BLOCKED,
             evidence,
             blocker=SliceExecutionBlocker(
                 code="unexpected_slice_session_role",
-                summary="slice execution requires an implementation session outcome",
+                summary=f"slice execution requires a {expected_role.value} session outcome",
             ),
         )
     return None

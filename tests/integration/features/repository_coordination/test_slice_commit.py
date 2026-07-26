@@ -11,7 +11,10 @@ from cline_sdlc.features.artifact_lifecycle.domain.digests import (
     compute_plan_material_digest,
     compute_specification_digest,
 )
-from cline_sdlc.features.lifecycle_orchestration.application.dtos.slice_reconciliation import SliceCommitCandidate
+from cline_sdlc.features.lifecycle_orchestration.application.dtos.slice_reconciliation import (
+    SliceCommitCandidate,
+    SliceKind,
+)
 from cline_sdlc.features.repository_coordination.adapters.outbound.git_slice_commit import GitCliSliceCommitter
 from cline_sdlc.features.repository_coordination.adapters.outbound.plan_artifact import StrictPlanArtifactInspector
 from cline_sdlc.features.repository_coordination.application.dtos.slice_commit import (
@@ -57,6 +60,24 @@ def test_creates_one_explicit_hook_enabled_slice_commit(tmp_path: Path) -> None:
     assert state.completed_slices == (SLICE_ID,)
     assert not state.has_active_slice
     assert result.commit not in (repository / PLAN_PATH).read_text(encoding="utf-8")
+
+
+def test_creates_one_explicit_remediation_commit_and_consumes_attempt(tmp_path: Path) -> None:
+    repository, request = _prepared_remediation_request(tmp_path)
+
+    result = _use_case().execute(request)
+
+    assert result.status is SliceCommitStatus.COMMITTED
+    message = _git_stdout(repository, "show", "-s", "--format=%B", "HEAD")
+    assert message.startswith("fix(sdlc): remediate FINAL-001 preserve broad evidence")
+    assert "Cline-SDLC-Slice-ID: FINAL-001" in message
+    assert "Cline-SDLC-Slice-Kind: remediation" in message
+    state = parse_plan_state_from_markdown((repository / PLAN_PATH).read_text(encoding="utf-8"))
+    assert state.completed_slices == (SLICE_ID,)
+    assert len(state.remediation_records) == 1
+    assert state.remediation_records[0].finding_id == "FINAL-001"
+    assert state.remediation_records[0].status == "completed"
+    assert state.remediation_records[0].attempt_count == 1
 
 
 def test_hook_failure_leaves_verified_changes_uncommitted_and_unstaged(tmp_path: Path) -> None:
@@ -161,18 +182,81 @@ def _prepared_request(tmp_path: Path) -> tuple[Path, SliceCommitRequest]:
     )
 
 
-def _plan(
+def _prepared_remediation_request(tmp_path: Path) -> tuple[Path, SliceCommitRequest]:
+    repository = tmp_path / "repo"
+    repository.mkdir()
+    _git(repository, "init", "--initial-branch", "feature/task-5.3")
+    _git(repository, "config", "user.email", "cline-sdlc@example.test")
+    _git(repository, "config", "user.name", "Cline SDLC Tests")
+    _write(repository, SPECIFICATION_PATH, SPECIFICATION)
+    initial_plan = _plan(
+        phase="implementing",
+        completed=(SLICE_ID,),
+        active=False,
+        remediation_status="pending",
+        remediation_attempt_count=0,
+    )
+    _write(repository, PLAN_PATH, _plan(phase="implementing", completed=(SLICE_ID,), active=False))
+    _write(repository, SOURCE_PATH, b"VALUE = 1\n")
+    _git(repository, "add", SPECIFICATION_PATH, PLAN_PATH, SOURCE_PATH)
+    _git(repository, "commit", "-m", "Add pending remediation fixture")
+    starting_head = _git_stdout(repository, "rev-parse", "HEAD")
+
+    _write(repository, PLAN_PATH, initial_plan)
+    updated_plan = _plan(
+        phase="implementing",
+        completed=(SLICE_ID,),
+        active=False,
+        remediation_status="completed",
+        remediation_attempt_count=1,
+    )
+    _write(repository, SOURCE_PATH, b"VALUE = 2\n")
+    material_digest = parse_plan_state_from_markdown(initial_plan.decode()).material_digest
+    candidate = SliceCommitCandidate(
+        work_id=WORK_ID,
+        task_id="final-remediation",
+        slice_id="FINAL-001",
+        starting_head=starting_head,
+        material_digest=material_digest,
+        paths=(PLAN_PATH, SOURCE_PATH),
+        validation_evidence=(),
+        kind=SliceKind.REMEDIATION,
+    )
+    return repository, SliceCommitRequest(
+        repository_root=repository,
+        plan_path=PLAN_PATH,
+        current_plan_content=initial_plan,
+        updated_plan_content=updated_plan,
+        candidate=candidate,
+        short_description="preserve broad evidence",
+    )
+
+
+def _plan(  # noqa: PLR0913 - Fixture options express independent plan-state dimensions.
     *,
     phase: str,
     completed: tuple[str, ...],
     active: bool,
     start_commit: str | None = None,
+    remediation_status: str | None = None,
+    remediation_attempt_count: int = 0,
 ) -> bytes:
     completed_yaml = "[]" if not completed else "\n" + "\n".join(f"  - {item}" for item in completed)
     current_task = "task-4" if active else "null"
     current_slice = SLICE_ID if active else "null"
     slice_start_commit = start_commit if active else "null"
     partial_paths = f"\n  - {PLAN_PATH}\n  - {SOURCE_PATH}" if active else "[]"
+    remediation_records = "[]"
+    if remediation_status is not None:
+        remediation_records = f"""
+  - finding_id: FINAL-001
+    requirement: Preserve broad validation evidence.
+    path_scope:
+      - {SOURCE_PATH}
+    correction: Preserve every affected broad check.
+    verification: uv run pytest tests/integration/features/repository_coordination/test_slice_commit.py
+    status: {remediation_status}
+    attempt_count: {remediation_attempt_count}"""
     template = f"""# Plan
 
 <!-- cline-sdlc-material:start -->
@@ -198,7 +282,7 @@ current_slice: {current_slice}
 slice_start_commit: {slice_start_commit}
 partial_slice_paths: {partial_paths}
 completed_slices: {completed_yaml}
-remediation_records: []
+remediation_records: {remediation_records}
 validation_evidence:
   - slice_id: {SLICE_ID}
     command: uv run pytest tests/integration/features/repository_coordination/test_slice_commit.py

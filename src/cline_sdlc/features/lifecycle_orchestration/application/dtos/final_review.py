@@ -40,6 +40,7 @@ class RemediationStatus(StrEnum):
     """Progress-only status of a bounded remediation record."""
 
     PENDING = "pending"
+    COMPLETED = "completed"
 
 
 @dataclass(frozen=True)
@@ -99,8 +100,9 @@ class RemediationRecord:
             message = "remediation record requires bounded path scope"
             raise ValueError(message)
         object.__setattr__(self, "path_scope", _normalized_unique_paths(self.path_scope))
-        if self.attempt_count != 0:
-            message = "new remediation records must start with attempt_count zero"
+        expected_attempts = 0 if self.status is RemediationStatus.PENDING else 1
+        if self.attempt_count != expected_attempts:
+            message = "remediation status and attempt_count must describe zero or one implementation attempt"
             raise ValueError(message)
 
 

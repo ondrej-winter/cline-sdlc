@@ -20,6 +20,7 @@ from cline_sdlc.features.artifact_lifecycle.domain.plan_state import (
     PlanPhase,
     PlanProfile,
     PlanState,
+    RemediationRecord,
     ReviewReadiness,
     ValidationEvidence,
 )
@@ -160,7 +161,7 @@ def _coerce_state_mapping(raw: dict[object, object]) -> PlanState:
         slice_start_commit=_optional_string(state["slice_start_commit"], field_name="slice_start_commit"),
         partial_slice_paths=_string_tuple(state["partial_slice_paths"], field_name="partial_slice_paths"),
         completed_slices=_string_tuple(state["completed_slices"], field_name="completed_slices"),
-        remediation_records=tuple(_sequence(state["remediation_records"], field_name="remediation_records")),
+        remediation_records=_remediation_record_tuple(state["remediation_records"]),
         validation_evidence=_validation_evidence_tuple(state["validation_evidence"]),
         blocker=_optional_blocker(state["blocker"]),
         created_at=_timestamp(state["created_at"], field_name="created_at"),
@@ -235,6 +236,28 @@ def _validation_evidence_tuple(value: object) -> tuple[ValidationEvidence, ...]:
             )
         )
     return tuple(evidence)
+
+
+def _remediation_record_tuple(value: object) -> tuple[RemediationRecord, ...]:
+    records: list[RemediationRecord] = []
+    expected = {"finding_id", "requirement", "path_scope", "correction", "verification", "status", "attempt_count"}
+    for item in _sequence(value, field_name="remediation_records"):
+        mapped = _plain_mapping(item, field_name="remediation_records item")
+        if set(mapped) != expected:
+            message = "remediation_records items contain an invalid field set"
+            raise ValueError(message)
+        records.append(
+            RemediationRecord(
+                finding_id=_require_string(mapped["finding_id"], field_name="remediation finding_id"),
+                requirement=_require_string(mapped["requirement"], field_name="remediation requirement"),
+                path_scope=_string_tuple(mapped["path_scope"], field_name="remediation path_scope"),
+                correction=_require_string(mapped["correction"], field_name="remediation correction"),
+                verification=_require_string(mapped["verification"], field_name="remediation verification"),
+                status=_require_string(mapped["status"], field_name="remediation status"),
+                attempt_count=_require_int(mapped["attempt_count"], field_name="remediation attempt_count"),
+            )
+        )
+    return tuple(records)
 
 
 def _optional_blocker(value: object) -> PlanBlocker | None:

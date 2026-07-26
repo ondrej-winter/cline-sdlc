@@ -1484,7 +1484,7 @@ specification review before implementation proceeds.
 
 - [x] Task 5.1: Execute and verify final broad validation.
 - [x] Task 5.2: Run fresh final review and classify remediation.
-- [ ] Task 5.3: Execute remediation and confirmation review.
+- [x] Task 5.3: Execute remediation and confirmation review.
 - [ ] Task 5.4: Finalize the plan and support complete no-op.
 
 ### Phase 6
@@ -2151,6 +2151,19 @@ specification review before implementation proceeds.
   passed Ruff formatting over 237 files, Ruff checks, strict mypy over 237 source files, all 359 tests with
   87% coverage, `uv build` producing the source distribution and wheel, and
   `git --no-pager diff --check`. Task 5.3 is now the next authorized production implementation slice.
+- Task 5.3 completed on 2026-07-26 with bounded remediation orchestration under
+  `lifecycle_orchestration`. Each accepted pending `FINAL-*` record is executed exactly once in a fresh
+  `REMEDIATION` session, independently reconciled as `SliceKind.REMEDIATION`, and committed atomically
+  with the original approved material digest and stable finding ID. Strict plan-state parsing and commit
+  verification require only the target progress record to transition from pending/0 to completed/1 while
+  preserving completed implementation slices and every approved remediation boundary field.
+- After all remediation commits, the use case runs affected broad validation once against the latest commit
+  and exactly one fresh read-only confirmation review. Failed transactions stop later work; repeated findings,
+  new open blocking/major findings, non-clean confirmation, role/kind/identity drift, and incomplete validation
+  fail closed. The focused Task 5.3 end-to-end suite passes 6 scenarios and the focused boundary suite passes
+  40 tests. The full gate passed Ruff formatting over 240 files, Ruff checks, strict mypy over 240 source files,
+  all 370 tests with 87% coverage, `uv build` producing the source distribution and wheel, and
+  `git --no-pager diff --check`. Task 5.4 is now the next authorized production implementation slice.
 
 ### Plan-review findings
 
@@ -2255,6 +2268,7 @@ completed_slices:
   - checkpoint-e-core-implementation-loop
   - task-5.1
   - task-5.2
+  - task-5.3
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -3722,9 +3736,50 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-26T18:20:40Z
+  - slice_id: task-5.3
+    command: uv run pytest tests/e2e/test_final_review_remediation.py -q
+    result: passed (6 tests)
+    exit_code: 0
+    recorded_at: 2026-07-26T18:49:41Z
+  - slice_id: task-5.3
+    command: >-
+      uv run pytest tests/e2e/test_final_review_remediation.py tests/integration/features/repository_coordination/test_slice_commit.py tests/unit/features/artifact_lifecycle/adapters/inbound/test_state_yaml.py tests/unit/features/artifact_lifecycle/domain/test_plan_state.py -q
+    result: passed (40 tests)
+    exit_code: 0
+    recorded_at: 2026-07-26T18:49:41Z
+  - slice_id: task-5.3
+    command: uv run ruff format .
+    result: passed (240 files unchanged)
+    exit_code: 0
+    recorded_at: 2026-07-26T18:49:41Z
+  - slice_id: task-5.3
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-26T18:49:41Z
+  - slice_id: task-5.3
+    command: uv run mypy .
+    result: passed (240 source files)
+    exit_code: 0
+    recorded_at: 2026-07-26T18:49:41Z
+  - slice_id: task-5.3
+    command: uv run pytest
+    result: passed (370 tests, 87% coverage)
+    exit_code: 0
+    recorded_at: 2026-07-26T18:49:41Z
+  - slice_id: task-5.3
+    command: uv build
+    result: passed (source distribution and wheel)
+    exit_code: 0
+    recorded_at: 2026-07-26T18:49:41Z
+  - slice_id: task-5.3
+    command: git --no-pager diff --check
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-26T18:49:41Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-26T18:20:40Z
+updated_at: 2026-07-26T18:49:41Z
 completed_at: null
 ```
 

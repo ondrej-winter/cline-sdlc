@@ -11,6 +11,7 @@ from cline_sdlc.features.artifact_lifecycle.domain.plan_state import (
     PlanBlocker,
     PlanPhase,
     PlanState,
+    RemediationRecord,
     ReviewReadiness,
 )
 
@@ -108,3 +109,34 @@ def test_blocked_state_can_resume_implementing() -> None:
     )
 
     state.transition_to(PlanPhase.IMPLEMENTING)
+
+
+def test_state_accepts_unique_bounded_remediation_records() -> None:
+    record = RemediationRecord(
+        finding_id="FINAL-001",
+        requirement="Preserve broad validation evidence.",
+        path_scope=("src/final_validation.py",),
+        correction="Preserve every affected broad check.",
+        verification="uv run pytest tests/test_final_validation.py",
+        status="pending",
+        attempt_count=0,
+    )
+
+    state = ready_state(remediation_records=(record,))
+
+    assert state.remediation_records == (record,)
+
+
+def test_state_rejects_duplicate_remediation_finding_ids() -> None:
+    record = RemediationRecord(
+        finding_id="FINAL-001",
+        requirement="Preserve broad validation evidence.",
+        path_scope=("src/final_validation.py",),
+        correction="Preserve every affected broad check.",
+        verification="uv run pytest tests/test_final_validation.py",
+        status="pending",
+        attempt_count=0,
+    )
+
+    with pytest.raises(ValueError, match="finding IDs must be unique"):
+        ready_state(remediation_records=(record, record))

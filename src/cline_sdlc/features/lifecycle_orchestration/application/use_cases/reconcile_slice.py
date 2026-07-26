@@ -115,6 +115,7 @@ class ReconcileSlice:
                 paths=path_evidence,
                 validation_evidence=request.execution.validation_evidence,
                 operation_decisions=request.execution.operation_decisions,
+                kind=request.kind,
             ),
         )
 

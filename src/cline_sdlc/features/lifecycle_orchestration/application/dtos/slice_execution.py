@@ -11,6 +11,7 @@ from pathlib import (
 )
 from typing import TYPE_CHECKING
 
+from cline_sdlc.features.cline_execution.domain.outcome import SessionRole
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.validation import ValidationScope
 
 if TYPE_CHECKING:
@@ -69,8 +70,9 @@ class SliceExecutionRequest:
     focused_validation_commands: tuple[ValidationCommandCandidate, ...]
     expected_paths: tuple[str, ...] = ()
     operations: tuple[ClassifyOperationRequest, ...] = ()
+    session_role: SessionRole = SessionRole.IMPLEMENTATION
 
-    def __post_init__(self) -> None:
+    def __post_init__(self) -> None:  # noqa: C901 - Boundary DTO validates each independent input invariant.
         if not self.specification_path.strip() or not self.plan_path.strip():
             message = "slice execution artifact paths must not be empty"
             raise ValueError(message)
@@ -88,6 +90,9 @@ class SliceExecutionRequest:
             raise ValueError(message)
         if any(candidate.scope is not ValidationScope.FOCUSED for candidate in self.focused_validation_commands):
             message = "slice execution accepts focused validation commands only"
+            raise ValueError(message)
+        if self.session_role not in {SessionRole.IMPLEMENTATION, SessionRole.REMEDIATION}:
+            message = "slice execution supports implementation and remediation sessions only"
             raise ValueError(message)
         if len(set(self.expected_paths)) != len(self.expected_paths):
             message = "slice execution expected paths must be unique"

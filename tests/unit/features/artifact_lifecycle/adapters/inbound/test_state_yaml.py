@@ -113,3 +113,36 @@ def test_rejects_custom_tags() -> None:
 
     with pytest.raises(StrictStateYAMLError, match=r"custom tags|invalid cline-sdlc-state YAML"):
         parse_plan_state_yaml(raw_yaml)
+
+
+def test_parses_strict_pending_remediation_record() -> None:
+    record_yaml = """
+  - finding_id: FINAL-001
+    requirement: Preserve broad validation evidence.
+    path_scope:
+      - src/final_validation.py
+    correction: Preserve every affected broad check.
+    verification: uv run pytest tests/test_final_validation.py
+    status: pending
+    attempt_count: 0"""
+
+    state = parse_plan_state_yaml(valid_state_yaml(remediation_records=record_yaml))
+
+    assert len(state.remediation_records) == 1
+    assert state.remediation_records[0].finding_id == "FINAL-001"
+    assert state.remediation_records[0].path_scope == ("src/final_validation.py",)
+
+
+def test_rejects_remediation_status_attempt_mismatch() -> None:
+    record_yaml = """
+  - finding_id: FINAL-001
+    requirement: Preserve broad validation evidence.
+    path_scope:
+      - src/final_validation.py
+    correction: Preserve every affected broad check.
+    verification: uv run pytest tests/test_final_validation.py
+    status: completed
+    attempt_count: 0"""
+
+    with pytest.raises(StrictStateYAMLError, match="status and attempt_count"):
+        parse_plan_state_yaml(valid_state_yaml(remediation_records=record_yaml))

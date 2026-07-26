@@ -28,6 +28,13 @@ class SliceReconciliationStatus(StrEnum):
     BLOCKED = "blocked"
 
 
+class SliceKind(StrEnum):
+    """Commit ownership kind for one independently reconciled transaction."""
+
+    IMPLEMENTATION = "implementation"
+    REMEDIATION = "remediation"
+
+
 @dataclass(frozen=True)
 class SliceReconciliationBlocker:
     """Actionable reason a slice is not eligible for commit."""
@@ -54,6 +61,7 @@ class SliceCommitCandidate:
     paths: tuple[str, ...]
     validation_evidence: tuple[ValidationEvidence, ...]
     operation_decisions: tuple[OperationDecision, ...] = field(default_factory=tuple)
+    kind: SliceKind = SliceKind.IMPLEMENTATION
 
 
 @dataclass(frozen=True)
@@ -81,6 +89,7 @@ class SliceReconciliationRequest:
     expected_paths: tuple[str, ...]
     execution: SliceExecutionResult
     repository_request: RepositoryInspectionRequest
+    kind: SliceKind = SliceKind.IMPLEMENTATION
 
     def __post_init__(self) -> None:
         if not self.work_id.strip():

@@ -39,6 +39,7 @@ class StrictPlanArtifactInspector:
                 current_slice=state.current_slice,
                 slice_start_commit=state.slice_start_commit,
                 partial_slice_paths=state.partial_slice_paths,
+                remediation_records=state.remediation_records,
             )
         )
 

@@ -74,6 +74,38 @@ class ValidationEvidence:
 
 
 @dataclass(frozen=True)
+class RemediationRecord:
+    """Progress-only final-review correction state."""
+
+    finding_id: str
+    requirement: str
+    path_scope: tuple[str, ...]
+    correction: str
+    verification: str
+    status: str
+    attempt_count: int
+
+    def __post_init__(self) -> None:
+        if not re.fullmatch(r"FINAL-[0-9]{3,}", self.finding_id):
+            message = "remediation finding_id must use FINAL- followed by at least three digits"
+            raise ValueError(message)
+        for field_name, value in (
+            ("requirement", self.requirement),
+            ("correction", self.correction),
+            ("verification", self.verification),
+        ):
+            _require_non_empty_text(value, field_name=f"remediation {field_name}")
+        object.__setattr__(self, "path_scope", _normalized_unique_paths(self.path_scope))
+        if not self.path_scope:
+            message = "remediation path_scope must not be empty"
+            raise ValueError(message)
+        expected_attempts = {"pending": 0, "completed": 1}
+        if self.status not in expected_attempts or self.attempt_count != expected_attempts[self.status]:
+            message = "remediation status and attempt_count must describe zero or one implementation attempt"
+            raise ValueError(message)
+
+
+@dataclass(frozen=True)
 class PlanState:
     """Validated version-1 implementation-plan lifecycle state."""
 
@@ -95,7 +127,7 @@ class PlanState:
     slice_start_commit: str | None = None
     partial_slice_paths: tuple[str, ...] = field(default_factory=tuple)
     completed_slices: tuple[str, ...] = field(default_factory=tuple)
-    remediation_records: tuple[object, ...] = field(default_factory=tuple)
+    remediation_records: tuple[RemediationRecord, ...] = field(default_factory=tuple)
     validation_evidence: tuple[ValidationEvidence, ...] = field(default_factory=tuple)
     blocker: PlanBlocker | None = None
     completed_at: datetime | None = None
@@ -127,8 +159,9 @@ class PlanState:
 
         object.__setattr__(self, "partial_slice_paths", _normalized_unique_paths(self.partial_slice_paths))
         object.__setattr__(self, "completed_slices", _unique_slice_ids(self.completed_slices))
-        if self.remediation_records:
-            message = "remediation_records are reserved for later remediation slices"
+        remediation_ids = tuple(record.finding_id for record in self.remediation_records)
+        if len(set(remediation_ids)) != len(remediation_ids):
+            message = "remediation finding IDs must be unique"
             raise ValueError(message)
         self._validate_phase_invariants()
 
