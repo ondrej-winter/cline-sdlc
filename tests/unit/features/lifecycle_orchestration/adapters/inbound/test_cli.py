@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from cline_sdlc import __version__
 from cline_sdlc.features.lifecycle_orchestration.adapters.inbound.cli import parse_cli_invocation, run_cli_invocation
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.invocation import InvocationParseError
 from cline_sdlc.features.lifecycle_orchestration.domain.stage import LifecycleStage, StageInputKind
@@ -23,6 +24,14 @@ def test_rejects_missing_input() -> None:
 
     assert isinstance(result, InvocationParseError)
     assert "required" in result.message
+
+
+def test_version_exits_without_requiring_stage_input() -> None:
+    result = run_cli_invocation(["--version"])
+
+    assert result.exit_code == ExitCategory.COMPLETED
+    assert result.stdout == f"cline-sdlc {__version__}\n"
+    assert result.stderr == ""
 
 
 def test_rejects_multiple_inputs(tmp_path: Path) -> None:

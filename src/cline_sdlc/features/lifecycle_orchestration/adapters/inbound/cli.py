@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Never
 
+from cline_sdlc import __version__
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.invocation import (
     InvocationParseError,
     InvocationRequest,
@@ -67,6 +68,15 @@ def parse_cli_invocation(argv: Sequence[str], *, cwd: Path | None = None) -> Par
 
 def run_cli_invocation(argv: Sequence[str], *, cwd: Path | None = None) -> CliRunResult:
     """Run the currently implemented CLI boundary without starting Cline."""
+    if list(argv) == ["--version"]:
+        result = TerminalResult(status=TerminalStatus.COMPLETED, reason="version_displayed")
+        return CliRunResult(
+            exit_code=int(exit_category_for_status(result.status)),
+            stdout=f"cline-sdlc {__version__}\n",
+            stderr="",
+            terminal_result=result,
+        )
+
     parsed = parse_cli_invocation(argv, cwd=cwd)
     if isinstance(parsed, InvocationParseError):
         result = TerminalResult(
@@ -126,6 +136,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--verbose", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     return parser
 
 

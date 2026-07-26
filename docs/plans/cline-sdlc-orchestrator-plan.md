@@ -1490,7 +1490,7 @@ specification review before implementation proceeds.
 ### Phase 6
 
 - [x] Task 6.1: Build portable end-to-end host fixtures.
-- [ ] Task 6.2: Complete user and operator documentation.
+- [x] Task 6.2: Complete user and operator documentation.
 - [ ] Task 6.3: Add cross-platform packaging and quality CI.
 - [ ] Task 6.4: Execute and record the supervised rollout proof.
 - [ ] Checkpoint F: Portable MVP proof accepted.
@@ -2186,6 +2186,18 @@ specification review before implementation proceeds.
   `git --no-pager diff --check`. This is application-level portable-host evidence using deterministic Cline and
   repository-effect test adapters; it does not claim installed CLI-to-host execution because the production CLI
   composition root remains `dry_run_only`. Task 6.2 is now the next authorized production implementation slice.
+- Task 6.2 completed on 2026-07-26 with a project-facing README that documents local `uvx` execution, all four
+  explicit stage inputs and stopping boundaries, every CLI option and the 30-minute timeout default, JSON output,
+  stable exit categories, Git and protected-branch prerequisites, balanced permissions, ignored/redacted run
+  records, blockers, interruption and partial-slice recovery, complete-plan no-op behavior, and the distinction
+  between accepted-plan-authorized dependency/network operations and unplanned operations that stop. The README
+  links the blocking capability-spike evidence and implementation plan, explicitly states that the current console
+  composition remains `dry_run_only` and must not be described as unattended-ready, and records that no
+  environment-backed runtime settings or `.env.example` are required. The CLI contract now exposes and tests
+  `--version`; development and local `uvx --from .` help/version smoke checks agree on version `0.0.1`. The focused
+  CLI suite passes 17 tests, and the full gate passed Ruff formatting over 252 files, Ruff checks, strict mypy over
+  252 source files, all 388 tests with 87% coverage, `uv build` producing the source distribution and wheel, and
+  `git --no-pager diff --check`. Task 6.3 is now the next authorized implementation slice.
 
 ### Plan-review findings
 
@@ -2293,6 +2305,7 @@ completed_slices:
   - task-5.3
   - task-5.4
   - task-6.1
+  - task-6.2
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -3888,9 +3901,55 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-26T19:32:00Z
+  - slice_id: task-6.2
+    command: >-
+      uv run pytest tests/unit/features/lifecycle_orchestration/adapters/inbound/test_cli.py tests/unit/bootstrap/test_cli.py -q
+    result: passed (17 tests)
+    exit_code: 0
+    recorded_at: 2026-07-26T19:40:33Z
+  - slice_id: task-6.2
+    command: uv run cline-sdlc --help && uv run cline-sdlc --version
+    result: passed (help lists all documented options; version 0.0.1)
+    exit_code: 0
+    recorded_at: 2026-07-26T19:40:33Z
+  - slice_id: task-6.2
+    command: uvx --from . cline-sdlc --help && uvx --from . cline-sdlc --version
+    result: passed (local package smoke; version 0.0.1)
+    exit_code: 0
+    recorded_at: 2026-07-26T19:40:33Z
+  - slice_id: task-6.2
+    command: uv run ruff format .
+    result: passed (252 files unchanged)
+    exit_code: 0
+    recorded_at: 2026-07-26T19:40:33Z
+  - slice_id: task-6.2
+    command: uv run ruff check .
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-26T19:40:33Z
+  - slice_id: task-6.2
+    command: uv run mypy .
+    result: passed (252 source files)
+    exit_code: 0
+    recorded_at: 2026-07-26T19:40:33Z
+  - slice_id: task-6.2
+    command: uv run pytest
+    result: passed (388 tests, 87% coverage)
+    exit_code: 0
+    recorded_at: 2026-07-26T19:40:33Z
+  - slice_id: task-6.2
+    command: uv build
+    result: passed (source distribution and wheel)
+    exit_code: 0
+    recorded_at: 2026-07-26T19:40:33Z
+  - slice_id: task-6.2
+    command: git --no-pager diff --check
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-26T19:40:33Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-26T19:32:00Z
+updated_at: 2026-07-26T19:40:33Z
 completed_at: null
 ```
 
