@@ -41,7 +41,8 @@ rollout exercises, packaging smoke test, and repository quality gate pass.
 - Cascading automatically across multiple major lifecycle stages.
 - Cline SDK or Agent Team orchestration unless the Phase 0 viability gate rejects the
   CLI-wrapper architecture.
-- Pushes, pull requests, releases, publishing, deployment, or other remote effects.
+- Orchestrator-managed host pushes, pull requests, releases, publishing, deployment, or
+  other remote effects; repository CI may publish this package through the approved release workflow.
 - Concurrent implementation sessions or repository writers.
 - Database-backed state, arbitrary approval profiles, or unplanned dependency changes.
 - Reimplementing the detailed procedures already owned by stage-specific Agent Skills.
@@ -1247,25 +1248,26 @@ if runtime environment settings exist.
 
 **Estimated scope:** Medium.
 
-### Task 6.3: Add cross-platform packaging and quality CI
+### Task 6.3: Add packaging, quality, and patch-release CI
 
-**Description:** Extend CI to prove supported Python/platform behavior, distribution build,
-the local console entry point through `uvx`, and the automated test layers that do not need
-real Cline credentials or network access.
+**Description:** Extend the existing Ubuntu CI to prove distribution build, the local console
+entry point through `uvx`, and the automated test layers, then create a patch release and
+publish it to PyPI after successful pushes to `master` during active development.
 
 **Acceptance criteria:**
 
-- CI covers supported macOS and Linux execution with Python 3.14.
-- Formatting, linting, mypy, unit, contract, Git integration, portable end-to-end, build,
-  and `uvx --from . cline-sdlc --help` checks are explicit.
-- Default CI does not invoke real Cline, require credentials, mutate global Git config, or
-  perform remote lifecycle effects.
+- Ubuntu CI uses Python 3.14 and runs formatting, linting, mypy, the full automated test suite,
+  distribution build, and `uvx --from . cline-sdlc --help` checks.
+- CI does not invoke real Cline; the full automated suite includes unit, contract, Git
+  integration, and portable end-to-end coverage without real Cline credentials or network access.
+- Successful pushes to `master` create a patch release and publish it to PyPI through the
+  repository's configured GitHub and trusted-publishing credentials.
 - Dependency installation uses the locked project state and fails on drift.
 
 **Verification:**
 
 - Validate workflow syntax and run the equivalent full local quality and packaging gate.
-- Confirm CI test selection includes the external-host portability fixture.
+- Confirm the full CI test suite includes the external-host portability fixture.
 
 **Dependencies:** Tasks 6.1 and 6.2.
 
@@ -1311,8 +1313,8 @@ automated default-suite test.
   including malformed output, prohibited operation, interruption/resume, material drift,
   remediable finding, material finding, and injected secret.
 - An unrelated host fixture uses different artifact paths and project validation commands.
-- macOS and Linux CI run formatting, linting, mypy, unit, contract, integration, end-to-end,
-  build, and packaging smoke checks as appropriate.
+- Ubuntu CI runs formatting, linting, mypy, the full automated suite, build, and packaging
+  smoke checks before the automatic patch-release job.
 - `uvx --from . cline-sdlc --help` succeeds.
 - A manually supervised non-production proof confirms at least three serial low-risk slices.
 - The project is not described as unattended-ready until all rollout evidence is reviewed.
@@ -1366,7 +1368,7 @@ or the developer's global Git configuration.
 - Record a durable ADR if the Phase 0 gate changes the CLI-wrapper architecture or if an
   implementation discovery changes a material boundary.
 - Keep run-log format and redaction behavior documented without exposing sensitive data.
-- Update CI for the final packaging smoke and supported platform matrix.
+- Update CI for the final packaging smoke and automatic patch-release workflow.
 
 ## Risks and mitigations
 
@@ -1491,7 +1493,7 @@ specification review before implementation proceeds.
 
 - [x] Task 6.1: Build portable end-to-end host fixtures.
 - [x] Task 6.2: Complete user and operator documentation.
-- [ ] Task 6.3: Add cross-platform packaging and quality CI.
+- [x] Task 6.3: Add packaging, quality, and patch-release CI.
 - [ ] Task 6.4: Execute and record the supervised rollout proof.
 - [ ] Checkpoint F: Portable MVP proof accepted.
 
@@ -2198,6 +2200,14 @@ specification review before implementation proceeds.
   CLI suite passes 17 tests, and the full gate passed Ruff formatting over 252 files, Ruff checks, strict mypy over
   252 source files, all 388 tests with 87% coverage, `uv build` producing the source distribution and wheel, and
   `git --no-pager diff --check`. Task 6.3 is now the next authorized implementation slice.
+- Task 6.3 completed on 2026-07-26 by extending the existing Ubuntu Python 3.14 quality and patch-release workflow.
+  The quality job installs the exact lock state with `uv sync --frozen --all-groups`, runs formatting, linting,
+  strict typing, and the full automated test suite, builds the source distribution and wheel, smoke-tests
+  `uvx --from . cline-sdlc --help`, and retains the distribution artifacts. After successful pushes to `master`,
+  the dependent release job creates a patch release and publishes it to PyPI through the configured GitHub and
+  trusted-publishing credentials. The equivalent local macOS gate passed all 388 tests with 87% coverage plus build
+  and packaging smoke; no release was triggered locally. Task 6.4 is now the next authorized implementation slice,
+  and Checkpoint F remains open pending the supervised rollout proof.
 
 ### Plan-review findings
 
@@ -2253,11 +2263,11 @@ profile: balanced
 phase: reviewing
 specification: docs/specs/cline-sdlc-orchestrator-spec.md
 specification_digest: sha256:26cca7b9a8bc5f05aac07a4f313a40d6d28f852eb63874e4551981f2591b2321
-plan_revision: 3
+plan_revision: 4
 review_iteration: 1
 review_readiness: changes_required
 digest_schema_version: 1
-material_digest: sha256:3f80814ce5f43cf262f3641ad5966236fe871705f728972fc9c6e13294f2c88c
+material_digest: sha256:9bd9c8534860aa6960d3301053b56b61da88bf357e86804fc16a59427e3fac13
 current_task: null
 current_slice: null
 slice_start_commit: null
@@ -2306,6 +2316,7 @@ completed_slices:
   - task-5.4
   - task-6.1
   - task-6.2
+  - task-6.3
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -3947,9 +3958,46 @@ validation_evidence:
     result: passed
     exit_code: 0
     recorded_at: 2026-07-26T19:40:33Z
+  - slice_id: task-6.3
+    command: >-
+      uv run python -c "from pathlib import Path; from ruamel.yaml import YAML; data=YAML(typ='safe').load(Path('.github/workflows/ci-cd.yaml')); assert data['jobs']['quality']['runs-on'] == 'ubuntu-latest'; assert data['jobs']['patch-release']['needs'] == ['quality']; assert data['jobs']['patch-release']['permissions'] == {'contents': 'write', 'id-token': 'write'}"
+    result: passed (workflow YAML parsed; Ubuntu quality and dependent patch-release jobs present)
+    exit_code: 0
+    recorded_at: 2026-07-26T19:50:05Z
+  - slice_id: task-6.3
+    command: uv sync --frozen --all-groups
+    result: passed (54 locked packages checked)
+    exit_code: 0
+    recorded_at: 2026-07-26T19:50:05Z
+  - slice_id: task-6.3
+    command: uv run ruff format --check . && uv run ruff check . && uv run mypy .
+    result: passed (252 files formatted; 252 source files type checked)
+    exit_code: 0
+    recorded_at: 2026-07-26T19:50:05Z
+  - slice_id: task-6.3
+    command: >-
+      uv run pytest tests/unit/ && uv run pytest tests/contract/ && uv run pytest tests/integration/ && uv run pytest tests/e2e/
+    result: passed (228 unit, 94 contract, 41 integration, and 25 end-to-end tests on macOS)
+    exit_code: 0
+    recorded_at: 2026-07-26T19:50:05Z
+  - slice_id: task-6.3
+    command: uv run pytest
+    result: passed (388 tests, 87% coverage on macOS)
+    exit_code: 0
+    recorded_at: 2026-07-26T19:50:05Z
+  - slice_id: task-6.3
+    command: uv build && uvx --from . cline-sdlc --help
+    result: passed (source distribution, wheel, and local console packaging smoke)
+    exit_code: 0
+    recorded_at: 2026-07-26T19:50:05Z
+  - slice_id: task-6.3
+    command: git --no-pager diff --check
+    result: passed
+    exit_code: 0
+    recorded_at: 2026-07-26T19:50:05Z
 blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-26T19:40:33Z
+updated_at: 2026-07-26T19:50:05Z
 completed_at: null
 ```
 

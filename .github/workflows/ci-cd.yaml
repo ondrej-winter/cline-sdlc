@@ -35,7 +35,7 @@ jobs:
           python-version: "3.14"
 
       - name: Install dependencies
-        run: uv sync --frozen --group dev
+        run: uv sync --frozen --all-groups
 
       - name: Check formatting
         run: uv run ruff format --check .
@@ -51,6 +51,9 @@ jobs:
 
       - name: Build distribution packages
         run: uv build
+
+      - name: Smoke test local console package
+        run: uvx --from . cline-sdlc --help
 
       - name: Upload distribution artifacts
         uses: actions/upload-artifact@v7
@@ -88,7 +91,7 @@ jobs:
           python-version: "3.14"
 
       - name: Install dependencies
-        run: uv sync --frozen --group dev
+        run: uv sync --frozen --all-groups
 
       - name: Configure release author
         run: |
