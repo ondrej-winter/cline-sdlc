@@ -141,7 +141,7 @@ def test_authors_and_independently_validates_initial_plan() -> None:
     assert len(attempts.requests) == 1
     session_request = attempts.requests[0]
     assert isinstance(session_request, SessionAttemptRequest)
-    prompt = session_request.session_request.command[3]
+    prompt = session_request.session_request.command[-1]
     assert "planning-and-task-breakdown" in prompt
     assert "do not review or implement" in prompt
     assert _spec_path().as_posix() in prompt

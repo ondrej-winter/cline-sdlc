@@ -82,7 +82,7 @@ class CreateSpecification:
 def _session_attempt_request(request: SpecificationCreationRequest) -> SessionAttemptRequest:
     return SessionAttemptRequest(
         session_request=ClineSessionRequest(
-            command=(request.invocation.cline_command, "--json", "--task", _prompt(request)),
+            command=(request.invocation.cline_command, "--json", _prompt(request)),
             working_directory=request.preflight_request.repository_request.working_directory,
             timeout_seconds=request.invocation.timeout_seconds,
         ),

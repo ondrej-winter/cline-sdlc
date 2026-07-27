@@ -77,10 +77,10 @@ def test_creates_specification_from_accepted_idea_file() -> None:
     assert len(preflight.requests) == 1
     assert len(attempts.requests) == 1
     assert attempts.requests[0].session_request.working_directory == Path("/repo")
-    assert attempts.requests[0].session_request.command[:3] == ("cline", "--json", "--task")
-    assert "spec-driven-development" in attempts.requests[0].session_request.command[3]
-    assert _idea_path().as_posix() in attempts.requests[0].session_request.command[3]
-    assert "do not create a plan" in attempts.requests[0].session_request.command[3]
+    assert attempts.requests[0].session_request.command[:2] == ("cline", "--json")
+    assert "spec-driven-development" in attempts.requests[0].session_request.command[-1]
+    assert _idea_path().as_posix() in attempts.requests[0].session_request.command[-1]
+    assert "do not create a plan" in attempts.requests[0].session_request.command[-1]
 
 
 def test_requires_idea_file_invocation_source() -> None:

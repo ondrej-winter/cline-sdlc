@@ -77,9 +77,9 @@ def test_refines_rough_idea_to_exactly_one_selected_idea_brief() -> None:
     assert len(preflight.requests) == 1
     assert len(attempts.requests) == 1
     assert attempts.requests[0].session_request.working_directory == Path("/repo")
-    assert attempts.requests[0].session_request.command[:3] == ("cline", "--json", "--task")
-    assert "idea-refine" in attempts.requests[0].session_request.command[3]
-    assert "do not create a specification or plan" in attempts.requests[0].session_request.command[3]
+    assert attempts.requests[0].session_request.command[:2] == ("cline", "--json")
+    assert "idea-refine" in attempts.requests[0].session_request.command[-1]
+    assert "do not create a specification or plan" in attempts.requests[0].session_request.command[-1]
 
 
 def test_empty_rough_idea_is_rejected_before_preflight_or_session() -> None:

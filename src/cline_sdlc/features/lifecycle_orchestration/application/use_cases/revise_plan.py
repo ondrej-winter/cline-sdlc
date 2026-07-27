@@ -94,7 +94,7 @@ def _session_request(request: PlanRevisionRequest) -> SessionAttemptRequest:
     review_request = request.review_request
     return SessionAttemptRequest(
         session_request=ClineSessionRequest(
-            command=(review_request.invocation.cline_command, "--json", "--task", _prompt(request)),
+            command=(review_request.invocation.cline_command, "--json", _prompt(request)),
             working_directory=review_request.preflight_request.repository_request.working_directory,
             timeout_seconds=review_request.invocation.timeout_seconds,
         ),

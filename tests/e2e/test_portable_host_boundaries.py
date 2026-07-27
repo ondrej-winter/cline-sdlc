@@ -301,7 +301,7 @@ def test_spec_file_authors_and_read_only_reviews_without_implementation(external
     assert reviewed.status is PlanReviewStatus.READY
     assert len(author_session.requests) == 1
     assert len(reviewer.requests) == 1
-    assert HOST_CHECK in author_session.requests[0].session_request.command[3]
+    assert HOST_CHECK in author_session.requests[0].session_request.command[-1]
     assert external_host.status_paths() == (PLAN_PATH,)
     assert not (external_host.root / "src").exists()
     assert "Recovery" in external_host.read_text(PLAN_PATH)

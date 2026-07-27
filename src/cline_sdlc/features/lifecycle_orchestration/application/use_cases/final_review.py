@@ -137,7 +137,7 @@ def _approval_failure(request: FinalReviewRequest) -> FinalReviewBlocker | None:
 def _session_request(request: FinalReviewRequest) -> SessionAttemptRequest:
     return SessionAttemptRequest(
         session_request=ClineSessionRequest(
-            command=(request.cline_command, "--json", "--task", _prompt(request)),
+            command=(request.cline_command, "--json", _prompt(request)),
             working_directory=request.working_directory,
             timeout_seconds=request.timeout_seconds,
         ),

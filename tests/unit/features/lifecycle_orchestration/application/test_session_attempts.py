@@ -222,6 +222,35 @@ def test_exhausts_single_bounded_retry() -> None:
     assert len(result.attempts) == EXPECTED_RETRIED_ATTEMPTS
 
 
+def test_retry_exhaustion_evidence_includes_safe_process_diagnostic() -> None:
+    runner = RecordingRunner(
+        results=[
+            ClineSessionResult(
+                process_status=ClineSessionProcessStatus.EXITED,
+                exit_code=1,
+                stdout='{"type":"error","message":"configured model is not supported"}\n',
+            ),
+            ClineSessionResult(
+                process_status=ClineSessionProcessStatus.EXITED,
+                exit_code=1,
+                stdout='{"type":"run_result","text":"configured model is not supported"}\n',
+            ),
+        ],
+        requests=[],
+    )
+    inspector = RecordingRepositoryInspector(
+        snapshots=[_snapshot(), _snapshot(), _snapshot(), _snapshot()],
+        requests=[],
+    )
+
+    result = RunSessionAttempts(runner=runner, repository_inspector=inspector).execute(_request())
+
+    assert result.status is SessionAttemptStatus.FAILED
+    assert result.blocker is not None
+    assert result.blocker.evidence is not None
+    assert "diagnostic=configured model is not supported" in result.blocker.evidence
+
+
 def _request() -> SessionAttemptRequest:
     return SessionAttemptRequest(
         session_request=ClineSessionRequest(

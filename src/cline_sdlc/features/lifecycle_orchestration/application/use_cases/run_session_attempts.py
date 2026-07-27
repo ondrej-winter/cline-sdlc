@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 
 from cline_sdlc.features.cline_execution.application.dtos.session import ClineSessionProcessStatus
@@ -179,6 +180,8 @@ def _attempt_evidence(observations: list[SessionAttemptObservation]) -> str | No
 def _observation_evidence(observation: SessionAttemptObservation) -> str:
     result = observation.session_result
     retry_reason = observation.retry_reason.value if observation.retry_reason is not None else "none"
+    diagnostic = _process_diagnostic(result)
+    diagnostic_suffix = f" diagnostic={diagnostic}" if diagnostic else ""
     return (
         f"attempt={observation.attempt_number} "
         f"process_status={result.process_status.value} "
@@ -186,4 +189,37 @@ def _observation_evidence(observation: SessionAttemptObservation) -> str:
         f"terminal_outcomes={len(result.terminal_outcomes)} "
         f"malformed_output_lines={len(result.malformed_output_lines)} "
         f"retry_reason={retry_reason}"
+        f"{diagnostic_suffix}"
     )
+
+
+def _process_diagnostic(result: ClineSessionResult) -> str | None:
+    diagnostic = _first_error_message(result.stdout) or _first_non_empty_line(result.stderr)
+    if diagnostic is None:
+        return None
+    return diagnostic[:240]
+
+
+def _first_error_message(stdout: str) -> str | None:
+    for line in stdout.splitlines():
+        try:
+            value = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(value, dict):
+            continue
+        message = value.get("message")
+        if isinstance(message, str) and value.get("type") == "error":
+            return message
+        text = value.get("text")
+        if isinstance(text, str) and value.get("type") == "run_result":
+            return text
+    return None
+
+
+def _first_non_empty_line(text: str) -> str | None:
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped:
+            return stripped
+    return None

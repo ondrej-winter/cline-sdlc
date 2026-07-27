@@ -81,7 +81,7 @@ def test_executes_only_approved_slice_and_independent_focused_validation() -> No
     assert result.changed_paths == ("src/feature.py", "tests/test_feature.py")
     assert result.repair_attempts == 0
     assert len(sessions.requests) == 1
-    prompt = sessions.requests[0].session_request.command[3]
+    prompt = sessions.requests[0].session_request.command[-1]
     assert "Current slice: task-4.2" in prompt
     assert "Do not work on later slices" in prompt
     assert "create commits" in prompt
@@ -135,7 +135,7 @@ def test_focused_validation_failure_permits_one_fresh_repair() -> None:
     assert result.completed
     assert result.repair_attempts == 1
     assert len(sessions.requests) == EXPECTED_SESSION_AND_VALIDATION_RUNS
-    assert "Repair only the current slice" in sessions.requests[1].session_request.command[3]
+    assert "Repair only the current slice" in sessions.requests[1].session_request.command[-1]
     assert len(validation.requests) == EXPECTED_SESSION_AND_VALIDATION_RUNS
 
 

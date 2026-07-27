@@ -84,7 +84,7 @@ class RefineIdea:
 def _session_attempt_request(request: IdeaRefinementRequest, rough_idea: str) -> SessionAttemptRequest:
     return SessionAttemptRequest(
         session_request=ClineSessionRequest(
-            command=(request.invocation.cline_command, "--json", "--task", _prompt(request, rough_idea)),
+            command=(request.invocation.cline_command, "--json", _prompt(request, rough_idea)),
             working_directory=request.preflight_request.repository_request.working_directory,
             timeout_seconds=request.invocation.timeout_seconds,
         ),

@@ -82,7 +82,7 @@ def test_revision_uses_fresh_author_context_and_validates_prior_state() -> None:
 
     assert result.status is PlanRevisionStatus.COMPLETED
     assert result.plan_state == revised_content.plan_state
-    prompt = attempts.requests[0].session_request.command[3]
+    prompt = attempts.requests[0].session_request.command[-1]
     assert "planning-and-task-breakdown" in prompt
     assert "fresh author context" in prompt
     assert "PLAN-001" in prompt

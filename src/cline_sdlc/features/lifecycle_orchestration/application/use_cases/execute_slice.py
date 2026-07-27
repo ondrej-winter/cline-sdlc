@@ -148,7 +148,7 @@ class ExecuteSlice:
         return self._session_attempts.execute(
             SessionAttemptRequest(
                 session_request=ClineSessionRequest(
-                    command=(request.cline_command, "--json", "--task", _prompt(request, repair=repair)),
+                    command=(request.cline_command, "--json", _prompt(request, repair=repair)),
                     working_directory=request.working_directory,
                     timeout_seconds=request.timeout_seconds,
                 ),

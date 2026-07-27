@@ -116,7 +116,7 @@ def test_initial_ready_review_uses_fresh_read_only_context_and_needs_no_revision
     assert result.readiness is PlanReviewReadiness.READY
     assert result.findings == ()
     assert result.material_digest == MATERIAL_DIGEST
-    prompt = attempts.requests[0].session_request.command[3]
+    prompt = attempts.requests[0].session_request.command[-1]
     assert "review-implementation-plan" in prompt
     assert "fresh read-only context" in prompt
     assert "author private reasoning" in prompt
