@@ -5,30 +5,60 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Never
 
 from cline_sdlc import __version__
+from cline_sdlc.features.artifact_lifecycle.application.dtos.artifact_location import (
+    ArtifactKind,
+    ArtifactLocationBlocker,
+    SelectArtifactLocationRequest,
+)
+from cline_sdlc.features.artifact_lifecycle.application.use_cases.select_artifact_location import SelectArtifactLocation
+from cline_sdlc.features.cline_execution.adapters.outbound.cli_capability_probe import SubprocessClineCapabilityProbe
+from cline_sdlc.features.cline_execution.adapters.outbound.subprocess_session_runner import SubprocessClineSessionRunner
+from cline_sdlc.features.cline_execution.application.dtos.preflight import ClinePreflightRequest
+from cline_sdlc.features.cline_execution.application.use_cases.preflight import PreflightClineCapabilities
+from cline_sdlc.features.lifecycle_orchestration.application.dtos.idea_stage import (
+    IdeaRefinementRequest,
+    IdeaRefinementResult,
+    IdeaRefinementStatus,
+)
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.invocation import (
     InvocationParseError,
     InvocationRequest,
     InvocationSource,
 )
+from cline_sdlc.features.lifecycle_orchestration.application.dtos.preflight import StagePreflightRequest
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.terminal_result import TerminalBlocker, TerminalResult
+from cline_sdlc.features.lifecycle_orchestration.application.use_cases.preflight_stage import PreflightLifecycleStage
+from cline_sdlc.features.lifecycle_orchestration.application.use_cases.refine_idea import RefineIdea
+from cline_sdlc.features.lifecycle_orchestration.application.use_cases.run_session_attempts import RunSessionAttempts
 from cline_sdlc.features.lifecycle_orchestration.application.use_cases.select_stage import SelectLifecycleStage
+from cline_sdlc.features.lifecycle_orchestration.domain.stage import LifecycleStage
 from cline_sdlc.features.lifecycle_orchestration.domain.terminal_result import (
     TerminalStatus,
     exit_category_for_status,
 )
+from cline_sdlc.features.repository_coordination.adapters.outbound.git_cli import GitCliRepositoryInspector
+from cline_sdlc.features.repository_coordination.application.dtos.repository import RepositoryInspectionRequest
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    from cline_sdlc.features.repository_coordination.application.dtos.repository import RepositoryInspectionResult
 
 DEFAULT_TIMEOUT_SECONDS = 1_800.0
 INVALID_TIMEOUT_MESSAGE = "--timeout must be a finite positive number of seconds"
 USAGE_ERROR_REASON = "invalid_invocation"
 DRY_RUN_REASON = "dry_run_preview"
+UNSUPPORTED_STAGE_REASON = "stage_not_wired"
+IDEA_COMPLETED_REASON = "idea_brief_accepted"
+IDEA_BLOCKED_REASON = "idea_refinement_blocked"
+IDEA_FAILED_REASON = "idea_refinement_failed"
+_SAFE_STEM_WORD_PATTERN = re.compile(r"[a-z0-9]+")
 
 
 class _ArgumentParser(argparse.ArgumentParser):
@@ -67,7 +97,7 @@ def parse_cli_invocation(argv: Sequence[str], *, cwd: Path | None = None) -> Par
 
 
 def run_cli_invocation(argv: Sequence[str], *, cwd: Path | None = None) -> CliRunResult:
-    """Run the currently implemented CLI boundary without starting Cline."""
+    """Run one supervised lifecycle CLI invocation."""
     if list(argv) == ["--version"]:
         result = TerminalResult(status=TerminalStatus.COMPLETED, reason="version_displayed")
         return CliRunResult(
@@ -86,17 +116,119 @@ def run_cli_invocation(argv: Sequence[str], *, cwd: Path | None = None) -> CliRu
         )
         return _render_cli_result(result, emit_json=_argv_requests_json(argv))
 
+    if parsed.request.dry_run:
+        result = _dry_run_result(parsed.request)
+        return _render_cli_result(result, emit_json=parsed.request.emit_json)
+
+    if parsed.request.stage is LifecycleStage.IDEA_REFINEMENT:
+        result = _run_idea_refinement(parsed.request, cwd=cwd or Path.cwd())
+        return _render_cli_result(result, emit_json=parsed.request.emit_json)
+
     result = TerminalResult(
         status=TerminalStatus.BLOCKED,
-        reason=DRY_RUN_REASON,
+        reason=UNSUPPORTED_STAGE_REASON,
         stage=parsed.request.stage,
         input_path=_input_path(parsed.request),
         blocker=TerminalBlocker(
-            code="dry_run_only",
-            summary="Task 1.1b renders terminal results; Cline execution is not implemented in this slice.",
+            code="stage_not_wired",
+            summary="Only idea refinement is currently wired through the supervised CLI runner.",
         ),
     )
     return _render_cli_result(result, emit_json=parsed.request.emit_json)
+
+
+def _dry_run_result(request: InvocationRequest) -> TerminalResult:
+    return TerminalResult(
+        status=TerminalStatus.BLOCKED,
+        reason=DRY_RUN_REASON,
+        stage=request.stage,
+        input_path=_input_path(request),
+        blocker=TerminalBlocker(
+            code="dry_run_only",
+            summary="Dry run selected; lifecycle execution was not started.",
+        ),
+    )
+
+
+def _run_idea_refinement(request: InvocationRequest, *, cwd: Path) -> TerminalResult:
+    artifact_selector = SelectArtifactLocation()
+    artifact_location = artifact_selector.execute(
+        SelectArtifactLocationRequest(
+            artifact_kind=ArtifactKind.IDEA_BRIEF,
+            artifact_stem=_artifact_stem(str(request.source.value)),
+        )
+    )
+    if isinstance(artifact_location, ArtifactLocationBlocker):
+        return TerminalResult(
+            status=TerminalStatus.BLOCKED,
+            reason=IDEA_BLOCKED_REASON,
+            stage=request.stage,
+            blocker=TerminalBlocker(code=artifact_location.code, summary=artifact_location.summary),
+        )
+
+    repository_request = RepositoryInspectionRequest(
+        working_directory=cwd,
+        managed_paths=(Path(artifact_location.directory),),
+    )
+    preflight_request = StagePreflightRequest(
+        invocation=request,
+        artifact_location_request=None,
+        repository_request=repository_request,
+        cline_preflight_request=ClinePreflightRequest(
+            command=(request.cline_command,),
+            required_skills=("idea-refine",),
+        ),
+    )
+    repository_inspector = GitCliRepositoryInspector()
+    preflight = PreflightLifecycleStage(
+        repository_inspector=_RepositoryInspectionAdapter(repository_inspector),
+        cline_preflight=PreflightClineCapabilities(SubprocessClineCapabilityProbe()),
+    )
+    session_attempts = RunSessionAttempts(
+        runner=SubprocessClineSessionRunner(),
+        repository_inspector=repository_inspector,
+    )
+    result = RefineIdea(preflight=preflight, session_attempts=session_attempts).execute(
+        IdeaRefinementRequest(
+            invocation=request,
+            preflight_request=preflight_request,
+            output_artifact=artifact_location,
+        )
+    )
+    return _terminal_result_from_idea_result(request, result)
+
+
+@dataclass(frozen=True)
+class _RepositoryInspectionAdapter:
+    inspector: GitCliRepositoryInspector
+
+    def execute(self, request: RepositoryInspectionRequest) -> RepositoryInspectionResult:
+        return self.inspector.inspect(request)
+
+
+def _terminal_result_from_idea_result(request: InvocationRequest, result: IdeaRefinementResult) -> TerminalResult:
+    if result.status is IdeaRefinementStatus.COMPLETED:
+        return TerminalResult(
+            status=TerminalStatus.COMPLETED,
+            reason=IDEA_COMPLETED_REASON,
+            stage=request.stage,
+            output_paths=result.output_paths,
+        )
+    blocker = result.blocker
+    return TerminalResult(
+        status=TerminalStatus.BLOCKED if result.status is IdeaRefinementStatus.BLOCKED else TerminalStatus.FAILED,
+        reason=IDEA_BLOCKED_REASON if result.status is IdeaRefinementStatus.BLOCKED else IDEA_FAILED_REASON,
+        stage=request.stage,
+        blocker=TerminalBlocker(
+            code=blocker.code if blocker is not None else "idea_refinement_failed",
+            summary=blocker.summary if blocker is not None else "idea refinement did not complete",
+        ),
+    )
+
+
+def _artifact_stem(rough_idea: str) -> str:
+    words = _SAFE_STEM_WORD_PATTERN.findall(rough_idea.lower())
+    return "-".join(words[:6]) or "idea"
 
 
 def _render_cli_result(result: TerminalResult, *, emit_json: bool) -> CliRunResult:

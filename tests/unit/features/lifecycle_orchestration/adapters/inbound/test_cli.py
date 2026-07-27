@@ -8,13 +8,17 @@ from typing import TYPE_CHECKING
 import pytest
 
 from cline_sdlc import __version__
+from cline_sdlc.features.lifecycle_orchestration.adapters.inbound import cli
 from cline_sdlc.features.lifecycle_orchestration.adapters.inbound.cli import parse_cli_invocation, run_cli_invocation
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.invocation import InvocationParseError
+from cline_sdlc.features.lifecycle_orchestration.application.dtos.terminal_result import TerminalResult
 from cline_sdlc.features.lifecycle_orchestration.domain.stage import LifecycleStage, StageInputKind
-from cline_sdlc.features.lifecycle_orchestration.domain.terminal_result import ExitCategory
+from cline_sdlc.features.lifecycle_orchestration.domain.terminal_result import ExitCategory, TerminalStatus
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from cline_sdlc.features.lifecycle_orchestration.application.dtos.invocation import InvocationRequest
 
 CUSTOM_TIMEOUT_SECONDS = 42.0
 
@@ -141,8 +145,8 @@ def test_invalid_invocation_renders_usage_exit_result_without_json_mode() -> Non
     assert payload["blocker"]["code"] == "invalid_invocation"
 
 
-def test_json_mode_emits_only_one_terminal_result() -> None:
-    result = run_cli_invocation(["--idea", "Preview", "--json"])
+def test_dry_run_json_mode_emits_only_one_terminal_result() -> None:
+    result = run_cli_invocation(["--idea", "Preview", "--dry-run", "--json"])
 
     assert result.exit_code == ExitCategory.BLOCKED
     assert result.stderr == ""
@@ -152,7 +156,7 @@ def test_json_mode_emits_only_one_terminal_result() -> None:
     assert payload == {
         "blocker": {
             "code": "dry_run_only",
-            "summary": "Task 1.1b renders terminal results; Cline execution is not implemented in this slice.",
+            "summary": "Dry run selected; lifecycle execution was not started.",
         },
         "input_path": None,
         "output_paths": [],
@@ -163,6 +167,42 @@ def test_json_mode_emits_only_one_terminal_result() -> None:
         "stage": "idea_refinement",
         "status": "blocked",
     }
+
+
+def test_idea_invocation_runs_wired_idea_refinement(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = []
+
+    def fake_run_idea_refinement(request: InvocationRequest, *, cwd: Path) -> TerminalResult:
+        calls.append((request, cwd))
+        return TerminalResult(
+            status=TerminalStatus.COMPLETED,
+            reason="idea_brief_accepted",
+            stage=request.stage,
+            output_paths=("docs/ideas/preview-idea.md",),
+        )
+
+    monkeypatch.setattr(cli, "_run_idea_refinement", fake_run_idea_refinement)
+
+    result = run_cli_invocation(["--idea", "Preview", "--json"])
+
+    assert result.exit_code == ExitCategory.COMPLETED
+    assert len(calls) == 1
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "completed"
+    assert payload["reason"] == "idea_brief_accepted"
+    assert payload["output_paths"] == ["docs/ideas/preview-idea.md"]
+
+
+def test_unwired_file_stage_returns_explicit_blocker(tmp_path: Path) -> None:
+    spec_file = tmp_path / "spec.md"
+    spec_file.write_text("spec", encoding="utf-8")
+
+    result = run_cli_invocation(["--spec-file", "spec.md", "--json"], cwd=tmp_path)
+
+    assert result.exit_code == ExitCategory.BLOCKED
+    payload = json.loads(result.stdout)
+    assert payload["reason"] == "stage_not_wired"
+    assert payload["blocker"]["code"] == "stage_not_wired"
 
 
 def test_file_input_terminal_result_reports_normalized_input_path(tmp_path: Path) -> None:

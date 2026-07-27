@@ -38,7 +38,11 @@ class PreflightClineCapabilities:
 
 
 def _blockers_from_report(report: ClineCapabilityReport) -> tuple[ClinePreflightBlocker, ...]:
-    return tuple(_blocker_from_observation(observation) for observation in report.blocking_observations)
+    return tuple(
+        _blocker_from_observation(observation)
+        for observation in report.blocking_observations
+        if observation.name.startswith("required_skill:")
+    )
 
 
 def _blocker_from_observation(observation: CapabilityObservation) -> ClinePreflightBlocker:
