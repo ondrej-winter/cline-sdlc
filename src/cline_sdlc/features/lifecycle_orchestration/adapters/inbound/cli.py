@@ -18,7 +18,7 @@ from cline_sdlc.features.artifact_lifecycle.application.dtos.artifact_location i
 )
 from cline_sdlc.features.artifact_lifecycle.application.use_cases.select_artifact_location import SelectArtifactLocation
 from cline_sdlc.features.cline_execution.adapters.outbound.cli_capability_probe import SubprocessClineCapabilityProbe
-from cline_sdlc.features.cline_execution.adapters.outbound.subprocess_session_runner import SubprocessClineSessionRunner
+from cline_sdlc.features.cline_execution.adapters.outbound.interactive_process import AttachedTtyClineSessionRunner
 from cline_sdlc.features.cline_execution.application.dtos.preflight import ClinePreflightRequest
 from cline_sdlc.features.cline_execution.application.use_cases.preflight import PreflightClineCapabilities
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.idea_stage import (
@@ -185,7 +185,7 @@ def _run_idea_refinement(request: InvocationRequest, *, cwd: Path) -> TerminalRe
         cline_preflight=PreflightClineCapabilities(SubprocessClineCapabilityProbe()),
     )
     session_attempts = RunSessionAttempts(
-        runner=SubprocessClineSessionRunner(),
+        runner=AttachedTtyClineSessionRunner(),
         repository_inspector=repository_inspector,
     )
     result = RefineIdea(preflight=preflight, session_attempts=session_attempts).execute(

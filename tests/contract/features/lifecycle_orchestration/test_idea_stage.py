@@ -33,6 +33,7 @@ from cline_sdlc.features.lifecycle_orchestration.application.dtos.preflight impo
 )
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.session_attempt import (
     SessionAttemptBlocker,
+    SessionAttemptObservation,
     SessionAttemptRequest,
     SessionAttemptResult,
     SessionAttemptStatus,
@@ -77,7 +78,8 @@ def test_refines_rough_idea_to_exactly_one_selected_idea_brief() -> None:
     assert len(preflight.requests) == 1
     assert len(attempts.requests) == 1
     assert attempts.requests[0].session_request.working_directory == Path("/repo")
-    assert attempts.requests[0].session_request.command[:2] == ("cline", "--json")
+    assert attempts.requests[0].session_request.command[:3] == ("cline", "--tui", "--plan")
+    assert "--json" not in attempts.requests[0].session_request.command
     assert "idea-refine" in attempts.requests[0].session_request.command[-1]
     assert "do not create a specification or plan" in attempts.requests[0].session_request.command[-1]
 
@@ -134,6 +136,30 @@ def test_blocked_session_outcome_stops_at_idea_stage_boundary() -> None:
     assert result.status is IdeaRefinementStatus.BLOCKED
     assert result.blocker is not None
     assert result.blocker.code == "session_blocked"
+
+
+def test_interactive_idea_completion_accepts_exact_selected_artifact_change() -> None:
+    result = RefineIdea(
+        preflight=RecordingPreflight(_authorized_preflight(), []),
+        session_attempts=RecordingSessionAttempts(_interactive_attempt(dirty_paths=(_idea_artifact().path,)), []),
+    ).execute(_request())
+
+    assert result.completed
+    assert result.output_paths == (_idea_artifact().path,)
+
+
+def test_interactive_idea_completion_rejects_unexpected_changes() -> None:
+    result = RefineIdea(
+        preflight=RecordingPreflight(_authorized_preflight(), []),
+        session_attempts=RecordingSessionAttempts(
+            _interactive_attempt(dirty_paths=(_idea_artifact().path, "docs/specs/unexpected.md")),
+            [],
+        ),
+    ).execute(_request())
+
+    assert result.status is IdeaRefinementStatus.BLOCKED
+    assert result.blocker is not None
+    assert result.blocker.code == "session_retry_not_safe"
 
 
 def test_wrong_session_role_does_not_complete_idea_stage() -> None:
@@ -257,4 +283,35 @@ def _completed_attempt(
         attempts=(),
         terminal_session_result=session_result,
         changed_paths=reported_changes,
+    )
+
+
+def _interactive_attempt(*, dirty_paths: tuple[str, ...]) -> SessionAttemptResult:
+    session_result = ClineSessionResult(
+        process_status=ClineSessionProcessStatus.EXITED,
+        exit_code=0,
+    )
+    return SessionAttemptResult(
+        status=SessionAttemptStatus.BLOCKED,
+        attempts=(
+            SessionAttemptObservation(
+                attempt_number=1,
+                before_snapshot=_snapshot(dirty_paths=()),
+                session_result=session_result,
+                after_snapshot=_snapshot(dirty_paths=dirty_paths),
+            ),
+        ),
+        blocker=SessionAttemptBlocker(
+            code="session_retry_not_safe",
+            summary="session did not produce one terminal outcome and retry safety could not be proven",
+        ),
+    )
+
+
+def _snapshot(*, dirty_paths: tuple[str, ...]) -> RepositorySnapshot:
+    return RepositorySnapshot(
+        repository_root="/repo",
+        head_commit="abc123",
+        branch="feature/idea",
+        dirty_paths=dirty_paths,
     )

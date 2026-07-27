@@ -8,8 +8,18 @@ from typing import TYPE_CHECKING
 import pytest
 
 from cline_sdlc import __version__
+from cline_sdlc.features.artifact_lifecycle.application.dtos.artifact_location import (
+    ArtifactKind,
+    ArtifactLocationResult,
+    ArtifactLocationSource,
+)
+from cline_sdlc.features.cline_execution.adapters.outbound.interactive_process import AttachedTtyClineSessionRunner
 from cline_sdlc.features.lifecycle_orchestration.adapters.inbound import cli
 from cline_sdlc.features.lifecycle_orchestration.adapters.inbound.cli import parse_cli_invocation, run_cli_invocation
+from cline_sdlc.features.lifecycle_orchestration.application.dtos.idea_stage import (
+    IdeaRefinementResult,
+    IdeaRefinementStatus,
+)
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.invocation import InvocationParseError
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.terminal_result import TerminalBlocker, TerminalResult
 from cline_sdlc.features.lifecycle_orchestration.domain.stage import LifecycleStage, StageInputKind
@@ -192,6 +202,46 @@ def test_idea_invocation_runs_wired_idea_refinement(monkeypatch: pytest.MonkeyPa
     assert payload["status"] == "completed"
     assert payload["reason"] == "idea_brief_accepted"
     assert payload["output_paths"] == ["docs/ideas/preview-idea.md"]
+
+
+def test_idea_refinement_uses_attached_tty_runner(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    captured_runners = []
+
+    class FakeArtifactSelector:
+        def execute(self, request: object) -> ArtifactLocationResult:
+            _ = request
+            return ArtifactLocationResult(
+                artifact_kind=ArtifactKind.IDEA_BRIEF,
+                path="docs/ideas/preview-idea.md",
+                directory="docs/ideas",
+                source=ArtifactLocationSource.PORTABLE_DEFAULT,
+            )
+
+    class FakeRunSessionAttempts:
+        def __init__(self, *, runner: object, repository_inspector: object) -> None:
+            _ = repository_inspector
+            captured_runners.append(runner)
+
+    class FakeRefineIdea:
+        def __init__(self, *, preflight: object, session_attempts: object) -> None:
+            _ = preflight, session_attempts
+
+        def execute(self, request: object) -> IdeaRefinementResult:
+            _ = request
+            return IdeaRefinementResult(
+                status=IdeaRefinementStatus.COMPLETED,
+                output_paths=("docs/ideas/preview-idea.md",),
+            )
+
+    monkeypatch.setattr(cli, "SelectArtifactLocation", FakeArtifactSelector)
+    monkeypatch.setattr(cli, "RunSessionAttempts", FakeRunSessionAttempts)
+    monkeypatch.setattr(cli, "RefineIdea", FakeRefineIdea)
+
+    result = run_cli_invocation(["--idea", "Preview"], cwd=tmp_path).terminal_result
+
+    assert result.status is TerminalStatus.COMPLETED
+    assert len(captured_runners) == 1
+    assert isinstance(captured_runners[0], AttachedTtyClineSessionRunner)
 
 
 def test_idea_invocation_json_preserves_session_failure_evidence(monkeypatch: pytest.MonkeyPatch) -> None:

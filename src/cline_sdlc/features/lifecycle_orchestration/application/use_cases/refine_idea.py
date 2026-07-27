@@ -66,6 +66,9 @@ class RefineIdea:
             session_result.status is not SessionAttemptStatus.COMPLETED
             or session_result.terminal_session_result is None
         ):
+            interactive_completion = _interactive_completion(request, session_result)
+            if interactive_completion is not None:
+                return interactive_completion
             blocker = session_result.blocker
             return IdeaRefinementResult(
                 status=IdeaRefinementStatus.BLOCKED
@@ -81,10 +84,26 @@ class RefineIdea:
         return _verified_completion(request, session_result)
 
 
+def _interactive_completion(
+    request: IdeaRefinementRequest,
+    session_result: SessionAttemptResult,
+) -> IdeaRefinementResult | None:
+    """Accept interactive idea completion when repository evidence is exact."""
+    if len(session_result.attempts) != 1:
+        return None
+    observation = session_result.attempts[0]
+    if observation.session_result.exit_code != 0 or observation.session_result.terminal_outcomes:
+        return None
+    expected_path = request.output_artifact.path
+    if observation.after_snapshot is None or observation.after_snapshot.dirty_paths != (expected_path,):
+        return None
+    return IdeaRefinementResult(status=IdeaRefinementStatus.COMPLETED, output_paths=(expected_path,))
+
+
 def _session_attempt_request(request: IdeaRefinementRequest, rough_idea: str) -> SessionAttemptRequest:
     return SessionAttemptRequest(
         session_request=ClineSessionRequest(
-            command=(request.invocation.cline_command, "--json", _prompt(request, rough_idea)),
+            command=(request.invocation.cline_command, "--tui", "--plan", _prompt(request, rough_idea)),
             working_directory=request.preflight_request.repository_request.working_directory,
             timeout_seconds=request.invocation.timeout_seconds,
         ),
