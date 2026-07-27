@@ -4,7 +4,7 @@
 
 - Artifact type: product and behavior specification
 - Date: 2026-07-23
-- Source brief: `docs/ideas/cline-sdlc-orchestrator.md`
+- Source brief: archived discovery brief absorbed into this specification
 - Decision state: serial plan-implementation automation accepted on 2026-07-25
 - Intended scope: portable Cline SDLC orchestrator with bounded unattended plan implementation
 

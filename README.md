@@ -12,9 +12,10 @@ assistant prose—determine whether work completed.
 > [!IMPORTANT]
 > The project is **not currently described as unattended-ready**. The supervised
 > Cline CLI capability proof found blocking gaps in structured outcomes, pre-execution
-> permission mediation, interruption evidence, and required-skill discovery. See
-> [Cline CLI capability spike](docs/research/cline-cli-capability-spike.md). A successful
-> supervised rollout proof is still required before changing this status.
+> permission mediation, and interruption evidence. ADR 0001 records the accepted
+> supervised workflow-runner boundary and the still-blocked unattended-readiness claim.
+> A successful supervised rollout proof or superseding execution-boundary ADR is still
+> required before changing this status.
 >
 > The installed console boundary currently validates inputs and renders the bounded
 > dry-run terminal result; it does not yet compose the implemented lifecycle use cases
@@ -259,15 +260,14 @@ or a separate environment-settings reference.
 ## Current limitations and supervised proof
 
 The default automated suite uses fake Cline executables and disposable Git repositories;
-it does not require credentials, network access, or real lifecycle effects. Real Cline
-execution remains subject to the blocking findings in the
-[capability-spike report](docs/research/cline-cli-capability-spike.md), including the
-observed Cline `3.0.46` proof result.
+it does not require credentials, network access, or real lifecycle effects. Real
+Cline execution remains limited by unproven machine-detectable terminal outcomes,
+pre-execution permission mediation, and interruption recovery evidence.
 
-The next release-readiness steps are tracked in the
-[implementation plan](docs/plans/cline-sdlc-orchestrator-plan.md): cross-platform CI and
-a supervised non-production rollout proof. The project must not be represented as
-unattended-ready until that evidence is reviewed and accepted.
+The project must not be represented as unattended-ready until a supervised
+non-production rollout proof demonstrates those contracts or a superseding
+execution-boundary ADR replaces the current Cline CLI boundary. See
+[`docs/adr/0001-keep-cline-cli-rollout-blocked-until-execution-contracts-are-proven.md`](docs/adr/0001-keep-cline-cli-rollout-blocked-until-execution-contracts-are-proven.md).
 
 ## Development
 
