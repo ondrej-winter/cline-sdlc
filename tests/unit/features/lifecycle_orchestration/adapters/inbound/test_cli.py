@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
@@ -22,6 +23,7 @@ from cline_sdlc.features.lifecycle_orchestration.application.dtos.idea_stage imp
 )
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.invocation import InvocationParseError
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.specification_stage import (
+    SpecificationCreationRequest,
     SpecificationCreationResult,
     SpecificationCreationStatus,
 )
@@ -30,8 +32,6 @@ from cline_sdlc.features.lifecycle_orchestration.domain.stage import LifecycleSt
 from cline_sdlc.features.lifecycle_orchestration.domain.terminal_result import ExitCategory, TerminalStatus
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from cline_sdlc.features.lifecycle_orchestration.application.dtos.invocation import InvocationRequest
 
 CUSTOM_TIMEOUT_SECONDS = 42.0
@@ -283,6 +283,7 @@ def test_idea_file_invocation_runs_wired_specification_creation(
 def test_specification_creation_uses_attached_tty_runner(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     captured_runners = []
     captured_requests = []
+    captured_specification_requests: list[SpecificationCreationRequest] = []
     idea_file = tmp_path / "configurable-lifecycle-hooks-and-repository-task-recipes-idea.md"
     idea_file.write_text("accepted idea", encoding="utf-8")
 
@@ -305,8 +306,8 @@ def test_specification_creation_uses_attached_tty_runner(monkeypatch: pytest.Mon
         def __init__(self, *, preflight: object, session_attempts: object) -> None:
             _ = preflight, session_attempts
 
-        def execute(self, request: object) -> SpecificationCreationResult:
-            _ = request
+        def execute(self, request: SpecificationCreationRequest) -> SpecificationCreationResult:
+            captured_specification_requests.append(request)
             return SpecificationCreationResult(
                 status=SpecificationCreationStatus.COMPLETED,
                 output_paths=("docs/specs/configurable-lifecycle-hooks-and-repository-task-recipes-spec.md",),
@@ -323,6 +324,10 @@ def test_specification_creation_uses_attached_tty_runner(monkeypatch: pytest.Mon
     assert len(captured_runners) == 1
     assert isinstance(captured_runners[0], AttachedTtyClineSessionRunner)
     assert len(captured_requests) == 1
+    assert len(captured_specification_requests) == 1
+    repository_request = captured_specification_requests[0].preflight_request.repository_request
+    assert repository_request.input_paths == ()
+    assert repository_request.managed_paths == (Path("docs/specs"),)
 
 
 def test_idea_invocation_json_preserves_session_failure_evidence(monkeypatch: pytest.MonkeyPatch) -> None:

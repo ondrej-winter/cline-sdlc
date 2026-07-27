@@ -231,7 +231,6 @@ def _run_specification_creation(request: InvocationRequest, *, cwd: Path) -> Ter
 
     repository_request = RepositoryInspectionRequest(
         working_directory=cwd,
-        input_paths=(idea_path,),
         managed_paths=(Path(artifact_location.directory),),
     )
     preflight_request = StagePreflightRequest(
