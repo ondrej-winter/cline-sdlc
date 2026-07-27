@@ -21,6 +21,10 @@ from cline_sdlc.features.lifecycle_orchestration.application.dtos.idea_stage imp
     IdeaRefinementStatus,
 )
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.invocation import InvocationParseError
+from cline_sdlc.features.lifecycle_orchestration.application.dtos.specification_stage import (
+    SpecificationCreationResult,
+    SpecificationCreationStatus,
+)
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.terminal_result import TerminalBlocker, TerminalResult
 from cline_sdlc.features.lifecycle_orchestration.domain.stage import LifecycleStage, StageInputKind
 from cline_sdlc.features.lifecycle_orchestration.domain.terminal_result import ExitCategory, TerminalStatus
@@ -244,6 +248,83 @@ def test_idea_refinement_uses_attached_tty_runner(monkeypatch: pytest.MonkeyPatc
     assert isinstance(captured_runners[0], AttachedTtyClineSessionRunner)
 
 
+def test_idea_file_invocation_runs_wired_specification_creation(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    calls = []
+    idea_file = tmp_path / "accepted-idea.md"
+    idea_file.write_text("accepted idea", encoding="utf-8")
+
+    def fake_run_specification_creation(request: InvocationRequest, *, cwd: Path) -> TerminalResult:
+        calls.append((request, cwd))
+        return TerminalResult(
+            status=TerminalStatus.COMPLETED,
+            reason="specification_accepted",
+            stage=request.stage,
+            input_path=idea_file.as_posix(),
+            output_paths=("docs/specs/accepted-spec.md",),
+        )
+
+    monkeypatch.setattr(cli, "_run_specification_creation", fake_run_specification_creation)
+
+    result = run_cli_invocation(["--idea-file", "accepted-idea.md", "--json"], cwd=tmp_path)
+
+    assert result.exit_code == ExitCategory.COMPLETED
+    assert len(calls) == 1
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "completed"
+    assert payload["reason"] == "specification_accepted"
+    assert payload["stage"] == "specification_creation"
+    assert payload["input_path"] == idea_file.as_posix()
+    assert payload["output_paths"] == ["docs/specs/accepted-spec.md"]
+
+
+def test_specification_creation_uses_attached_tty_runner(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    captured_runners = []
+    captured_requests = []
+    idea_file = tmp_path / "configurable-lifecycle-hooks-and-repository-task-recipes-idea.md"
+    idea_file.write_text("accepted idea", encoding="utf-8")
+
+    class FakeArtifactSelector:
+        def execute(self, request: object) -> ArtifactLocationResult:
+            captured_requests.append(request)
+            return ArtifactLocationResult(
+                artifact_kind=ArtifactKind.SPECIFICATION,
+                path="docs/specs/configurable-lifecycle-hooks-and-repository-task-recipes-spec.md",
+                directory="docs/specs",
+                source=ArtifactLocationSource.PORTABLE_DEFAULT,
+            )
+
+    class FakeRunSessionAttempts:
+        def __init__(self, *, runner: object, repository_inspector: object) -> None:
+            _ = repository_inspector
+            captured_runners.append(runner)
+
+    class FakeCreateSpecification:
+        def __init__(self, *, preflight: object, session_attempts: object) -> None:
+            _ = preflight, session_attempts
+
+        def execute(self, request: object) -> SpecificationCreationResult:
+            _ = request
+            return SpecificationCreationResult(
+                status=SpecificationCreationStatus.COMPLETED,
+                output_paths=("docs/specs/configurable-lifecycle-hooks-and-repository-task-recipes-spec.md",),
+            )
+
+    monkeypatch.setattr(cli, "SelectArtifactLocation", FakeArtifactSelector)
+    monkeypatch.setattr(cli, "RunSessionAttempts", FakeRunSessionAttempts)
+    monkeypatch.setattr(cli, "CreateSpecification", FakeCreateSpecification)
+
+    result = run_cli_invocation(["--idea-file", idea_file.name], cwd=tmp_path).terminal_result
+
+    assert result.status is TerminalStatus.COMPLETED
+    assert result.reason == "specification_accepted"
+    assert len(captured_runners) == 1
+    assert isinstance(captured_runners[0], AttachedTtyClineSessionRunner)
+    assert len(captured_requests) == 1
+
+
 def test_idea_invocation_json_preserves_session_failure_evidence(monkeypatch: pytest.MonkeyPatch) -> None:
     def fake_run_idea_refinement(request: InvocationRequest, *, cwd: Path) -> TerminalResult:
         _ = cwd
@@ -292,7 +373,7 @@ def test_terminal_result_preserves_actionable_blocker_evidence() -> None:
     }
 
 
-def test_unwired_file_stage_returns_explicit_blocker(tmp_path: Path) -> None:
+def test_unwired_spec_file_stage_returns_explicit_blocker(tmp_path: Path) -> None:
     spec_file = tmp_path / "spec.md"
     spec_file.write_text("spec", encoding="utf-8")
 

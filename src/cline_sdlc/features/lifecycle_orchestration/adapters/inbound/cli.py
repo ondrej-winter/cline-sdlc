@@ -32,7 +32,13 @@ from cline_sdlc.features.lifecycle_orchestration.application.dtos.invocation imp
     InvocationSource,
 )
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.preflight import StagePreflightRequest
+from cline_sdlc.features.lifecycle_orchestration.application.dtos.specification_stage import (
+    SpecificationCreationRequest,
+    SpecificationCreationResult,
+    SpecificationCreationStatus,
+)
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.terminal_result import TerminalBlocker, TerminalResult
+from cline_sdlc.features.lifecycle_orchestration.application.use_cases.create_specification import CreateSpecification
 from cline_sdlc.features.lifecycle_orchestration.application.use_cases.preflight_stage import PreflightLifecycleStage
 from cline_sdlc.features.lifecycle_orchestration.application.use_cases.refine_idea import RefineIdea
 from cline_sdlc.features.lifecycle_orchestration.application.use_cases.run_session_attempts import RunSessionAttempts
@@ -58,6 +64,9 @@ UNSUPPORTED_STAGE_REASON = "stage_not_wired"
 IDEA_COMPLETED_REASON = "idea_brief_accepted"
 IDEA_BLOCKED_REASON = "idea_refinement_blocked"
 IDEA_FAILED_REASON = "idea_refinement_failed"
+SPEC_COMPLETED_REASON = "specification_accepted"
+SPEC_BLOCKED_REASON = "specification_creation_blocked"
+SPEC_FAILED_REASON = "specification_creation_failed"
 _SAFE_STEM_WORD_PATTERN = re.compile(r"[a-z0-9]+")
 
 
@@ -122,6 +131,9 @@ def run_cli_invocation(argv: Sequence[str], *, cwd: Path | None = None) -> CliRu
 
     if parsed.request.stage is LifecycleStage.IDEA_REFINEMENT:
         result = _run_idea_refinement(parsed.request, cwd=cwd or Path.cwd())
+        return _render_cli_result(result, emit_json=parsed.request.emit_json)
+    if parsed.request.stage is LifecycleStage.SPECIFICATION_CREATION:
+        result = _run_specification_creation(parsed.request, cwd=cwd or Path.cwd())
         return _render_cli_result(result, emit_json=parsed.request.emit_json)
 
     result = TerminalResult(
@@ -198,6 +210,58 @@ def _run_idea_refinement(request: InvocationRequest, *, cwd: Path) -> TerminalRe
     return _terminal_result_from_idea_result(request, result)
 
 
+def _run_specification_creation(request: InvocationRequest, *, cwd: Path) -> TerminalResult:
+    artifact_selector = SelectArtifactLocation()
+    idea_path = Path(request.source.value)
+    artifact_stem = _artifact_stem(idea_path.stem.removesuffix("-idea"))
+    artifact_location = artifact_selector.execute(
+        SelectArtifactLocationRequest(
+            artifact_kind=ArtifactKind.SPECIFICATION,
+            artifact_stem=artifact_stem,
+        )
+    )
+    if isinstance(artifact_location, ArtifactLocationBlocker):
+        return TerminalResult(
+            status=TerminalStatus.BLOCKED,
+            reason=SPEC_BLOCKED_REASON,
+            stage=request.stage,
+            input_path=_input_path(request),
+            blocker=TerminalBlocker(code=artifact_location.code, summary=artifact_location.summary),
+        )
+
+    repository_request = RepositoryInspectionRequest(
+        working_directory=cwd,
+        input_paths=(idea_path,),
+        managed_paths=(Path(artifact_location.directory),),
+    )
+    preflight_request = StagePreflightRequest(
+        invocation=request,
+        artifact_location_request=None,
+        repository_request=repository_request,
+        cline_preflight_request=ClinePreflightRequest(
+            command=(request.cline_command,),
+            required_skills=("spec-driven-development",),
+        ),
+    )
+    repository_inspector = GitCliRepositoryInspector()
+    preflight = PreflightLifecycleStage(
+        repository_inspector=_RepositoryInspectionAdapter(repository_inspector),
+        cline_preflight=PreflightClineCapabilities(SubprocessClineCapabilityProbe()),
+    )
+    session_attempts = RunSessionAttempts(
+        runner=AttachedTtyClineSessionRunner(),
+        repository_inspector=repository_inspector,
+    )
+    result = CreateSpecification(preflight=preflight, session_attempts=session_attempts).execute(
+        SpecificationCreationRequest(
+            invocation=request,
+            preflight_request=preflight_request,
+            output_artifact=artifact_location,
+        )
+    )
+    return _terminal_result_from_specification_result(request, result)
+
+
 @dataclass(frozen=True)
 class _RepositoryInspectionAdapter:
     inspector: GitCliRepositoryInspector
@@ -222,6 +286,34 @@ def _terminal_result_from_idea_result(request: InvocationRequest, result: IdeaRe
         blocker=TerminalBlocker(
             code=blocker.code if blocker is not None else "idea_refinement_failed",
             summary=blocker.summary if blocker is not None else "idea refinement did not complete",
+            evidence=blocker.evidence if blocker is not None else None,
+        ),
+    )
+
+
+def _terminal_result_from_specification_result(
+    request: InvocationRequest,
+    result: SpecificationCreationResult,
+) -> TerminalResult:
+    if result.status is SpecificationCreationStatus.COMPLETED:
+        return TerminalResult(
+            status=TerminalStatus.COMPLETED,
+            reason=SPEC_COMPLETED_REASON,
+            stage=request.stage,
+            input_path=_input_path(request),
+            output_paths=result.output_paths,
+        )
+    blocker = result.blocker
+    return TerminalResult(
+        status=TerminalStatus.BLOCKED
+        if result.status is SpecificationCreationStatus.BLOCKED
+        else TerminalStatus.FAILED,
+        reason=SPEC_BLOCKED_REASON if result.status is SpecificationCreationStatus.BLOCKED else SPEC_FAILED_REASON,
+        stage=request.stage,
+        input_path=_input_path(request),
+        blocker=TerminalBlocker(
+            code=blocker.code if blocker is not None else "specification_creation_failed",
+            summary=blocker.summary if blocker is not None else "specification creation did not complete",
             evidence=blocker.evidence if blocker is not None else None,
         ),
     )
