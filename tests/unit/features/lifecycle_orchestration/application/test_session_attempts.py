@@ -213,6 +213,12 @@ def test_exhausts_single_bounded_retry() -> None:
     assert result.status is SessionAttemptStatus.FAILED
     assert result.blocker is not None
     assert result.blocker.code == "session_retry_exhausted"
+    assert result.blocker.evidence == (
+        "attempt=1 process_status=exited exit_code=0 terminal_outcomes=0 "
+        "malformed_output_lines=0 retry_reason=protocol_output; "
+        "attempt=2 process_status=exited exit_code=0 terminal_outcomes=0 "
+        "malformed_output_lines=0 retry_reason=protocol_output"
+    )
     assert len(result.attempts) == EXPECTED_RETRIED_ATTEMPTS
 
 

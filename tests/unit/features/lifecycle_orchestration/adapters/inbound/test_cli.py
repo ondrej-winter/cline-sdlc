@@ -194,6 +194,34 @@ def test_idea_invocation_runs_wired_idea_refinement(monkeypatch: pytest.MonkeyPa
     assert payload["output_paths"] == ["docs/ideas/preview-idea.md"]
 
 
+def test_idea_invocation_json_preserves_session_failure_evidence(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_run_idea_refinement(request: InvocationRequest, *, cwd: Path) -> TerminalResult:
+        _ = cwd
+        return TerminalResult(
+            status=TerminalStatus.FAILED,
+            reason="idea_refinement_failed",
+            stage=request.stage,
+            blocker=TerminalBlocker(
+                code="session_retry_exhausted",
+                summary="bounded retry was exhausted before one terminal outcome was observed",
+                evidence="attempt=1 process_status=exited exit_code=0 terminal_outcomes=0",
+            ),
+        )
+
+    monkeypatch.setattr(cli, "_run_idea_refinement", fake_run_idea_refinement)
+
+    result = run_cli_invocation(["--idea", "Preview", "--json"])
+
+    assert result.exit_code == ExitCategory.STAGE_FAILED
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "failed"
+    assert payload["blocker"] == {
+        "code": "session_retry_exhausted",
+        "summary": "bounded retry was exhausted before one terminal outcome was observed",
+        "evidence": "attempt=1 process_status=exited exit_code=0 terminal_outcomes=0",
+    }
+
+
 def test_terminal_result_preserves_actionable_blocker_evidence() -> None:
     result = TerminalResult(
         status=TerminalStatus.BLOCKED,

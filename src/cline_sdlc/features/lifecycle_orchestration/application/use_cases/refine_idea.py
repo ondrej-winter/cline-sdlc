@@ -74,6 +74,7 @@ class RefineIdea:
                 blocker=IdeaRefinementBlocker(
                     code=blocker.code if blocker is not None else "idea_session_failed",
                     summary=blocker.summary if blocker is not None else "idea refinement session did not complete",
+                    evidence=blocker.evidence if blocker is not None else None,
                 ),
             )
 

@@ -158,7 +158,7 @@ def _blocked(observations: list[SessionAttemptObservation], *, code: str, summar
     return SessionAttemptResult(
         status=SessionAttemptStatus.BLOCKED,
         attempts=tuple(observations),
-        blocker=SessionAttemptBlocker(code=code, summary=summary),
+        blocker=SessionAttemptBlocker(code=code, summary=summary, evidence=_attempt_evidence(observations)),
     )
 
 
@@ -166,5 +166,24 @@ def _failed(observations: list[SessionAttemptObservation], *, code: str, summary
     return SessionAttemptResult(
         status=SessionAttemptStatus.FAILED,
         attempts=tuple(observations),
-        blocker=SessionAttemptBlocker(code=code, summary=summary),
+        blocker=SessionAttemptBlocker(code=code, summary=summary, evidence=_attempt_evidence(observations)),
+    )
+
+
+def _attempt_evidence(observations: list[SessionAttemptObservation]) -> str | None:
+    if not observations:
+        return None
+    return "; ".join(_observation_evidence(observation) for observation in observations)
+
+
+def _observation_evidence(observation: SessionAttemptObservation) -> str:
+    result = observation.session_result
+    retry_reason = observation.retry_reason.value if observation.retry_reason is not None else "none"
+    return (
+        f"attempt={observation.attempt_number} "
+        f"process_status={result.process_status.value} "
+        f"exit_code={result.exit_code} "
+        f"terminal_outcomes={len(result.terminal_outcomes)} "
+        f"malformed_output_lines={len(result.malformed_output_lines)} "
+        f"retry_reason={retry_reason}"
     )

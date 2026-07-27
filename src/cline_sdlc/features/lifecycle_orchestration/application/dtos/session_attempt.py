@@ -39,6 +39,7 @@ class SessionAttemptBlocker:
 
     code: str
     summary: str
+    evidence: str | None = None
 
     def __post_init__(self) -> None:
         if not self.code.strip():
