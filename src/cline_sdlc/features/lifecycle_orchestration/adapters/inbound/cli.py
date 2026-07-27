@@ -222,6 +222,7 @@ def _terminal_result_from_idea_result(request: InvocationRequest, result: IdeaRe
         blocker=TerminalBlocker(
             code=blocker.code if blocker is not None else "idea_refinement_failed",
             summary=blocker.summary if blocker is not None else "idea refinement did not complete",
+            evidence=blocker.evidence if blocker is not None else None,
         ),
     )
 

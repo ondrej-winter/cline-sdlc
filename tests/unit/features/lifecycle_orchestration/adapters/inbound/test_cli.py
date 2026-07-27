@@ -11,7 +11,7 @@ from cline_sdlc import __version__
 from cline_sdlc.features.lifecycle_orchestration.adapters.inbound import cli
 from cline_sdlc.features.lifecycle_orchestration.adapters.inbound.cli import parse_cli_invocation, run_cli_invocation
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.invocation import InvocationParseError
-from cline_sdlc.features.lifecycle_orchestration.application.dtos.terminal_result import TerminalResult
+from cline_sdlc.features.lifecycle_orchestration.application.dtos.terminal_result import TerminalBlocker, TerminalResult
 from cline_sdlc.features.lifecycle_orchestration.domain.stage import LifecycleStage, StageInputKind
 from cline_sdlc.features.lifecycle_orchestration.domain.terminal_result import ExitCategory, TerminalStatus
 
@@ -156,6 +156,7 @@ def test_dry_run_json_mode_emits_only_one_terminal_result() -> None:
     assert payload == {
         "blocker": {
             "code": "dry_run_only",
+            "evidence": None,
             "summary": "Dry run selected; lifecycle execution was not started.",
         },
         "input_path": None,
@@ -191,6 +192,26 @@ def test_idea_invocation_runs_wired_idea_refinement(monkeypatch: pytest.MonkeyPa
     assert payload["status"] == "completed"
     assert payload["reason"] == "idea_brief_accepted"
     assert payload["output_paths"] == ["docs/ideas/preview-idea.md"]
+
+
+def test_terminal_result_preserves_actionable_blocker_evidence() -> None:
+    result = TerminalResult(
+        status=TerminalStatus.BLOCKED,
+        reason="idea_refinement_blocked",
+        stage=LifecycleStage.IDEA_REFINEMENT,
+        blocker=TerminalBlocker(
+            code="idea_preflight_failed",
+            summary="idea refinement preflight failed before Cline could start",
+            evidence="cline_capability:cline_capability_required_skill:idea-refine",
+        ),
+    )
+
+    payload = result.to_payload()
+    assert payload["blocker"] == {
+        "code": "idea_preflight_failed",
+        "summary": "idea refinement preflight failed before Cline could start",
+        "evidence": "cline_capability:cline_capability_required_skill:idea-refine",
+    }
 
 
 def test_unwired_file_stage_returns_explicit_blocker(tmp_path: Path) -> None:

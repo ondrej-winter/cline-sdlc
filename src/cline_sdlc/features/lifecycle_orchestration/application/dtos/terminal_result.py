@@ -21,10 +21,11 @@ class TerminalBlocker:
 
     code: str
     summary: str
+    evidence: str | None = None
 
-    def to_payload(self) -> dict[str, str]:
+    def to_payload(self) -> dict[str, str | None]:
         """Return the JSON-compatible blocker payload."""
-        return {"code": self.code, "summary": self.summary}
+        return {"code": self.code, "summary": self.summary, "evidence": self.evidence}
 
 
 @dataclass(frozen=True)
