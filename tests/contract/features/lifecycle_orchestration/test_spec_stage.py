@@ -29,6 +29,7 @@ from cline_sdlc.features.lifecycle_orchestration.application.dtos.preflight impo
 )
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.session_attempt import (
     SessionAttemptBlocker,
+    SessionAttemptObservation,
     SessionAttemptRequest,
     SessionAttemptResult,
     SessionAttemptStatus,
@@ -77,7 +78,7 @@ def test_creates_specification_from_accepted_idea_file() -> None:
     assert len(preflight.requests) == 1
     assert len(attempts.requests) == 1
     assert attempts.requests[0].session_request.working_directory == Path("/repo")
-    assert attempts.requests[0].session_request.command[:2] == ("cline", "--json")
+    assert attempts.requests[0].session_request.command[:3] == ("cline", "--tui", "--plan")
     assert "spec-driven-development" in attempts.requests[0].session_request.command[-1]
     assert _idea_path().as_posix() in attempts.requests[0].session_request.command[-1]
     assert "do not create a plan" in attempts.requests[0].session_request.command[-1]
@@ -140,6 +141,31 @@ def test_blocked_session_outcome_stops_at_specification_boundary() -> None:
     assert result.status is SpecificationCreationStatus.BLOCKED
     assert result.blocker is not None
     assert result.blocker.code == "session_blocked"
+
+
+def test_interactive_specification_completion_accepts_exact_selected_artifact_change() -> None:
+    result = CreateSpecification(
+        preflight=RecordingPreflight(_authorized_preflight(), []),
+        session_attempts=RecordingSessionAttempts(_interactive_attempt(dirty_paths=(_spec_artifact().path,)), []),
+    ).execute(_request())
+
+    assert result.completed
+    assert result.status is SpecificationCreationStatus.COMPLETED
+    assert result.output_paths == (_spec_artifact().path,)
+
+
+def test_interactive_specification_completion_rejects_unexpected_changes() -> None:
+    result = CreateSpecification(
+        preflight=RecordingPreflight(_authorized_preflight(), []),
+        session_attempts=RecordingSessionAttempts(
+            _interactive_attempt(dirty_paths=(_spec_artifact().path, "docs/plans/unexpected-plan.md")),
+            [],
+        ),
+    ).execute(_request())
+
+    assert result.status is SpecificationCreationStatus.FAILED
+    assert result.blocker is not None
+    assert result.blocker.code == "specification_session_failed"
 
 
 def test_wrong_session_role_does_not_complete_specification_stage() -> None:
@@ -268,4 +294,29 @@ def _completed_attempt(
         attempts=(),
         terminal_session_result=session_result,
         changed_paths=reported_changes,
+    )
+
+
+def _interactive_attempt(*, dirty_paths: tuple[str, ...]) -> SessionAttemptResult:
+    session_result = ClineSessionResult(
+        process_status=ClineSessionProcessStatus.EXITED,
+        exit_code=0,
+    )
+    return SessionAttemptResult(
+        status=SessionAttemptStatus.FAILED,
+        attempts=(
+            SessionAttemptObservation(
+                attempt_number=1,
+                before_snapshot=RepositorySnapshot(
+                    repository_root="/repo", head_commit="abc123", branch="feature/spec"
+                ),
+                session_result=session_result,
+                after_snapshot=RepositorySnapshot(
+                    repository_root="/repo",
+                    head_commit="abc123",
+                    branch="feature/spec",
+                    dirty_paths=dirty_paths,
+                ),
+            ),
+        ),
     )

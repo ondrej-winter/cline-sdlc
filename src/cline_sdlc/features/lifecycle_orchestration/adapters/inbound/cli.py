@@ -14,6 +14,7 @@ from cline_sdlc import __version__
 from cline_sdlc.features.artifact_lifecycle.application.dtos.artifact_location import (
     ArtifactKind,
     ArtifactLocationBlocker,
+    ArtifactLocationResult,
     SelectArtifactLocationRequest,
 )
 from cline_sdlc.features.artifact_lifecycle.application.use_cases.select_artifact_location import SelectArtifactLocation
@@ -92,6 +93,26 @@ class CliRunResult:
     terminal_result: TerminalResult
 
 
+@dataclass(frozen=True)
+class _InteractiveStageRuntime:
+    """Shared CLI composition for one attached interactive lifecycle stage."""
+
+    output_artifact: ArtifactLocationResult
+    preflight_request: StagePreflightRequest
+    preflight: PreflightLifecycleStage
+    session_attempts: RunSessionAttempts
+
+
+@dataclass(frozen=True)
+class _InteractiveStageConfig:
+    """Stage-specific knobs for otherwise shared interactive CLI wiring."""
+
+    artifact_kind: ArtifactKind
+    artifact_stem: str
+    required_skill: str
+    blocked_reason: str
+
+
 def parse_cli_invocation(argv: Sequence[str], *, cwd: Path | None = None) -> ParsedCliInvocation | InvocationParseError:
     """Parse CLI arguments into an application-owned invocation request."""
     parser = _build_parser()
@@ -163,67 +184,69 @@ def _dry_run_result(request: InvocationRequest) -> TerminalResult:
 
 
 def _run_idea_refinement(request: InvocationRequest, *, cwd: Path) -> TerminalResult:
-    artifact_selector = SelectArtifactLocation()
-    artifact_location = artifact_selector.execute(
-        SelectArtifactLocationRequest(
+    runtime = _interactive_stage_runtime(
+        request,
+        cwd=cwd,
+        config=_InteractiveStageConfig(
             artifact_kind=ArtifactKind.IDEA_BRIEF,
             artifact_stem=_artifact_stem(str(request.source.value)),
-        )
-    )
-    if isinstance(artifact_location, ArtifactLocationBlocker):
-        return TerminalResult(
-            status=TerminalStatus.BLOCKED,
-            reason=IDEA_BLOCKED_REASON,
-            stage=request.stage,
-            blocker=TerminalBlocker(code=artifact_location.code, summary=artifact_location.summary),
-        )
-
-    repository_request = RepositoryInspectionRequest(
-        working_directory=cwd,
-        managed_paths=(Path(artifact_location.directory),),
-    )
-    preflight_request = StagePreflightRequest(
-        invocation=request,
-        artifact_location_request=None,
-        repository_request=repository_request,
-        cline_preflight_request=ClinePreflightRequest(
-            command=(request.cline_command,),
-            required_skills=("idea-refine",),
+            required_skill="idea-refine",
+            blocked_reason=IDEA_BLOCKED_REASON,
         ),
     )
-    repository_inspector = GitCliRepositoryInspector()
-    preflight = PreflightLifecycleStage(
-        repository_inspector=_RepositoryInspectionAdapter(repository_inspector),
-        cline_preflight=PreflightClineCapabilities(SubprocessClineCapabilityProbe()),
-    )
-    session_attempts = RunSessionAttempts(
-        runner=AttachedTtyClineSessionRunner(),
-        repository_inspector=repository_inspector,
-    )
-    result = RefineIdea(preflight=preflight, session_attempts=session_attempts).execute(
+    if isinstance(runtime, TerminalResult):
+        return runtime
+    result = RefineIdea(preflight=runtime.preflight, session_attempts=runtime.session_attempts).execute(
         IdeaRefinementRequest(
             invocation=request,
-            preflight_request=preflight_request,
-            output_artifact=artifact_location,
+            preflight_request=runtime.preflight_request,
+            output_artifact=runtime.output_artifact,
         )
     )
     return _terminal_result_from_idea_result(request, result)
 
 
 def _run_specification_creation(request: InvocationRequest, *, cwd: Path) -> TerminalResult:
-    artifact_selector = SelectArtifactLocation()
     idea_path = Path(request.source.value)
-    artifact_stem = _artifact_stem(idea_path.stem.removesuffix("-idea"))
+    runtime = _interactive_stage_runtime(
+        request,
+        cwd=cwd,
+        config=_InteractiveStageConfig(
+            artifact_kind=ArtifactKind.SPECIFICATION,
+            artifact_stem=_artifact_stem(idea_path.stem.removesuffix("-idea")),
+            required_skill="spec-driven-development",
+            blocked_reason=SPEC_BLOCKED_REASON,
+        ),
+    )
+    if isinstance(runtime, TerminalResult):
+        return runtime
+    result = CreateSpecification(preflight=runtime.preflight, session_attempts=runtime.session_attempts).execute(
+        SpecificationCreationRequest(
+            invocation=request,
+            preflight_request=runtime.preflight_request,
+            output_artifact=runtime.output_artifact,
+        )
+    )
+    return _terminal_result_from_specification_result(request, result)
+
+
+def _interactive_stage_runtime(
+    request: InvocationRequest,
+    *,
+    cwd: Path,
+    config: _InteractiveStageConfig,
+) -> _InteractiveStageRuntime | TerminalResult:
+    artifact_selector = SelectArtifactLocation()
     artifact_location = artifact_selector.execute(
         SelectArtifactLocationRequest(
-            artifact_kind=ArtifactKind.SPECIFICATION,
-            artifact_stem=artifact_stem,
+            artifact_kind=config.artifact_kind,
+            artifact_stem=config.artifact_stem,
         )
     )
     if isinstance(artifact_location, ArtifactLocationBlocker):
         return TerminalResult(
             status=TerminalStatus.BLOCKED,
-            reason=SPEC_BLOCKED_REASON,
+            reason=config.blocked_reason,
             stage=request.stage,
             input_path=_input_path(request),
             blocker=TerminalBlocker(code=artifact_location.code, summary=artifact_location.summary),
@@ -239,7 +262,7 @@ def _run_specification_creation(request: InvocationRequest, *, cwd: Path) -> Ter
         repository_request=repository_request,
         cline_preflight_request=ClinePreflightRequest(
             command=(request.cline_command,),
-            required_skills=("spec-driven-development",),
+            required_skills=(config.required_skill,),
         ),
     )
     repository_inspector = GitCliRepositoryInspector()
@@ -251,14 +274,12 @@ def _run_specification_creation(request: InvocationRequest, *, cwd: Path) -> Ter
         runner=AttachedTtyClineSessionRunner(),
         repository_inspector=repository_inspector,
     )
-    result = CreateSpecification(preflight=preflight, session_attempts=session_attempts).execute(
-        SpecificationCreationRequest(
-            invocation=request,
-            preflight_request=preflight_request,
-            output_artifact=artifact_location,
-        )
+    return _InteractiveStageRuntime(
+        output_artifact=artifact_location,
+        preflight_request=preflight_request,
+        preflight=preflight,
+        session_attempts=session_attempts,
     )
-    return _terminal_result_from_specification_result(request, result)
 
 
 @dataclass(frozen=True)

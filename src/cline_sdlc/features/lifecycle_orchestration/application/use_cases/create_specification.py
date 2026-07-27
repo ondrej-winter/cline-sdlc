@@ -63,6 +63,9 @@ class CreateSpecification:
             session_result.status is not SessionAttemptStatus.COMPLETED
             or session_result.terminal_session_result is None
         ):
+            interactive_result = _interactive_completion(request, session_result)
+            if interactive_result is not None:
+                return interactive_result
             blocker = session_result.blocker
             return SpecificationCreationResult(
                 status=SpecificationCreationStatus.BLOCKED
@@ -82,12 +85,28 @@ class CreateSpecification:
 def _session_attempt_request(request: SpecificationCreationRequest) -> SessionAttemptRequest:
     return SessionAttemptRequest(
         session_request=ClineSessionRequest(
-            command=(request.invocation.cline_command, "--json", _prompt(request)),
+            command=(request.invocation.cline_command, "--tui", "--plan", _prompt(request)),
             working_directory=request.preflight_request.repository_request.working_directory,
             timeout_seconds=request.invocation.timeout_seconds,
         ),
         repository_request=request.preflight_request.repository_request,
     )
+
+
+def _interactive_completion(
+    request: SpecificationCreationRequest,
+    session_result: SessionAttemptResult,
+) -> SpecificationCreationResult | None:
+    """Accept interactive specification completion when repository evidence is exact."""
+    if len(session_result.attempts) != 1:
+        return None
+    observation = session_result.attempts[0]
+    if observation.session_result.exit_code != 0 or observation.session_result.terminal_outcomes:
+        return None
+    expected_path = request.output_artifact.path
+    if observation.after_snapshot is None or observation.after_snapshot.dirty_paths != (expected_path,):
+        return None
+    return SpecificationCreationResult(status=SpecificationCreationStatus.COMPLETED, output_paths=(expected_path,))
 
 
 def _prompt(request: SpecificationCreationRequest) -> str:
