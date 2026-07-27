@@ -2,25 +2,27 @@
 
 ## Status
 
-- Date: 2026-07-26
+- Date: 2026-07-27
 - Related plan task: `6.4` in `docs/plans/cline-sdlc-orchestrator-plan.md`
 - Related specification section: `docs/specs/cline-sdlc-orchestrator-spec.md` — “Rollout and proof of concept”
-- Decision: **not unattended-ready**
+- Decision: **supervised workflow-runner MVP accepted; not unattended-ready**
 
 ## Purpose
 
-Task 6.4 records the supervised rollout proof required before describing the
-plan-implementation mode as unattended-ready. The proof must exercise the
-specification’s rollout matrix in a disposable non-production repository using a
-supported real Cline CLI, then record redacted evidence for the architecture and
-readiness decision.
+Task 6.4 records rollout evidence for the Cline SDLC workflow. The MVP execution
+boundary is supervised and follows the same product class as
+`../clinerules/tools/skills/run_cline_skill_workflow.py`: explicit argument-array
+Cline invocations, repository working directory selection, optional isolated data
+directories, logs, dry-run/review-only style controls, and operator-visible review
+of results. The stricter proof matrix remains the gate only for describing the
+plan-implementation mode as unattended-ready.
 
 The proof is intentionally separate from the automated suite. Unit, contract,
 integration, and portable end-to-end tests use fake Cline executables and
 disposable Git repositories; they do not prove that the installed Cline CLI can
 provide the runtime contracts needed for unattended execution.
 
-## Rollout matrix result
+## Unattended-readiness matrix result
 
 | # | Required rollout exercise | Result | Evidence |
 | --- | --- | --- | --- |
@@ -35,43 +37,71 @@ provide the runtime contracts needed for unattended execution.
 
 ## Blocking evidence
 
-The rollout proof is blocked by the same runtime boundary documented in the
+The unattended-readiness proof is blocked by the same runtime boundary documented in the
 [Cline CLI capability spike](cline-cli-capability-spike.md): real Cline `3.0.46`
 did not prove exactly one machine-detectable terminal outcome, pre-execution
 permission mediation, interruption recovery observability, or required-skill
 availability without unintended network behavior.
+
+The supervised capability proof was rerun on 2026-07-27 after confirming `cline`
+was available at `/Users/owinter/.nvm/versions/node/v22.22.3/bin/cline` and still
+reported version `3.0.46`. The run used ignored disposable proof directory
+`.cline-sdlc-proof/runs/20260727T103618Z/` and exited unsuccessfully: required
+skills were still reported missing for `idea-refine`, `spec-driven-development`,
+`planning-and-task-breakdown`, and `code-review-and-quality`; the supervised
+session emitted `0` parseable terminal outcomes; and pre-execution permission
+mediation plus interruption recovery observability remained unproven.
 
 The current installed `cline-sdlc` console boundary also reports a `dry_run_only`
 blocker instead of composing the implemented lifecycle use cases into real Cline
 execution. That behavior is intentionally documented in `README.md`; it prevents
 claiming a successful real-Cline rollout from the current entry point.
 
-## Readiness decision
+The supervised workflow-runner MVP may be described as accepted for its bounded
+operator-supervised execution model. The project **must not be described as
+unattended-ready** until a future supervised non-production proof demonstrates the
+full unattended-readiness matrix with real Cline or an approved architecture
+decision replaces the CLI execution boundary.
 
-The project **must not be described as unattended-ready**. Checkpoint F remains
-open until a future supervised non-production proof demonstrates the full rollout
-matrix with real Cline or an approved architecture decision replaces the CLI
-execution boundary.
+[ADR 0001](../adr/0001-keep-cline-cli-rollout-blocked-until-execution-contracts-are-proven.md)
+records the current decision to separate the accepted supervised workflow-runner
+MVP from the still-blocked unattended-ready claim.
 
 ## Checkpoint F review
 
-Checkpoint F was reviewed as blocked on 2026-07-26. Tasks 6.1–6.4 are complete,
-and their automated or documentary evidence is linked from the implementation
-plan, but the checkpoint cannot be accepted because the required real-Cline
-rollout proof was not executed successfully. This review records the blocked
-state explicitly; it is not a waiver of the rollout requirement.
+Checkpoint F was initially reviewed as blocked on 2026-07-26 because the review
+applied the unattended-ready proof bar to the whole MVP. The product boundary was
+clarified on 2026-07-27: Tasks 6.1–6.4 are sufficient for the supervised
+workflow-runner MVP, while the failed real-Cline proof remains evidence against
+unattended readiness only.
 
-This blocked result is not a waiver. It preserves the specification requirement
-that failure to demonstrate structured outcomes, bounded permissions, or reliable
-dirty-tree recovery triggers product/architecture review instead of weakening the
-contracts.
+The 2026-07-27 rerun confirms the blocker is still current for Cline `3.0.46` in
+this environment.
+
+The proof tooling was updated on 2026-07-27 to recognize repository-local
+skills under `.agents/skills/<skill>/SKILL.md` when the supervised proof runs
+against a disposable repository. This removes the previous false-negative skill
+availability blocker for repositories that vendor the required skills locally,
+but it does not change the unattended-readiness decision: terminal outcomes,
+pre-execution permission mediation, and interruption recovery observability still
+require a future successful real-Cline proof or a superseding execution-boundary
+ADR before any unattended-ready claim.
+
+This is not a waiver for autonomous execution. It preserves the specification
+requirement that failure to demonstrate structured outcomes, bounded permissions,
+or reliable dirty-tree recovery blocks unattended readiness instead of weakening
+those contracts.
 
 ## Next action
 
-Before reopening the rollout proof, choose one of these paths:
+Before claiming unattended readiness, choose one of these paths:
 
 1. configure or upgrade real Cline so the missing CLI contracts can be proven,
    then rerun the supervised proof in a disposable repository; or
 2. record an architecture decision that redirects execution to a boundary capable
    of providing terminal outcomes, permission mediation, interruption recovery,
    and skill availability evidence.
+
+ADR 0001 covers the current supervised-MVP and unattended-readiness decision. A future replacement-boundary
+proposal must be recorded as a new ADR rather than modifying the proof result in
+place.

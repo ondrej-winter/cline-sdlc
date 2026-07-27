@@ -53,6 +53,43 @@ def test_probe_records_missing_required_skill() -> None:
     assert not report.critical_capabilities_proven
 
 
+def test_probe_records_repository_local_required_skill(tmp_path: Path) -> None:
+    fake_cline = Path(__file__).with_name("fake_helping_cline.py")
+    skill_file = tmp_path / ".agents" / "skills" / "checkpoint-blocking-skill" / "SKILL.md"
+    skill_file.parent.mkdir(parents=True)
+    skill_file.write_text("---\nname: checkpoint-blocking-skill\n---\n", encoding="utf-8")
+
+    report = SubprocessClineCapabilityProbe().probe(
+        CapabilityProbeRequest(
+            command=(sys.executable, str(fake_cline)),
+            required_skills=("checkpoint-blocking-skill",),
+            repository_root=tmp_path,
+        )
+    )
+
+    observations = {observation.name: observation for observation in report.observations}
+    assert observations["required_skill:checkpoint-blocking-skill"].status is CapabilityStatus.PROVEN
+    assert "Repository-local skill file" in observations["required_skill:checkpoint-blocking-skill"].evidence
+
+
+def test_probe_does_not_escape_repository_local_skill_directory(tmp_path: Path) -> None:
+    fake_cline = Path(__file__).with_name("fake_helping_cline.py")
+    escaped_skill_file = tmp_path / "escaped-skill" / "SKILL.md"
+    escaped_skill_file.parent.mkdir()
+    escaped_skill_file.write_text("---\nname: escaped-skill\n---\n", encoding="utf-8")
+
+    report = SubprocessClineCapabilityProbe().probe(
+        CapabilityProbeRequest(
+            command=(sys.executable, str(fake_cline)),
+            required_skills=("../escaped-skill",),
+            repository_root=tmp_path,
+        )
+    )
+
+    statuses = {observation.name: observation.status for observation in report.observations}
+    assert statuses["required_skill:../escaped-skill"] is CapabilityStatus.MISSING
+
+
 def test_probe_fails_closed_for_missing_executable() -> None:
     report = SubprocessClineCapabilityProbe().probe(CapabilityProbeRequest(command=("/definitely/missing/cline",)))
 

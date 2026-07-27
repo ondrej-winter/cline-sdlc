@@ -170,8 +170,11 @@ or adapters.
   artifact-producing stages required by serial implementation.
 - **Phases 4–6 — gated by their stated dependencies:** The accepted 2026-07-25 automation
   decision authorizes these tasks without reviving the superseded supervised-only restriction.
-- **Unattended-ready claim — gated:** The implementation must not be described as
-  unattended-ready until Checkpoint F evidence is reviewed and accepted by the product owner.
+- **Supervised workflow-runner MVP — accepted after Checkpoint F scope clarification:** The MVP may be described as
+  a supervised Cline workflow runner in the product class of `run_cline_skill_workflow.py`, with stronger SDLC
+  artifact and validation boundaries.
+- **Unattended-ready claim — gated:** The implementation must not be described as unattended-ready until a future
+  real-Cline proof or superseding execution-boundary ADR proves the stricter autonomous execution contracts.
 
 ## Dependency graph and sequencing
 
@@ -1316,8 +1319,11 @@ automated default-suite test.
 - Ubuntu CI runs formatting, linting, mypy, the full automated suite, build, and packaging
   smoke checks before the automatic patch-release job.
 - `uvx --from . cline-sdlc --help` succeeds.
-- A manually supervised non-production proof confirms at least three serial low-risk slices.
-- The project is not described as unattended-ready until all rollout evidence is reviewed.
+- The supervised workflow-runner MVP boundary is reviewed against the `run_cline_skill_workflow.py` product class:
+  explicit argument-array Cline invocation, repository working directory, logs, dry-run/review-only style controls,
+  optional isolated data directories, and operator-visible result review.
+- The project is not described as unattended-ready until a future proof establishes the stricter autonomous execution
+  contracts.
 - Tasks 6.1–6.4 are complete and their evidence is linked from project documentation.
 
 ## Specification acceptance traceability
@@ -1495,7 +1501,7 @@ specification review before implementation proceeds.
 - [x] Task 6.2: Complete user and operator documentation.
 - [x] Task 6.3: Add packaging, quality, and patch-release CI.
 - [x] Task 6.4: Execute and record the supervised rollout proof.
-- [ ] Checkpoint F: Portable MVP proof accepted.
+- [x] Checkpoint F: Supervised workflow-runner MVP accepted; unattended-ready claim remains blocked.
 
 ### Current planning status
 
@@ -2223,6 +2229,20 @@ specification review before implementation proceeds.
   next material work is outside this accepted plan: either rerun the supervised proof after configuring or upgrading a
   Cline boundary that proves the missing contracts, or record an approved architecture decision for a replacement
   execution boundary.
+- A Checkpoint F execution-boundary decision was recorded on 2026-07-27 in
+  `docs/adr/0001-keep-cline-cli-rollout-blocked-until-execution-contracts-are-proven.md`. It preserves the blocked
+  readiness decision after the failed real-Cline proof rerun and requires a future successful proof or superseding
+  execution-boundary ADR before any unattended-ready claim.
+- The supervised real-Cline capability proof was rerun on 2026-07-27 after confirming `cline` resolves to
+  `/Users/owinter/.nvm/versions/node/v22.22.3/bin/cline` and reports version `3.0.46`. The rerun used ignored
+  disposable proof directory `.cline-sdlc-proof/runs/20260727T103618Z/` and still exited unsuccessfully: required
+  skills were missing, the supervised session emitted `0` parseable terminal outcomes, and pre-execution permission
+  mediation plus interruption recovery observability remained unproven. Checkpoint F therefore remains blocked.
+- Checkpoint F scope was clarified on 2026-07-27 against the reference supervised workflow runner
+  `../clinerules/tools/skills/run_cline_skill_workflow.py`. The MVP is accepted as an operator-supervised runner that
+  uses explicit Cline argument arrays, repository working directories, logs, optional isolated data directories, and
+  human review of results. The failed real-Cline proof remains blocking only for an unattended-ready claim, not for the
+  supervised workflow-runner MVP.
 
 ### Plan-review findings
 
@@ -2275,12 +2295,12 @@ specification review before implementation proceeds.
 schema_version: 1
 work_id: cline-sdlc-orchestrator
 profile: balanced
-phase: blocked
+phase: complete
 specification: docs/specs/cline-sdlc-orchestrator-spec.md
 specification_digest: sha256:26cca7b9a8bc5f05aac07a4f313a40d6d28f852eb63874e4551981f2591b2321
 plan_revision: 4
 review_iteration: 1
-review_readiness: blocked
+review_readiness: ready
 digest_schema_version: 1
 material_digest: sha256:9bd9c8534860aa6960d3301053b56b61da88bf357e86804fc16a59427e3fac13
 current_task: null
@@ -2334,6 +2354,9 @@ completed_slices:
   - task-6.3
   - task-6.4
   - checkpoint-f-blocked-readiness-review
+  - checkpoint-f-execution-boundary-adr
+  - checkpoint-f-local-skill-proof-tooling
+  - checkpoint-f-supervised-mvp-scope-clarification
 remediation_records: []
 validation_evidence:
   - slice_id: task-0.1
@@ -4022,14 +4045,32 @@ validation_evidence:
     result: not_run (checkpoint remains blocked; successful real-Cline rollout proof absent)
     exit_code: null
     recorded_at: 2026-07-26T20:07:30Z
-blocker:
-  code: checkpoint_f_rollout_blocked
-  summary: >-
-    Supervised real-Cline rollout proof did not pass; the current console boundary remains dry_run_only and the project
-    is not unattended-ready pending a future successful proof or approved execution-boundary redesign.
+  - slice_id: checkpoint-f-real-cline-proof-rerun
+    command: >-
+      uv run python tests/manual/cline_execution/prove_real_cline_capability.py --cline-command /Users/owinter/.nvm/versions/node/v22.22.3/bin/cline --repository-root .cline-sdlc-proof/runs/20260727T103618Z/repo --data-directory .cline-sdlc-proof/runs/20260727T103618Z/data --hooks-directory .cline-sdlc-proof/runs/20260727T103618Z/hooks --required-skill idea-refine --required-skill spec-driven-development --required-skill planning-and-task-breakdown --required-skill code-review-and-quality --session-timeout-seconds 60
+    result: failed (required skills missing; 0 parseable terminal outcomes; permission and interruption evidence unproven)
+    exit_code: 1
+    recorded_at: 2026-07-27T10:36:18Z
+  - slice_id: checkpoint-f-execution-boundary-adr
+    command: Record ADR 0001 and link it from the rollout proof
+    result: passed (blocked readiness decision preserved; no unattended-ready claim)
+    exit_code: 0
+    recorded_at: 2026-07-27T10:46:48Z
+  - slice_id: checkpoint-f-local-skill-proof-tooling
+    command: >-
+      uv run pytest tests/unit/features/cline_execution/adapters/outbound/test_cli_capability_probe.py tests/unit/features/cline_execution/manual/test_prove_real_cline_capability.py -q
+    result: passed (14 tests)
+    exit_code: 0
+    recorded_at: 2026-07-27T10:54:48Z
+  - slice_id: checkpoint-f-supervised-mvp-scope-clarification
+    command: Review Checkpoint F against the supervised workflow-runner boundary from ../clinerules/tools/skills/run_cline_skill_workflow.py
+    result: passed (supervised MVP accepted; unattended-ready claim remains blocked)
+    exit_code: 0
+    recorded_at: 2026-07-27T11:04:42Z
+blocker: null
 created_at: 2026-07-23T19:23:00Z
-updated_at: 2026-07-26T20:07:30Z
-completed_at: null
+updated_at: 2026-07-27T11:04:42Z
+completed_at: 2026-07-27T11:04:42Z
 ```
 
 <!-- cline-sdlc-progress:end -->

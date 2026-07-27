@@ -14,7 +14,13 @@ def main() -> int:
         _run_session_scenario(_argument_after("--fake-session-scenario") or "valid-session")
         return 0
     if sys.argv[-2:] == ["skill", "list"]:
-        sys.stdout.write("idea-refine\nspec-driven-development\n")
+        sys.stdout.write(
+            "\x1b[1mProject Skills\x1b[0m\n\n"
+            "\x1b[36midea-refine                               \x1b[0m /repo/.agents/skills/idea-refine\n"
+            "  \x1b[38;5;102mAgents:\x1b[0m Cline, Codex, GitHub Copilot  Source: local\n"
+            "\x1b[36mspec-driven-development                   \x1b[0m /repo/.agents/skills/spec-driven-development\n"
+            "  \x1b[38;5;102mAgents:\x1b[0m Cline, Codex, GitHub Copilot  Source: local\n"
+        )
         return 0
     if "--help" in sys.argv:
         sys.stdout.write(
