@@ -86,7 +86,6 @@ def _outcome_payload() -> dict[str, object]:
         "schema_version": 1,
         "status": "completed",
         "changed_paths": [],
-        "permission_mediation": True,
         "interruption_recovery": True,
     }
 

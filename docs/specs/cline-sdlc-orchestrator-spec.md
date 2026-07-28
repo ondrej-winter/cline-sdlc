@@ -402,9 +402,11 @@ The orchestrator must then:
 3. otherwise select the earliest incomplete slice whose dependencies are
    complete;
 4. start a fresh Cline session for that slice only;
-5. require implementation, focused tests, validation, progress update, and a
-   structured outcome;
-6. independently verify the outcome against Git status and required evidence;
+5. require implementation, focused tests, validation, progress update, and
+   bounded session evidence;
+6. classify the slice transaction exactly once after independently checking Git
+   status, plan progress, validation evidence, process observations, and any
+   structured Cline output;
 7. create one local atomic commit containing implementation, tests or
    documentation, validation evidence in the plan, and updated progress state,
    with machine-readable work and slice trailers;
@@ -652,11 +654,25 @@ accepted specification, ready plan, current slice, necessary repository context,
 permission policy, validation expectations, and outcome contract. They must not
 be authorized to work on later slices.
 
-### Terminal outcome envelope
+### Session evidence and slice transaction result
 
-Each Cline session must emit exactly one terminal outcome in a machine-detectable
-channel or file. The orchestrator must not scrape ordinary assistant prose to
-decide completion.
+The orchestrator, not the Cline session, owns the authoritative terminal result
+for each lifecycle stage and slice transaction. Each implementation slice
+transaction must be classified exactly once as `completed`, `needs_user_input`,
+`approval_required`, `blocked`, `failed`, or `interrupted` before the orchestrator
+commits work or starts another slice.
+
+The classification must be derived from bounded process observations, explicit
+Plan-to-Act transition handling, repository reconciliation, validation evidence,
+plan progress, and any structured Cline output available. Ordinary assistant
+prose must not be the sole authority for committing work or advancing to the next
+slice.
+
+Structured Cline session outcomes remain a supported evidence envelope. They are
+required when a stage-specific use case depends on a Cline-authored artifact,
+review finding set, approval request, or validation claim that cannot be
+independently derived from repository state. They are not, by themselves, the
+authoritative slice transaction result.
 
 ```json
 {
@@ -716,13 +732,28 @@ serialization details but must not weaken these role contracts.
 `findings` contains complete finding records returned by reviewer roles;
 `finding_ids` identifies existing findings acted on or verified by other roles.
 
-### Invalid, missing, and conflicting outcomes
+### Plan-to-Act transition for implementation slices
 
-Missing terminal outcomes, invalid JSON, unsupported schema versions, duplicate
-outcomes, path traversal, reviewer writes, and outcomes contradicted by Git are
-protocol failures. The orchestrator may make one fresh-session protocol retry
-when no unsafe or ambiguous writes occurred. Otherwise it must record a blocker
-and stop.
+Each implementation slice session starts in Plan mode. The planning phase must
+end in one of these orchestrator-observable states:
+
+- `needs_user_input`: Cline asked a material question, identified missing
+  required context, or proposed a decision outside the accepted plan material;
+- `ready_to_act`: Cline has no material questions and the proposed approach fits
+  the accepted specification, plan slice, and operation policy.
+
+If the planning phase is `needs_user_input`, the invocation stops without acting
+or committing. If it is `ready_to_act`, the orchestrator may activate Act mode in
+the same slice session under the invocation approval. Ambiguous planning output is
+classified as `needs_user_input` rather than inferred from prose.
+
+### Invalid, missing, and conflicting session evidence
+
+When structured session outcomes are required, missing outcomes, invalid JSON,
+unsupported schema versions, duplicate outcomes, path traversal, reviewer writes,
+and outcomes contradicted by Git are protocol failures. The orchestrator may make
+one fresh-session protocol retry when no unsafe or ambiguous writes occurred.
+Otherwise it must record a blocker and stop.
 
 A timed-out or externally interrupted session must be terminated with a bounded
 grace period. The orchestrator then inspects Git state, records any attributable

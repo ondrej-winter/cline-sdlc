@@ -17,18 +17,19 @@ modeled after `../clinerules/tools/skills/run_cline_skill_workflow.py`, with mor
 structured artifact, validation, and lifecycle boundaries. That reference runner
 builds explicit argument-array Cline commands, uses `--cwd`, optional `--data-dir`,
 logs stdout/stderr, supports dry-run/review-only operation, and leaves supervision
-and result interpretation to the operator instead of claiming fully unattended
-machine-authoritative orchestration.
+and result interpretation to the operator instead of claiming that Cline-authored
+terminal output is independently authoritative.
 
 The supervised Cline CLI capability proof and the 2026-07-27 rerun against Cline
 `3.0.46` did not prove the stricter unattended contracts. The rerun reported `0`
 parseable terminal outcomes and unproven permission/interruption evidence; local
 skill discovery is now covered through `.agents/skills/<skill>/SKILL.md` probing.
 
-Those missing contracts remain blockers for any future **unattended-ready** claim,
-but they do not block the supervised workflow-runner MVP because that mode does not
-make assistant prose or ambient runtime behavior authoritative without operator
-review.
+Those missing contracts remain blockers for any future claim that Cline itself
+provides machine-authoritative unattended terminal outcomes, but they do not block
+the supervised workflow-runner MVP because that mode makes the orchestrator's
+transaction classification authoritative after process observation, repository
+reconciliation, validation evidence, and operator-visible review points.
 
 ## Decision
 
@@ -38,8 +39,8 @@ working directories, logs, bounded prompts, and operator-visible stage stops, fo
 the same product class as `run_cline_skill_workflow.py` while adding SDLC-specific
 artifact and validation structure.
 
-Keep only the **unattended-ready** claim blocked until one of these conditions is
-satisfied:
+Keep only the **Cline-authored unattended terminal outcome** claim blocked until
+one of these conditions is satisfied:
 
 1. a future configured or upgraded real Cline CLI supervised proof demonstrates the
    full rollout matrix in a disposable non-production repository; or
@@ -48,10 +49,11 @@ satisfied:
    interruption recovery evidence, and required-skill availability without weakening
    the accepted contracts.
 
-Until then, the repository must continue to describe the package as **not
-unattended-ready**. The console boundary may be presented as a supervised workflow
-runner once composed and validated against that boundary, but not as autonomous
-real-Cline orchestration.
+Until then, the repository must continue to distinguish orchestrator-owned
+supervised slice transactions from Cline-authored autonomous terminal outcomes.
+The console boundary may be presented as a supervised workflow runner once
+composed and validated against that boundary, but not as autonomous real-Cline
+orchestration whose lifecycle state is proven solely by Cline output.
 
 ## Consequences
 

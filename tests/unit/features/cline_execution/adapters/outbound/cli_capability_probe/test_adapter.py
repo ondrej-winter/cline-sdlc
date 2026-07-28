@@ -7,10 +7,10 @@ from cline_sdlc.features.cline_execution.adapters.outbound.cli_capability_probe 
 from cline_sdlc.features.cline_execution.application.dtos.capability_probe import CapabilityProbeRequest
 from cline_sdlc.features.cline_execution.domain.capability import CapabilityStatus
 
-UNPROVEN_CRITICAL_CAPABILITY_COUNT = 3
+UNPROVEN_CRITICAL_CAPABILITY_COUNT = 0
 
 
-def test_probe_records_advertised_supporting_capabilities_and_unproven_critical_contracts() -> None:
+def test_probe_records_advertised_supporting_capabilities_and_unproven_cline_authored_contracts() -> None:
     fake_cline = Path(__file__).with_name("fake_helping_cline.py")
 
     report = SubprocessClineCapabilityProbe().probe(CapabilityProbeRequest(command=(sys.executable, str(fake_cline))))
@@ -23,10 +23,9 @@ def test_probe_records_advertised_supporting_capabilities_and_unproven_critical_
     assert statuses["hook_injection_directory"] is CapabilityStatus.ADVERTISED
     assert statuses["explicit_working_directory"] is CapabilityStatus.ADVERTISED
     assert statuses["skill_management_command"] is CapabilityStatus.ADVERTISED
-    assert statuses["exactly_one_machine_detectable_terminal_outcome"] is CapabilityStatus.UNPROVEN
-    assert statuses["pre_execution_permission_mediation"] is CapabilityStatus.UNPROVEN
-    assert statuses["interruption_recovery_observability"] is CapabilityStatus.UNPROVEN
-    assert not report.critical_capabilities_proven
+    assert statuses["cline_authored_terminal_outcome"] is CapabilityStatus.UNPROVEN
+    assert statuses["cline_authored_interruption_recovery_metadata"] is CapabilityStatus.UNPROVEN
+    assert report.critical_capabilities_proven
     assert len(report.limitations) == UNPROVEN_CRITICAL_CAPABILITY_COUNT
 
 
@@ -95,8 +94,8 @@ def test_probe_fails_closed_for_missing_executable() -> None:
 
     statuses = {observation.name: observation.status for observation in report.observations}
     assert statuses["json_output"] is CapabilityStatus.MISSING
-    assert statuses["exactly_one_machine_detectable_terminal_outcome"] is CapabilityStatus.UNPROVEN
-    assert not report.critical_capabilities_proven
+    assert statuses["cline_authored_terminal_outcome"] is CapabilityStatus.UNPROVEN
+    assert report.critical_capabilities_proven
 
 
 def test_supervised_session_probe_can_prove_critical_contracts(tmp_path: Path) -> None:
@@ -113,9 +112,8 @@ def test_supervised_session_probe_can_prove_critical_contracts(tmp_path: Path) -
     )
 
     statuses = {observation.name: observation.status for observation in report.observations}
-    assert statuses["exactly_one_machine_detectable_terminal_outcome"] is CapabilityStatus.PROVEN
-    assert statuses["pre_execution_permission_mediation"] is CapabilityStatus.PROVEN
-    assert statuses["interruption_recovery_observability"] is CapabilityStatus.PROVEN
+    assert statuses["cline_authored_terminal_outcome"] is CapabilityStatus.PROVEN
+    assert statuses["cline_authored_interruption_recovery_metadata"] is CapabilityStatus.PROVEN
     assert report.critical_capabilities_proven
 
 
@@ -131,9 +129,8 @@ def test_supervised_session_probe_extracts_wrapped_message_outcome(tmp_path: Pat
     )
 
     statuses = {observation.name: observation.status for observation in report.observations}
-    assert statuses["exactly_one_machine_detectable_terminal_outcome"] is CapabilityStatus.PROVEN
-    assert statuses["pre_execution_permission_mediation"] is CapabilityStatus.PROVEN
-    assert statuses["interruption_recovery_observability"] is CapabilityStatus.PROVEN
+    assert statuses["cline_authored_terminal_outcome"] is CapabilityStatus.PROVEN
+    assert statuses["cline_authored_interruption_recovery_metadata"] is CapabilityStatus.PROVEN
 
 
 def test_supervised_session_probe_extracts_wrapped_content_text_outcome(tmp_path: Path) -> None:
@@ -148,9 +145,8 @@ def test_supervised_session_probe_extracts_wrapped_content_text_outcome(tmp_path
     )
 
     statuses = {observation.name: observation.status for observation in report.observations}
-    assert statuses["exactly_one_machine_detectable_terminal_outcome"] is CapabilityStatus.PROVEN
-    assert statuses["pre_execution_permission_mediation"] is CapabilityStatus.PROVEN
-    assert statuses["interruption_recovery_observability"] is CapabilityStatus.PROVEN
+    assert statuses["cline_authored_terminal_outcome"] is CapabilityStatus.PROVEN
+    assert statuses["cline_authored_interruption_recovery_metadata"] is CapabilityStatus.PROVEN
 
 
 def test_supervised_session_probe_fails_closed_for_duplicate_outcomes(tmp_path: Path) -> None:
@@ -165,8 +161,8 @@ def test_supervised_session_probe_fails_closed_for_duplicate_outcomes(tmp_path: 
     )
 
     statuses = {observation.name: observation.status for observation in report.observations}
-    assert statuses["exactly_one_machine_detectable_terminal_outcome"] is CapabilityStatus.UNPROVEN
-    assert not report.critical_capabilities_proven
+    assert statuses["cline_authored_terminal_outcome"] is CapabilityStatus.UNPROVEN
+    assert report.critical_capabilities_proven
 
 
 def test_supervised_session_probe_records_bounded_timeout(tmp_path: Path) -> None:
@@ -182,6 +178,6 @@ def test_supervised_session_probe_records_bounded_timeout(tmp_path: Path) -> Non
     )
 
     statuses = {observation.name: observation.status for observation in report.observations}
-    assert statuses["exactly_one_machine_detectable_terminal_outcome"] is CapabilityStatus.UNPROVEN
-    assert statuses["interruption_recovery_observability"] is CapabilityStatus.PROVEN
-    assert not report.critical_capabilities_proven
+    assert statuses["cline_authored_terminal_outcome"] is CapabilityStatus.UNPROVEN
+    assert statuses["cline_authored_interruption_recovery_metadata"] is CapabilityStatus.PROVEN
+    assert report.critical_capabilities_proven
