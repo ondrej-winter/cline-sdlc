@@ -7,10 +7,17 @@ import json
 import math
 import re
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Never
 
 from cline_sdlc import __version__
+from cline_sdlc.features.artifact_lifecycle.adapters.inbound.filesystem_authored_plan import (
+    FilesystemAuthoredPlanContentReader,
+)
+from cline_sdlc.features.artifact_lifecycle.adapters.inbound.filesystem_plan_review import (
+    FilesystemPlanReviewProgressWriter,
+)
 from cline_sdlc.features.artifact_lifecycle.application.dtos.artifact_location import (
     ArtifactKind,
     ArtifactLocationBlocker,
@@ -18,6 +25,7 @@ from cline_sdlc.features.artifact_lifecycle.application.dtos.artifact_location i
     SelectArtifactLocationRequest,
 )
 from cline_sdlc.features.artifact_lifecycle.application.use_cases.select_artifact_location import SelectArtifactLocation
+from cline_sdlc.features.artifact_lifecycle.application.use_cases.validate_authored_plan import ValidateAuthoredPlan
 from cline_sdlc.features.cline_execution.adapters.outbound.cli_capability_probe import SubprocessClineCapabilityProbe
 from cline_sdlc.features.cline_execution.adapters.outbound.interactive_process import AttachedTtyClineSessionRunner
 from cline_sdlc.features.cline_execution.application.dtos.preflight import ClinePreflightRequest
@@ -32,6 +40,16 @@ from cline_sdlc.features.lifecycle_orchestration.application.dtos.invocation imp
     InvocationRequest,
     InvocationSource,
 )
+from cline_sdlc.features.lifecycle_orchestration.application.dtos.plan_authoring import (
+    PlanAuthoringRequest,
+    PlanAuthoringResult,
+    PlanAuthoringStatus,
+)
+from cline_sdlc.features.lifecycle_orchestration.application.dtos.plan_review import (
+    PlanReviewRequest,
+    PlanReviewResult,
+    PlanReviewStatus,
+)
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.preflight import StagePreflightRequest
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.specification_stage import (
     SpecificationCreationRequest,
@@ -39,9 +57,17 @@ from cline_sdlc.features.lifecycle_orchestration.application.dtos.specification_
     SpecificationCreationStatus,
 )
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.terminal_result import TerminalBlocker, TerminalResult
+from cline_sdlc.features.lifecycle_orchestration.application.dtos.validation import ValidationDiscoveryRequest
+from cline_sdlc.features.lifecycle_orchestration.application.use_cases.author_plan import AuthorPlan
+from cline_sdlc.features.lifecycle_orchestration.application.use_cases.complete_plan_review import CompletePlanReview
 from cline_sdlc.features.lifecycle_orchestration.application.use_cases.create_specification import CreateSpecification
+from cline_sdlc.features.lifecycle_orchestration.application.use_cases.discover_validation import (
+    DiscoverValidationCommands,
+)
 from cline_sdlc.features.lifecycle_orchestration.application.use_cases.preflight_stage import PreflightLifecycleStage
 from cline_sdlc.features.lifecycle_orchestration.application.use_cases.refine_idea import RefineIdea
+from cline_sdlc.features.lifecycle_orchestration.application.use_cases.review_plan import ReviewPlan
+from cline_sdlc.features.lifecycle_orchestration.application.use_cases.revise_plan import RevisePlan
 from cline_sdlc.features.lifecycle_orchestration.application.use_cases.run_session_attempts import RunSessionAttempts
 from cline_sdlc.features.lifecycle_orchestration.application.use_cases.select_stage import SelectLifecycleStage
 from cline_sdlc.features.lifecycle_orchestration.domain.stage import LifecycleStage
@@ -68,6 +94,9 @@ IDEA_FAILED_REASON = "idea_refinement_failed"
 SPEC_COMPLETED_REASON = "specification_accepted"
 SPEC_BLOCKED_REASON = "specification_creation_blocked"
 SPEC_FAILED_REASON = "specification_creation_failed"
+PLAN_COMPLETED_REASON = "plan_ready"
+PLAN_BLOCKED_REASON = "plan_creation_and_review_blocked"
+PLAN_FAILED_REASON = "plan_creation_and_review_failed"
 _SAFE_STEM_WORD_PATTERN = re.compile(r"[a-z0-9]+")
 
 
@@ -130,12 +159,7 @@ def run_cli_invocation(argv: Sequence[str], *, cwd: Path | None = None) -> CliRu
     """Run one supervised lifecycle CLI invocation."""
     if list(argv) == ["--version"]:
         result = TerminalResult(status=TerminalStatus.COMPLETED, reason="version_displayed")
-        return CliRunResult(
-            exit_code=int(exit_category_for_status(result.status)),
-            stdout=f"cline-sdlc {__version__}\n",
-            stderr="",
-            terminal_result=result,
-        )
+        return _version_cli_result(result)
 
     parsed = parse_cli_invocation(argv, cwd=cwd)
     if isinstance(parsed, InvocationParseError):
@@ -150,24 +174,41 @@ def run_cli_invocation(argv: Sequence[str], *, cwd: Path | None = None) -> CliRu
         result = _dry_run_result(parsed.request)
         return _render_cli_result(result, emit_json=parsed.request.emit_json)
 
-    if parsed.request.stage is LifecycleStage.IDEA_REFINEMENT:
-        result = _run_idea_refinement(parsed.request, cwd=cwd or Path.cwd())
-        return _render_cli_result(result, emit_json=parsed.request.emit_json)
-    if parsed.request.stage is LifecycleStage.SPECIFICATION_CREATION:
-        result = _run_specification_creation(parsed.request, cwd=cwd or Path.cwd())
-        return _render_cli_result(result, emit_json=parsed.request.emit_json)
+    result = _run_selected_stage(parsed.request, cwd=cwd or Path.cwd())
+    return _render_cli_result(result, emit_json=parsed.request.emit_json)
 
-    result = TerminalResult(
+
+def _run_selected_stage(request: InvocationRequest, *, cwd: Path) -> TerminalResult:
+    """Dispatch one parsed invocation to its selected lifecycle stage."""
+    if request.stage is LifecycleStage.IDEA_REFINEMENT:
+        return _run_idea_refinement(request, cwd=cwd)
+    if request.stage is LifecycleStage.SPECIFICATION_CREATION:
+        return _run_specification_creation(request, cwd=cwd)
+    if request.stage is LifecycleStage.PLAN_CREATION_AND_REVIEW:
+        return _run_plan_creation_and_review(request, cwd=cwd)
+    return _unsupported_stage_result(request)
+
+
+def _version_cli_result(result: TerminalResult) -> CliRunResult:
+    return CliRunResult(
+        exit_code=int(exit_category_for_status(result.status)),
+        stdout=f"cline-sdlc {__version__}\n",
+        stderr="",
+        terminal_result=result,
+    )
+
+
+def _unsupported_stage_result(request: InvocationRequest) -> TerminalResult:
+    return TerminalResult(
         status=TerminalStatus.BLOCKED,
         reason=UNSUPPORTED_STAGE_REASON,
-        stage=parsed.request.stage,
-        input_path=_input_path(parsed.request),
+        stage=request.stage,
+        input_path=_input_path(request),
         blocker=TerminalBlocker(
             code="stage_not_wired",
-            summary="Only idea refinement is currently wired through the supervised CLI runner.",
+            summary="This lifecycle stage is not currently wired through the supervised CLI runner.",
         ),
     )
-    return _render_cli_result(result, emit_json=parsed.request.emit_json)
 
 
 def _dry_run_result(request: InvocationRequest) -> TerminalResult:
@@ -230,6 +271,75 @@ def _run_specification_creation(request: InvocationRequest, *, cwd: Path) -> Ter
     return _terminal_result_from_specification_result(request, result)
 
 
+def _run_plan_creation_and_review(request: InvocationRequest, *, cwd: Path) -> TerminalResult:
+    spec_path = Path(request.source.value)
+    runtime = _interactive_stage_runtime(
+        request,
+        cwd=cwd,
+        config=_InteractiveStageConfig(
+            artifact_kind=ArtifactKind.PLAN,
+            artifact_stem=_artifact_stem(spec_path.stem.removesuffix("-spec")),
+            required_skill="planning-and-task-breakdown",
+            blocked_reason=PLAN_BLOCKED_REASON,
+        ),
+    )
+    if isinstance(runtime, TerminalResult):
+        return runtime
+
+    repository_root = runtime.preflight_request.repository_request.working_directory
+    content_reader = FilesystemAuthoredPlanContentReader(repository_root=repository_root)
+    plan_validator = ValidateAuthoredPlan()
+    repository_inspector = GitCliRepositoryInspector()
+    session_attempts = RunSessionAttempts(
+        runner=AttachedTtyClineSessionRunner(),
+        repository_inspector=repository_inspector,
+    )
+
+    authoring = AuthorPlan(
+        preflight=runtime.preflight,
+        validation_discovery=DiscoverValidationCommands(),
+        session_attempts=session_attempts,
+        content_reader=content_reader,
+        plan_validator=plan_validator,
+    ).execute(
+        PlanAuthoringRequest(
+            invocation=request,
+            preflight_request=runtime.preflight_request,
+            validation_discovery_request=ValidationDiscoveryRequest(changed_paths=(runtime.output_artifact.path,)),
+            output_artifact=runtime.output_artifact,
+        )
+    )
+    if authoring.status is not PlanAuthoringStatus.COMPLETED:
+        return _terminal_result_from_plan_authoring_result(request, authoring)
+
+    reviewer = ReviewPlan(
+        content_reader=content_reader,
+        plan_validator=plan_validator,
+        session_attempts=session_attempts,
+        progress_writer=FilesystemPlanReviewProgressWriter(repository_root=repository_root),
+        clock=_SystemClock(),
+    )
+    review = CompletePlanReview(
+        reviewer=reviewer,
+        reviser=RevisePlan(
+            content_reader=content_reader,
+            plan_validator=plan_validator,
+            session_attempts=session_attempts,
+        ),
+    ).execute(
+        PlanReviewRequest(
+            invocation=request,
+            preflight_request=runtime.preflight_request,
+            plan_path=runtime.output_artifact.path,
+        )
+    )
+    return _terminal_result_from_plan_review_result(
+        request,
+        review,
+        specification_digest=authoring.specification_digest,
+    )
+
+
 def _interactive_stage_runtime(
     request: InvocationRequest,
     *,
@@ -290,6 +400,14 @@ class _RepositoryInspectionAdapter:
         return self.inspector.inspect(request)
 
 
+class _SystemClock:
+    """Adapter for timezone-aware UTC timestamps used in plan review progress."""
+
+    def now(self) -> datetime:
+        """Return the current UTC timestamp."""
+        return datetime.now(UTC)
+
+
 def _terminal_result_from_idea_result(request: InvocationRequest, result: IdeaRefinementResult) -> TerminalResult:
     if result.status is IdeaRefinementStatus.COMPLETED:
         return TerminalResult(
@@ -334,6 +452,60 @@ def _terminal_result_from_specification_result(
         blocker=TerminalBlocker(
             code=blocker.code if blocker is not None else "specification_creation_failed",
             summary=blocker.summary if blocker is not None else "specification creation did not complete",
+            evidence=blocker.evidence if blocker is not None else None,
+        ),
+    )
+
+
+def _terminal_result_from_plan_authoring_result(
+    request: InvocationRequest,
+    result: PlanAuthoringResult,
+) -> TerminalResult:
+    blocker = result.blocker
+    return TerminalResult(
+        status=TerminalStatus.BLOCKED if result.status is PlanAuthoringStatus.BLOCKED else TerminalStatus.FAILED,
+        reason=PLAN_BLOCKED_REASON if result.status is PlanAuthoringStatus.BLOCKED else PLAN_FAILED_REASON,
+        stage=request.stage,
+        input_path=_input_path(request),
+        output_paths=result.output_paths,
+        specification_digest=result.specification_digest,
+        plan_material_digest=result.material_digest,
+        blocker=TerminalBlocker(
+            code=blocker.code if blocker is not None else "plan_authoring_failed",
+            summary=blocker.summary if blocker is not None else "plan authoring did not complete",
+            evidence=blocker.evidence if blocker is not None else None,
+        ),
+    )
+
+
+def _terminal_result_from_plan_review_result(
+    request: InvocationRequest,
+    result: PlanReviewResult,
+    *,
+    specification_digest: str | None,
+) -> TerminalResult:
+    if result.status is PlanReviewStatus.READY:
+        return TerminalResult(
+            status=TerminalStatus.COMPLETED,
+            reason=PLAN_COMPLETED_REASON,
+            stage=request.stage,
+            input_path=_input_path(request),
+            output_paths=result.output_paths,
+            specification_digest=specification_digest,
+            plan_material_digest=result.material_digest,
+        )
+    blocker = result.blocker
+    return TerminalResult(
+        status=TerminalStatus.BLOCKED if result.status is PlanReviewStatus.BLOCKED else TerminalStatus.FAILED,
+        reason=PLAN_BLOCKED_REASON if result.status is PlanReviewStatus.BLOCKED else PLAN_FAILED_REASON,
+        stage=request.stage,
+        input_path=_input_path(request),
+        output_paths=result.output_paths,
+        specification_digest=specification_digest,
+        plan_material_digest=result.material_digest,
+        blocker=TerminalBlocker(
+            code=blocker.code if blocker is not None else "plan_review_failed",
+            summary=blocker.summary if blocker is not None else "plan review did not mark the plan ready",
             evidence=blocker.evidence if blocker is not None else None,
         ),
     )

@@ -22,6 +22,16 @@ from cline_sdlc.features.lifecycle_orchestration.application.dtos.idea_stage imp
     IdeaRefinementStatus,
 )
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.invocation import InvocationParseError
+from cline_sdlc.features.lifecycle_orchestration.application.dtos.plan_authoring import (
+    PlanAuthoringRequest,
+    PlanAuthoringResult,
+    PlanAuthoringStatus,
+)
+from cline_sdlc.features.lifecycle_orchestration.application.dtos.plan_review import (
+    PlanReviewRequest,
+    PlanReviewResult,
+    PlanReviewStatus,
+)
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.specification_stage import (
     SpecificationCreationRequest,
     SpecificationCreationResult,
@@ -35,6 +45,7 @@ if TYPE_CHECKING:
     from cline_sdlc.features.lifecycle_orchestration.application.dtos.invocation import InvocationRequest
 
 CUSTOM_TIMEOUT_SECONDS = 42.0
+EXPECTED_PLAN_STAGE_RUNNER_COUNT = 2
 
 
 def test_rejects_missing_input() -> None:
@@ -330,6 +341,122 @@ def test_specification_creation_uses_attached_tty_runner(monkeypatch: pytest.Mon
     assert repository_request.managed_paths == (Path("docs/specs"),)
 
 
+def test_spec_file_invocation_runs_wired_plan_creation_and_review(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    calls = []
+    spec_file = tmp_path / "accepted-spec.md"
+    spec_file.write_text("accepted spec", encoding="utf-8")
+
+    def fake_run_plan_creation_and_review(request: InvocationRequest, *, cwd: Path) -> TerminalResult:
+        calls.append((request, cwd))
+        return TerminalResult(
+            status=TerminalStatus.COMPLETED,
+            reason="plan_ready",
+            stage=request.stage,
+            input_path=spec_file.as_posix(),
+            output_paths=("docs/plans/accepted-plan.md",),
+            specification_digest="spec-digest",
+            plan_material_digest="plan-digest",
+        )
+
+    monkeypatch.setattr(cli, "_run_plan_creation_and_review", fake_run_plan_creation_and_review)
+
+    result = run_cli_invocation(["--spec-file", "accepted-spec.md", "--json"], cwd=tmp_path)
+
+    assert result.exit_code == ExitCategory.COMPLETED
+    assert len(calls) == 1
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "completed"
+    assert payload["reason"] == "plan_ready"
+    assert payload["stage"] == "plan_creation_and_review"
+    assert payload["input_path"] == spec_file.as_posix()
+    assert payload["output_paths"] == ["docs/plans/accepted-plan.md"]
+    assert payload["specification_digest"] == "spec-digest"
+    assert payload["plan_material_digest"] == "plan-digest"
+
+
+def test_plan_creation_and_review_uses_attached_tty_runner(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    captured_runners = []
+    captured_artifact_requests = []
+    captured_authoring_requests: list[PlanAuthoringRequest] = []
+    captured_review_requests: list[PlanReviewRequest] = []
+    spec_file = tmp_path / "configurable-lifecycle-hooks-and-repository-task-spec.md"
+    spec_file.write_text("accepted spec", encoding="utf-8")
+
+    class FakeArtifactSelector:
+        def execute(self, request: object) -> ArtifactLocationResult:
+            captured_artifact_requests.append(request)
+            return ArtifactLocationResult(
+                artifact_kind=ArtifactKind.PLAN,
+                path="docs/plans/configurable-lifecycle-hooks-and-repository-task-plan.md",
+                directory="docs/plans",
+                source=ArtifactLocationSource.PORTABLE_DEFAULT,
+            )
+
+    class FakeRunSessionAttempts:
+        def __init__(self, *, runner: object, repository_inspector: object) -> None:
+            _ = repository_inspector
+            captured_runners.append(runner)
+
+    class FakeAuthorPlan:
+        def __init__(
+            self,
+            *,
+            preflight: object,
+            validation_discovery: object,
+            session_attempts: object,
+            content_reader: object,
+            plan_validator: object,
+        ) -> None:
+            _ = preflight, validation_discovery, session_attempts, content_reader, plan_validator
+
+        def execute(self, request: PlanAuthoringRequest) -> PlanAuthoringResult:
+            captured_authoring_requests.append(request)
+            return PlanAuthoringResult(
+                status=PlanAuthoringStatus.COMPLETED,
+                output_paths=("docs/plans/configurable-lifecycle-hooks-and-repository-task-plan.md",),
+                specification_digest="spec-digest",
+                material_digest="draft-digest",
+            )
+
+    class FakeCompletePlanReview:
+        def __init__(self, *, reviewer: object, reviser: object) -> None:
+            _ = reviewer, reviser
+
+        def execute(self, request: PlanReviewRequest) -> PlanReviewResult:
+            captured_review_requests.append(request)
+            return PlanReviewResult(
+                status=PlanReviewStatus.READY,
+                output_paths=(request.plan_path,),
+                material_digest="ready-digest",
+            )
+
+    monkeypatch.setattr(cli, "SelectArtifactLocation", FakeArtifactSelector)
+    monkeypatch.setattr(cli, "RunSessionAttempts", FakeRunSessionAttempts)
+    monkeypatch.setattr(cli, "AuthorPlan", FakeAuthorPlan)
+    monkeypatch.setattr(cli, "CompletePlanReview", FakeCompletePlanReview)
+
+    result = run_cli_invocation(["--spec-file", spec_file.name], cwd=tmp_path).terminal_result
+
+    assert result.status is TerminalStatus.COMPLETED
+    assert result.reason == "plan_ready"
+    assert result.specification_digest == "spec-digest"
+    assert result.plan_material_digest == "ready-digest"
+    assert len(captured_runners) == EXPECTED_PLAN_STAGE_RUNNER_COUNT
+    assert all(isinstance(runner, AttachedTtyClineSessionRunner) for runner in captured_runners)
+    assert len(captured_artifact_requests) == 1
+    assert len(captured_authoring_requests) == 1
+    assert len(captured_review_requests) == 1
+    repository_request = captured_authoring_requests[0].preflight_request.repository_request
+    assert repository_request.input_paths == ()
+    assert repository_request.managed_paths == (Path("docs/plans"),)
+    assert captured_review_requests[0].plan_path == (
+        "docs/plans/configurable-lifecycle-hooks-and-repository-task-plan.md"
+    )
+
+
 def test_idea_invocation_json_preserves_session_failure_evidence(monkeypatch: pytest.MonkeyPatch) -> None:
     def fake_run_idea_refinement(request: InvocationRequest, *, cwd: Path) -> TerminalResult:
         _ = cwd
@@ -376,18 +503,6 @@ def test_terminal_result_preserves_actionable_blocker_evidence() -> None:
         "summary": "idea refinement preflight failed before Cline could start",
         "evidence": "cline_capability:cline_capability_required_skill:idea-refine",
     }
-
-
-def test_unwired_spec_file_stage_returns_explicit_blocker(tmp_path: Path) -> None:
-    spec_file = tmp_path / "spec.md"
-    spec_file.write_text("spec", encoding="utf-8")
-
-    result = run_cli_invocation(["--spec-file", "spec.md", "--json"], cwd=tmp_path)
-
-    assert result.exit_code == ExitCategory.BLOCKED
-    payload = json.loads(result.stdout)
-    assert payload["reason"] == "stage_not_wired"
-    assert payload["blocker"]["code"] == "stage_not_wired"
 
 
 def test_file_input_terminal_result_reports_normalized_input_path(tmp_path: Path) -> None:
