@@ -15,7 +15,9 @@ from cline_sdlc.features.artifact_lifecycle.application.dtos.artifact_location i
     ArtifactLocationResult,
     ArtifactLocationSource,
 )
-from cline_sdlc.features.cline_execution.adapters.outbound.interactive_process import AttachedTtyClineSessionRunner
+from cline_sdlc.features.cline_execution.adapters.outbound.attached_tty_session_runner import (
+    AttachedTtyClineSessionRunner,
+)
 from cline_sdlc.features.lifecycle_orchestration.adapters.inbound import cli
 from cline_sdlc.features.lifecycle_orchestration.adapters.inbound.cli import parse_cli_invocation, run_cli_invocation
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.idea_stage import (

@@ -33,8 +33,10 @@ from cline_sdlc.features.artifact_lifecycle.application.use_cases.select_artifac
 from cline_sdlc.features.artifact_lifecycle.application.use_cases.validate_authored_plan import ValidateAuthoredPlan
 from cline_sdlc.features.artifact_lifecycle.domain.digests import compute_specification_digest
 from cline_sdlc.features.artifact_lifecycle.domain.plan_state import PlanPhase, PlanState, ReviewReadiness
+from cline_sdlc.features.cline_execution.adapters.outbound.attached_tty_session_runner import (
+    AttachedTtyClineSessionRunner,
+)
 from cline_sdlc.features.cline_execution.adapters.outbound.cli_capability_probe import SubprocessClineCapabilityProbe
-from cline_sdlc.features.cline_execution.adapters.outbound.interactive_process import AttachedTtyClineSessionRunner
 from cline_sdlc.features.cline_execution.application.dtos.preflight import ClinePreflightRequest
 from cline_sdlc.features.cline_execution.application.use_cases.preflight import PreflightClineCapabilities
 from cline_sdlc.features.lifecycle_orchestration.adapters.inbound.plan_implementation_runtime import (

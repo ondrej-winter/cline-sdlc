@@ -3,7 +3,7 @@
 import json
 
 from cline_sdlc.features.artifact_lifecycle.domain.findings import PlanReviewReadiness
-from cline_sdlc.features.cline_execution.adapters.outbound.terminal_outcomes import parse_terminal_outcomes
+from cline_sdlc.features.cline_execution.adapters.outbound.terminal_outcome_parser import parse_terminal_outcomes
 
 
 def test_parses_complete_plan_reviewer_findings() -> None:

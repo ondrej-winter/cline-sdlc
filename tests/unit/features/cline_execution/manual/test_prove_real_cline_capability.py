@@ -32,7 +32,7 @@ proof_module = _load_module(PROOF_MODULE)
 
 
 def test_supervised_proof_uses_explicit_paths_and_reports_proven_fake_contracts(tmp_path: Path) -> None:
-    fake_cline = Path(__file__).parents[1] / "adapters" / "outbound" / "fake_helping_cline.py"
+    fake_cline = Path(__file__).parents[1] / "adapters" / "outbound" / "cli_capability_probe" / "fake_helping_cline.py"
     repository_root = tmp_path / "repo"
     repository_root.mkdir()
 
@@ -53,7 +53,7 @@ def test_supervised_proof_uses_explicit_paths_and_reports_proven_fake_contracts(
 
 
 def test_report_json_includes_blocking_observations_for_failed_fake_contracts(tmp_path: Path) -> None:
-    fake_cline = Path(__file__).parents[1] / "adapters" / "outbound" / "fake_helping_cline.py"
+    fake_cline = Path(__file__).parents[1] / "adapters" / "outbound" / "cli_capability_probe" / "fake_helping_cline.py"
     arguments = _parse_args(
         tmp_path,
         command=(sys.executable, str(fake_cline), "--fake-session-scenario", "missing-outcome"),
@@ -71,7 +71,7 @@ def test_report_json_includes_blocking_observations_for_failed_fake_contracts(tm
 def test_main_returns_non_zero_when_critical_contracts_remain_unproven(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    fake_cline = Path(__file__).parents[1] / "adapters" / "outbound" / "fake_helping_cline.py"
+    fake_cline = Path(__file__).parents[1] / "adapters" / "outbound" / "cli_capability_probe" / "fake_helping_cline.py"
 
     exit_code = proof_module.main(
         [

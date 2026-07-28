@@ -7,7 +7,9 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from cline_sdlc.features.artifact_lifecycle.adapters.inbound.state_yaml import parse_plan_state_from_markdown
-from cline_sdlc.features.cline_execution.adapters.outbound.interactive_process import AttachedTtyClineSessionRunner
+from cline_sdlc.features.cline_execution.adapters.outbound.attached_tty_session_runner import (
+    AttachedTtyClineSessionRunner,
+)
 from cline_sdlc.features.lifecycle_orchestration.adapters.outbound.validation_runner import (
     SubprocessValidationCommandRunner,
 )

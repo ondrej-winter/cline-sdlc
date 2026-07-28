@@ -9,7 +9,7 @@ import time
 from contextlib import suppress
 from typing import TYPE_CHECKING, Protocol
 
-from cline_sdlc.features.cline_execution.adapters.outbound.terminal_outcomes import (
+from cline_sdlc.features.cline_execution.adapters.outbound.terminal_outcome_parser import (
     parse_terminal_outcomes,
 )
 from cline_sdlc.features.cline_execution.application.dtos.session import (

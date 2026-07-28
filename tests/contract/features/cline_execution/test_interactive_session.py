@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from cline_sdlc.features.cline_execution.adapters.outbound.interactive_process import (
+from cline_sdlc.features.cline_execution.adapters.outbound.attached_interactive_session_runner import (
     AttachedInteractiveClineSessionRunner,
 )
 from cline_sdlc.features.cline_execution.application.dtos.session import (
