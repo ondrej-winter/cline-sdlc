@@ -426,6 +426,34 @@ def test_plan_file_invocation_reports_plan_state_blocker_instead_of_unwired_stag
     assert payload["blocker"]["code"] == "plan_state_unavailable"
 
 
+def test_plan_file_invocation_bootstraps_legacy_plan_state_from_spec_reference(tmp_path: Path) -> None:
+    docs = tmp_path / "docs"
+    specs = docs / "specs"
+    plans = docs / "plans"
+    specs.mkdir(parents=True)
+    plans.mkdir(parents=True)
+    spec_file = specs / "accepted-spec.md"
+    spec_file.write_text("# Accepted Spec\n\nRequirements.\n", encoding="utf-8")
+    plan_file = plans / "accepted-plan.md"
+    plan_file.write_text(
+        "# Implementation Plan\n\nBased on `docs/specs/accepted-spec.md`.\n\n## Task 1\n\n- [ ] Ship it.\n",
+        encoding="utf-8",
+    )
+
+    result = run_cli_invocation(["--plan-file", "docs/plans/accepted-plan.md", "--json"], cwd=tmp_path)
+
+    assert result.exit_code == ExitCategory.BLOCKED
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "blocked"
+    assert payload["reason"] == "plan_implementation_blocked"
+    assert payload["stage"] == "plan_implementation"
+    assert payload["input_path"] == plan_file.as_posix()
+    assert payload["blocker"]["code"] == "plan_task_definitions_unavailable"
+    assert payload["blocker"]["evidence"] == "accepted"
+    assert payload["specification_digest"].startswith("sha256:")
+    assert payload["plan_material_digest"].startswith("sha256:")
+
+
 def test_plan_creation_and_review_uses_attached_tty_runner(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     captured_runners = []
     captured_artifact_requests = []

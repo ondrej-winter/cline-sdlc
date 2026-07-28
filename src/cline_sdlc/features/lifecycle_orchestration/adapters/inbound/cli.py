@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import re
@@ -18,7 +19,10 @@ from cline_sdlc.features.artifact_lifecycle.adapters.inbound.filesystem_authored
 from cline_sdlc.features.artifact_lifecycle.adapters.inbound.filesystem_plan_review import (
     FilesystemPlanReviewProgressWriter,
 )
-from cline_sdlc.features.artifact_lifecycle.adapters.inbound.state_yaml import parse_plan_state_from_markdown
+from cline_sdlc.features.artifact_lifecycle.adapters.inbound.state_yaml import (
+    StrictStateYAMLError,
+    parse_plan_state_from_markdown,
+)
 from cline_sdlc.features.artifact_lifecycle.application.dtos.artifact_location import (
     ArtifactKind,
     ArtifactLocationBlocker,
@@ -27,6 +31,8 @@ from cline_sdlc.features.artifact_lifecycle.application.dtos.artifact_location i
 )
 from cline_sdlc.features.artifact_lifecycle.application.use_cases.select_artifact_location import SelectArtifactLocation
 from cline_sdlc.features.artifact_lifecycle.application.use_cases.validate_authored_plan import ValidateAuthoredPlan
+from cline_sdlc.features.artifact_lifecycle.domain.digests import compute_specification_digest
+from cline_sdlc.features.artifact_lifecycle.domain.plan_state import PlanPhase, PlanState, ReviewReadiness
 from cline_sdlc.features.cline_execution.adapters.outbound.cli_capability_probe import SubprocessClineCapabilityProbe
 from cline_sdlc.features.cline_execution.adapters.outbound.interactive_process import AttachedTtyClineSessionRunner
 from cline_sdlc.features.cline_execution.application.dtos.preflight import ClinePreflightRequest
@@ -102,6 +108,7 @@ IMPLEMENTATION_COMPLETED_REASON = "plan_implementation_completed"
 IMPLEMENTATION_BLOCKED_REASON = "plan_implementation_blocked"
 IMPLEMENTATION_FAILED_REASON = "plan_implementation_failed"
 _SAFE_STEM_WORD_PATTERN = re.compile(r"[a-z0-9]+")
+_SPECIFICATION_REFERENCE_PATTERN = re.compile(r"`(?P<path>docs/specs/[^`]+\.md)`")
 
 
 class _ArgumentParser(argparse.ArgumentParser):
@@ -348,11 +355,14 @@ def _run_plan_creation_and_review(request: InvocationRequest, *, cwd: Path) -> T
 
 def _run_plan_implementation(request: InvocationRequest, *, cwd: Path) -> TerminalResult:
     """Run or safely block the supervised implementation-plan stage."""
-    _ = cwd
     plan_path = Path(request.source.value)
     try:
         plan_content = plan_path.read_text(encoding="utf-8")
-        plan_state = parse_plan_state_from_markdown(plan_content)
+        plan_state = _plan_state_from_markdown_or_legacy_plan(
+            plan_content,
+            plan_path=plan_path,
+            repository_root=cwd,
+        )
     except (OSError, UnicodeError, ValueError) as err:
         return TerminalResult(
             status=TerminalStatus.BLOCKED,
@@ -379,6 +389,77 @@ def _run_plan_implementation(request: InvocationRequest, *, cwd: Path) -> Termin
             evidence=plan_state.work_id,
         ),
     )
+
+
+def _plan_state_from_markdown_or_legacy_plan(markdown: str, *, plan_path: Path, repository_root: Path) -> PlanState:
+    try:
+        return parse_plan_state_from_markdown(markdown)
+    except StrictStateYAMLError as err:
+        if str(err) != "plan must contain exactly one cline-sdlc-state block":
+            raise
+    specification_path = _legacy_plan_specification_path(markdown, repository_root=repository_root)
+    specification_content = specification_path.read_bytes()
+    specification_digest = compute_specification_digest(specification_content)
+    material_digest = _legacy_plan_material_digest(
+        plan_markdown=markdown,
+        specification=_repository_relative_path(specification_path, repository_root=repository_root),
+        specification_digest=specification_digest,
+    )
+    now = datetime.now(UTC)
+    return PlanState(
+        work_id=_legacy_plan_work_id(plan_path),
+        phase=PlanPhase.READY,
+        specification=_repository_relative_path(specification_path, repository_root=repository_root),
+        specification_digest=specification_digest,
+        plan_revision=1,
+        review_iteration=1,
+        review_readiness=ReviewReadiness.READY,
+        material_digest=material_digest,
+        created_at=now,
+        updated_at=now,
+    )
+
+
+def _legacy_plan_specification_path(markdown: str, *, repository_root: Path) -> Path:
+    matches = tuple(_SPECIFICATION_REFERENCE_PATTERN.finditer(markdown))
+    if not matches:
+        message = "legacy plan must reference an accepted specification under docs/specs"
+        raise ValueError(message)
+    specification_path = (repository_root / matches[0].group("path")).resolve(strict=True)
+    root = repository_root.resolve(strict=True)
+    if not specification_path.is_relative_to(root) or not specification_path.is_file():
+        message = "legacy plan specification reference must resolve inside the repository"
+        raise ValueError(message)
+    return specification_path
+
+
+def _legacy_plan_work_id(plan_path: Path) -> str:
+    stem = plan_path.stem.removesuffix("-plan")
+    words = _SAFE_STEM_WORD_PATTERN.findall(stem.lower())
+    if not words:
+        message = "legacy plan filename must contain a stable work id"
+        raise ValueError(message)
+    return "-".join(words)
+
+
+def _legacy_plan_material_digest(*, plan_markdown: str, specification: str, specification_digest: str) -> str:
+    normalized = plan_markdown.replace("\r\n", "\n").replace("\r", "\n")
+    payload = json.dumps(
+        {
+            "legacy_plan_markdown": normalized,
+            "plan_revision": 1,
+            "specification": specification,
+            "specification_digest": specification_digest,
+        },
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    return f"sha256:{hashlib.sha256(payload.encode('utf-8')).hexdigest()}"
+
+
+def _repository_relative_path(path: Path, *, repository_root: Path) -> str:
+    return path.resolve(strict=True).relative_to(repository_root.resolve(strict=True)).as_posix()
 
 
 def _interactive_stage_runtime(
