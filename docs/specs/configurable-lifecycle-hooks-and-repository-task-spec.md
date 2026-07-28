@@ -279,8 +279,28 @@ Validation must reject at least:
 - disallowed or unsupported type values, if the project defines an allowlist;
 - messages that cannot be passed safely to non-interactive Git commit execution.
 
-The exact type allowlist and multiline body/footer rules may be selected during
-implementation, but the selected rules must be documented and covered by tests.
+The default Conventional Commit type allowlist is:
+
+- `build`;
+- `chore`;
+- `docs`;
+- `feat`;
+- `fix`;
+- `refactor`;
+- `test`.
+
+The validator must accept an optional scope and optional breaking-change marker
+in the subject line, using the conventional shape `type(scope)!: description` or
+`type!: description`. The description must be non-empty. Scope values should be
+restricted to stable lowercase identifier characters such as letters, digits,
+dots, underscores, and hyphens.
+
+Multiline commit messages are allowed. When a body or footer is present, the
+subject must be separated from the body/footer by a blank line. Standard
+Conventional Commit footers, `BREAKING CHANGE:` notes, and orchestrator-owned
+trailers such as `Cline-SDLC-*` are allowed. The validator must reject unsafe
+control characters and message forms that cannot be passed safely to
+non-interactive Git commit execution. These rules must be documented in tests.
 
 ### Git behavior
 
@@ -341,15 +361,39 @@ values, and safety rationale.
 ### Standalone repository task entry point
 
 The CLI must expose a repository task entry point for the built-in recipe. The
-accepted idea brief leaves the exact shape unresolved. Candidate shapes include:
+canonical invocation form is:
 
 ```text
 cline-sdlc task conventional-commit-staged
-cline-sdlc --task conventional-commit-staged
 ```
 
-The implementation must choose and document one canonical invocation form. It may
-support aliases only if they do not make lifecycle-stage inputs ambiguous.
+This task command should be introduced as part of, or after, a broader migration
+from input-flag-driven lifecycle invocation to explicit subcommands. The intended
+command grammar is:
+
+```text
+cline-sdlc idea --prompt "rough idea text"
+cline-sdlc spec --idea-file docs/ideas/example-idea.md
+cline-sdlc plan --spec-file docs/specs/example-spec.md
+cline-sdlc implement --plan-file docs/plans/example-plan.md
+cline-sdlc task conventional-commit-staged
+```
+
+The command name should select the lifecycle stage or repository task. Input
+flags should provide command-specific inputs instead of implicitly selecting the
+stage by their presence. Shared options such as `--timeout`, `--cline-command`,
+`--json`, `--verbose`, and `--dry-run` may remain global or command-local, but
+the selected parser shape must be documented and unambiguous.
+
+Existing flag-driven lifecycle invocations, such as `cline-sdlc --idea ...` or
+`cline-sdlc --spec-file ...`, may remain temporarily as compatibility aliases if
+that makes migration safer. Compatibility aliases must not obscure the canonical
+subcommand shape and should be marked for later deprecation once the explicit
+command grammar is stable.
+
+The MVP must not add `cline-sdlc --task conventional-commit-staged` as a
+canonical form because it would extend the current ambiguous input-flag model
+rather than establishing a repository-task command family.
 
 Standalone task invocation must be mutually understandable with existing CLI
 stage invocations. It must reject invalid combinations such as asking for a major
@@ -375,20 +419,49 @@ context to enforce policy, including:
 The embedded recipe result must flow back into the plan-implementation run
 summary and terminal result evidence.
 
+If current plan-progress schemas are too narrow, embedded recipe evidence should
+be represented as a dedicated, versioned `recipe_evidence` collection rather than
+being overloaded into validation evidence. Each item should record at least:
+
+- recipe id;
+- invocation mode;
+- hook point;
+- status;
+- slice id or plan section id when embedded;
+- staged paths or authorized path summary;
+- skill used;
+- commit-message validation result;
+- accepted commit message when a commit is created;
+- commit hash when a commit is created;
+- blocker details when blocked;
+- recorded timestamp;
+- optional path to an ignored run summary artifact.
+
 ### Skill interaction
 
 The `conventional-commit-staged` recipe must invoke a bounded Cline session that
 uses the `conventional-commits` skill. The recipe-oriented skill session must
-return a structured outcome containing at least:
+return a versioned structured outcome containing at least:
 
+- schema version;
+- terminal status, such as proposed, blocked, or failed;
+- skill name;
 - proposed commit message;
 - rationale or summary suitable for human review;
 - whether the skill considered the message valid;
 - any blockers or uncertainty;
-- references to the staged diff scope used to generate the message.
+- staged-path or authorized-path scope used to generate the message;
+- staged-diff summary or digest reference sufficient to prove the proposal scope.
 
 The orchestrator must not rely on free-form prose alone to decide that the skill
 completed successfully.
+
+Standalone mode may support an explicitly user-provided commit message that skips
+proposal generation. That manual-message path must still inspect the staged
+scope, run deterministic Conventional Commit validation, show the exact proposed
+mutation, and capture explicit user acceptance before committing. Embedded mode
+must use the bounded `conventional-commits` skill session unless a later accepted
+specification permits a deterministic unattended alternative.
 
 ## Terminal result and evidence
 
@@ -543,30 +616,71 @@ Implementation should be verified with:
   recipe evidence in slice summaries;
 - the project quality gate configured for `ruff`, `mypy`, and `pytest`.
 
-## Open questions
+## Resolved implementation decisions
 
-These questions remain non-blocking for the accepted specification but must be
-resolved before or during implementation planning:
+The original open questions are resolved as follows:
 
-1. What exact standalone CLI shape should be canonical:
-   `cline-sdlc task conventional-commit-staged`,
-   `cline-sdlc --task conventional-commit-staged`, or another subcommand shape?
-2. Should standalone recipe mode operate only on already staged changes for the
-   MVP, or should a later version optionally stage a user-confirmed path list?
-3. What exact structured outcome schema should recipe-oriented Cline skill
-   sessions return?
-4. Should `conventional-commit-staged` always require a real Cline skill session,
-   or may it fall back to deterministic validation when a user provides a message
-   manually?
-5. Should repository configuration be deferred until after the built-in recipe
-   works, or should the MVP include a minimal enable/disable hook-placement file?
-6. Which Conventional Commit type values and multiline body/footer rules should
-   the validator enforce by default?
-7. How should embedded recipe evidence be represented in the existing
-   plan-implementation progress artifacts if current schemas are too narrow?
-8. What template should future accepted recipe specifications use so each one
-   consistently captures authority boundaries, primitive sequence, evidence, and
-   safety tests?
-9. What template should future accepted primitive-category specifications use so
-   each one consistently captures trust boundaries, configuration exposure,
-   failure semantics, and required tests?
+1. The canonical standalone task invocation is
+   `cline-sdlc task conventional-commit-staged`. It should be introduced as part
+   of, or after, a broader explicit CLI command grammar with lifecycle commands
+   such as `idea`, `spec`, `plan`, and `implement`.
+2. Standalone recipe mode operates only on already staged changes for the MVP.
+   Optional user-confirmed staging is out of scope and requires a later accepted
+   specification because it introduces path selection and an additional Git
+   mutation.
+3. Recipe-oriented Cline skill sessions return a versioned structured outcome
+   with status, skill name, proposed commit message, human-review rationale,
+   validation claim, blockers or uncertainty, and staged-scope evidence.
+4. Standalone mode may support an explicitly user-provided commit message that
+   skips proposal generation, but the orchestrator must still inspect staged
+   scope, validate the message deterministically, show the exact proposed
+   mutation, and capture explicit acceptance before committing. Embedded mode
+   must use the bounded `conventional-commits` skill session unless a later
+   accepted specification permits a deterministic unattended alternative.
+5. Repository configuration is deferred until after the built-in recipe and hook
+   model work. The MVP should rely on built-in registry behavior rather than a
+   repository-local enablement or hook-placement file.
+6. The default Conventional Commit type allowlist is `build`, `chore`, `docs`,
+   `feat`, `fix`, `refactor`, and `test`. Multiline messages, standard footers,
+   `BREAKING CHANGE:` notes, and `Cline-SDLC-*` trailers are allowed when the
+   message remains safe for non-interactive Git execution.
+7. Embedded recipe evidence should be represented as a dedicated, versioned
+   `recipe_evidence` collection in plan progress artifacts when current schemas
+   are too narrow, rather than being overloaded into validation evidence.
+8. Future recipe specifications should use the template in this document's
+   "Future accepted recipe specification template" section.
+9. Future primitive-category specifications should use the template in this
+   document's "Future accepted primitive-category specification template"
+   section.
+
+## Future accepted recipe specification template
+
+Each new recipe specification must capture:
+
+- objective and intended user value;
+- allowed invocation modes;
+- allowed lifecycle hook placements, if any;
+- static primitive sequence;
+- authority and approval boundaries;
+- input schema and validation rules;
+- output and completion-evidence schema;
+- state-changing operations and exact mutation scope;
+- configuration exposure, if any;
+- failure, blocking, timeout, retry, and cancellation semantics;
+- safety requirements and prohibited behavior;
+- required unit, integration, contract, and safety tests.
+
+## Future accepted primitive-category specification template
+
+Each new primitive-category specification must capture:
+
+- purpose and trust boundary;
+- read-only or state-changing classification;
+- allowed inputs, outputs, and schemas;
+- prohibited inputs, operations, and side effects;
+- authority and approval requirements;
+- configuration exposure, if any;
+- failure, retry, timeout, and cancellation semantics;
+- required evidence and terminal-result representation;
+- observability, redaction, and sensitive-data handling;
+- required unit, integration, contract, and safety tests.
