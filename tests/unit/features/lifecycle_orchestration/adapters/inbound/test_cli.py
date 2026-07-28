@@ -377,6 +377,55 @@ def test_spec_file_invocation_runs_wired_plan_creation_and_review(
     assert payload["plan_material_digest"] == "plan-digest"
 
 
+def test_plan_file_invocation_runs_wired_plan_implementation(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    calls = []
+    plan_file = tmp_path / "accepted-plan.md"
+    plan_file.write_text("accepted plan", encoding="utf-8")
+
+    def fake_run_plan_implementation(request: InvocationRequest, *, cwd: Path) -> TerminalResult:
+        calls.append((request, cwd))
+        return TerminalResult(
+            status=TerminalStatus.COMPLETED,
+            reason="plan_implementation_completed",
+            stage=request.stage,
+            input_path=plan_file.as_posix(),
+            output_paths=("docs/plans/accepted-plan.md",),
+            plan_material_digest="plan-digest",
+        )
+
+    monkeypatch.setattr(cli, "_run_plan_implementation", fake_run_plan_implementation)
+
+    result = run_cli_invocation(["--plan-file", "accepted-plan.md", "--json"], cwd=tmp_path)
+
+    assert result.exit_code == ExitCategory.COMPLETED
+    assert len(calls) == 1
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "completed"
+    assert payload["reason"] == "plan_implementation_completed"
+    assert payload["stage"] == "plan_implementation"
+    assert payload["input_path"] == plan_file.as_posix()
+    assert payload["output_paths"] == ["docs/plans/accepted-plan.md"]
+    assert payload["plan_material_digest"] == "plan-digest"
+
+
+def test_plan_file_invocation_reports_plan_state_blocker_instead_of_unwired_stage(tmp_path: Path) -> None:
+    plan_file = tmp_path / "accepted-plan.md"
+    plan_file.write_text("accepted plan without state", encoding="utf-8")
+
+    result = run_cli_invocation(["--plan-file", "accepted-plan.md", "--json"], cwd=tmp_path)
+
+    assert result.exit_code == ExitCategory.BLOCKED
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "blocked"
+    assert payload["reason"] == "plan_implementation_blocked"
+    assert payload["stage"] == "plan_implementation"
+    assert payload["input_path"] == plan_file.as_posix()
+    assert payload["blocker"]["code"] == "plan_state_unavailable"
+
+
 def test_plan_creation_and_review_uses_attached_tty_runner(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     captured_runners = []
     captured_artifact_requests = []

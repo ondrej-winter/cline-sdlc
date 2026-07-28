@@ -18,6 +18,7 @@ from cline_sdlc.features.artifact_lifecycle.adapters.inbound.filesystem_authored
 from cline_sdlc.features.artifact_lifecycle.adapters.inbound.filesystem_plan_review import (
     FilesystemPlanReviewProgressWriter,
 )
+from cline_sdlc.features.artifact_lifecycle.adapters.inbound.state_yaml import parse_plan_state_from_markdown
 from cline_sdlc.features.artifact_lifecycle.application.dtos.artifact_location import (
     ArtifactKind,
     ArtifactLocationBlocker,
@@ -97,6 +98,9 @@ SPEC_FAILED_REASON = "specification_creation_failed"
 PLAN_COMPLETED_REASON = "plan_ready"
 PLAN_BLOCKED_REASON = "plan_creation_and_review_blocked"
 PLAN_FAILED_REASON = "plan_creation_and_review_failed"
+IMPLEMENTATION_COMPLETED_REASON = "plan_implementation_completed"
+IMPLEMENTATION_BLOCKED_REASON = "plan_implementation_blocked"
+IMPLEMENTATION_FAILED_REASON = "plan_implementation_failed"
 _SAFE_STEM_WORD_PATTERN = re.compile(r"[a-z0-9]+")
 
 
@@ -186,6 +190,8 @@ def _run_selected_stage(request: InvocationRequest, *, cwd: Path) -> TerminalRes
         return _run_specification_creation(request, cwd=cwd)
     if request.stage is LifecycleStage.PLAN_CREATION_AND_REVIEW:
         return _run_plan_creation_and_review(request, cwd=cwd)
+    if request.stage is LifecycleStage.PLAN_IMPLEMENTATION:
+        return _run_plan_implementation(request, cwd=cwd)
     return _unsupported_stage_result(request)
 
 
@@ -337,6 +343,41 @@ def _run_plan_creation_and_review(request: InvocationRequest, *, cwd: Path) -> T
         request,
         review,
         specification_digest=authoring.specification_digest,
+    )
+
+
+def _run_plan_implementation(request: InvocationRequest, *, cwd: Path) -> TerminalResult:
+    """Run or safely block the supervised implementation-plan stage."""
+    _ = cwd
+    plan_path = Path(request.source.value)
+    try:
+        plan_content = plan_path.read_text(encoding="utf-8")
+        plan_state = parse_plan_state_from_markdown(plan_content)
+    except (OSError, UnicodeError, ValueError) as err:
+        return TerminalResult(
+            status=TerminalStatus.BLOCKED,
+            reason=IMPLEMENTATION_BLOCKED_REASON,
+            stage=request.stage,
+            input_path=_input_path(request),
+            blocker=TerminalBlocker(
+                code="plan_state_unavailable",
+                summary="plan implementation requires a valid cline-sdlc-state block before execution can start",
+                evidence=str(err),
+            ),
+        )
+
+    return TerminalResult(
+        status=TerminalStatus.BLOCKED,
+        reason=IMPLEMENTATION_BLOCKED_REASON,
+        stage=request.stage,
+        input_path=_input_path(request),
+        plan_material_digest=plan_state.material_digest,
+        specification_digest=plan_state.specification_digest,
+        blocker=TerminalBlocker(
+            code="plan_task_definitions_unavailable",
+            summary="plan implementation is wired but this plan does not expose structured task and slice metadata",
+            evidence=plan_state.work_id,
+        ),
     )
 
 
