@@ -37,6 +37,10 @@ from cline_sdlc.features.cline_execution.adapters.outbound.cli_capability_probe 
 from cline_sdlc.features.cline_execution.adapters.outbound.interactive_process import AttachedTtyClineSessionRunner
 from cline_sdlc.features.cline_execution.application.dtos.preflight import ClinePreflightRequest
 from cline_sdlc.features.cline_execution.application.use_cases.preflight import PreflightClineCapabilities
+from cline_sdlc.features.lifecycle_orchestration.adapters.inbound.plan_tasks import (
+    PlanTaskParseError,
+    parse_plan_task_definitions,
+)
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.idea_stage import (
     IdeaRefinementRequest,
     IdeaRefinementResult,
@@ -58,6 +62,12 @@ from cline_sdlc.features.lifecycle_orchestration.application.dtos.plan_review im
     PlanReviewStatus,
 )
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.preflight import StagePreflightRequest
+from cline_sdlc.features.lifecycle_orchestration.application.dtos.slice_selection import (
+    PartialSliceProgress,
+    SliceCompletionEvidence,
+    SliceSelectionRequest,
+    SliceSelectionStatus,
+)
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.specification_stage import (
     SpecificationCreationRequest,
     SpecificationCreationResult,
@@ -76,6 +86,7 @@ from cline_sdlc.features.lifecycle_orchestration.application.use_cases.refine_id
 from cline_sdlc.features.lifecycle_orchestration.application.use_cases.review_plan import ReviewPlan
 from cline_sdlc.features.lifecycle_orchestration.application.use_cases.revise_plan import RevisePlan
 from cline_sdlc.features.lifecycle_orchestration.application.use_cases.run_session_attempts import RunSessionAttempts
+from cline_sdlc.features.lifecycle_orchestration.application.use_cases.select_slice import SelectSlice
 from cline_sdlc.features.lifecycle_orchestration.application.use_cases.select_stage import SelectLifecycleStage
 from cline_sdlc.features.lifecycle_orchestration.domain.stage import LifecycleStage
 from cline_sdlc.features.lifecycle_orchestration.domain.terminal_result import (
@@ -376,6 +387,67 @@ def _run_plan_implementation(request: InvocationRequest, *, cwd: Path) -> Termin
             ),
         )
 
+    try:
+        tasks = parse_plan_task_definitions(plan_content)
+    except PlanTaskParseError as err:
+        return TerminalResult(
+            status=TerminalStatus.BLOCKED,
+            reason=IMPLEMENTATION_BLOCKED_REASON,
+            stage=request.stage,
+            input_path=_input_path(request),
+            plan_material_digest=plan_state.material_digest,
+            specification_digest=plan_state.specification_digest,
+            blocker=TerminalBlocker(
+                code="plan_task_definitions_unavailable",
+                summary="plan implementation requires structured task and slice metadata before execution can start",
+                evidence=str(err),
+            ),
+        )
+
+    selection = SelectSlice().execute(
+        SliceSelectionRequest(
+            tasks=tasks,
+            completed_slice_ids=plan_state.completed_slices,
+            completion_evidence=tuple(
+                SliceCompletionEvidence(slice_id=slice_id, completed=True) for slice_id in plan_state.completed_slices
+            ),
+            partial_slice=PartialSliceProgress(
+                task_id=plan_state.current_task,
+                slice_id=plan_state.current_slice,
+                paths=plan_state.partial_slice_paths,
+            )
+            if plan_state.current_task is not None and plan_state.current_slice is not None
+            else None,
+        )
+    )
+    if selection.status is SliceSelectionStatus.BLOCKED:
+        blocker = selection.blocker
+        return TerminalResult(
+            status=TerminalStatus.BLOCKED,
+            reason=IMPLEMENTATION_BLOCKED_REASON,
+            stage=request.stage,
+            input_path=_input_path(request),
+            plan_material_digest=plan_state.material_digest,
+            specification_digest=plan_state.specification_digest,
+            blocker=TerminalBlocker(
+                code=blocker.code if blocker is not None else "slice_selection_blocked",
+                summary=blocker.summary if blocker is not None else "plan task metadata did not select work safely",
+                evidence=blocker.evidence if blocker is not None else None,
+            ),
+        )
+    if selection.status is SliceSelectionStatus.COMPLETE:
+        return TerminalResult(
+            status=TerminalStatus.COMPLETED,
+            reason=IMPLEMENTATION_COMPLETED_REASON,
+            stage=request.stage,
+            input_path=_input_path(request),
+            output_paths=(plan_path.as_posix(),),
+            plan_material_digest=plan_state.material_digest,
+            specification_digest=plan_state.specification_digest,
+        )
+
+    selected = selection.selection
+    evidence = f"{selected.task_id}:{selected.slice_id}" if selected is not None else plan_state.work_id
     return TerminalResult(
         status=TerminalStatus.BLOCKED,
         reason=IMPLEMENTATION_BLOCKED_REASON,
@@ -384,9 +456,9 @@ def _run_plan_implementation(request: InvocationRequest, *, cwd: Path) -> Termin
         plan_material_digest=plan_state.material_digest,
         specification_digest=plan_state.specification_digest,
         blocker=TerminalBlocker(
-            code="plan_task_definitions_unavailable",
-            summary="plan implementation is wired but this plan does not expose structured task and slice metadata",
-            evidence=plan_state.work_id,
+            code="plan_implementation_runtime_unavailable",
+            summary="plan task metadata is available but implementation runtime composition is not yet wired",
+            evidence=evidence,
         ),
     )
 
