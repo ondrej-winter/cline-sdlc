@@ -130,6 +130,9 @@ def test_blocks_retry_when_repository_state_changes_after_protocol_failure() -> 
     assert result.status is SessionAttemptStatus.BLOCKED
     assert result.blocker is not None
     assert result.blocker.code == "session_retry_not_safe"
+    assert result.blocker.evidence == (
+        "attempt=1 process_status=exited exit_code=0 terminal_outcomes=0 malformed_output_lines=1 retry_reason=none"
+    )
     assert len(runner.requests) == 1
 
 

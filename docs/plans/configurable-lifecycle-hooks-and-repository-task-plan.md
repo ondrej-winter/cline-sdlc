@@ -59,16 +59,16 @@ Do not mark the implementation complete until all checkpoints, validation comman
 
 **Acceptance criteria:**
 
-- [ ] `conventional-commit-staged` is defined as a built-in orchestrator-owned recipe.
-- [ ] The only deferred embedded hook allowed for the recipe is `before_slice_commit`; no embedded hook execution is wired in the standalone-first MVP.
-- [ ] The only MVP primitive categories are skill proposal, Git inspection, validation, approval, Git mutation, and evidence.
-- [ ] The recipe definition is static and linear; no branching, loops, dynamic step selection, repository-defined commands, imports, prompts, or workflow topology are represented.
-- [ ] Unknown recipe ids, hook names, primitive categories, and invocation modes fail closed.
+- [x] `conventional-commit-staged` is defined as a built-in orchestrator-owned recipe.
+- [x] The only deferred embedded hook allowed for the recipe is `before_slice_commit`; no embedded hook execution is wired in the standalone-first MVP.
+- [x] The only MVP primitive categories are skill proposal, Git inspection, validation, approval, Git mutation, and evidence.
+- [x] The recipe definition is static and linear; no branching, loops, dynamic step selection, repository-defined commands, imports, prompts, or workflow topology are represented.
+- [x] Unknown recipe ids, hook names, primitive categories, and invocation modes fail closed.
 
 **Verification:**
 
-- [ ] Run focused unit tests for `repository_tasks/domain`.
-- [ ] Confirm no new dependencies or configuration files are introduced.
+- [x] Run focused unit tests for `repository_tasks/domain`.
+- [x] Confirm no new dependencies or configuration files are introduced.
 
 ## Task 2: Add deterministic Conventional Commit validation
 
