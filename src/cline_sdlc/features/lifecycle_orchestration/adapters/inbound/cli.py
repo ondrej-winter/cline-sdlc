@@ -37,6 +37,10 @@ from cline_sdlc.features.cline_execution.adapters.outbound.cli_capability_probe 
 from cline_sdlc.features.cline_execution.adapters.outbound.interactive_process import AttachedTtyClineSessionRunner
 from cline_sdlc.features.cline_execution.application.dtos.preflight import ClinePreflightRequest
 from cline_sdlc.features.cline_execution.application.use_cases.preflight import PreflightClineCapabilities
+from cline_sdlc.features.lifecycle_orchestration.adapters.inbound.plan_implementation_runtime import (
+    PlanImplementationRuntimeRequest,
+    run_plan_implementation_runtime,
+)
 from cline_sdlc.features.lifecycle_orchestration.adapters.inbound.plan_tasks import (
     PlanTaskParseError,
     parse_plan_task_definitions,
@@ -55,6 +59,10 @@ from cline_sdlc.features.lifecycle_orchestration.application.dtos.plan_authoring
     PlanAuthoringRequest,
     PlanAuthoringResult,
     PlanAuthoringStatus,
+)
+from cline_sdlc.features.lifecycle_orchestration.application.dtos.plan_implementation import (
+    PlanImplementationResult,
+    PlanImplementationStatus,
 )
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.plan_review import (
     PlanReviewRequest,
@@ -447,20 +455,32 @@ def _run_plan_implementation(request: InvocationRequest, *, cwd: Path) -> Termin
         )
 
     selected = selection.selection
-    evidence = f"{selected.task_id}:{selected.slice_id}" if selected is not None else plan_state.work_id
-    return TerminalResult(
-        status=TerminalStatus.BLOCKED,
-        reason=IMPLEMENTATION_BLOCKED_REASON,
-        stage=request.stage,
-        input_path=_input_path(request),
-        plan_material_digest=plan_state.material_digest,
-        specification_digest=plan_state.specification_digest,
-        blocker=TerminalBlocker(
-            code="plan_implementation_runtime_unavailable",
-            summary="plan task metadata is available but implementation runtime composition is not yet wired",
-            evidence=evidence,
-        ),
+    if selected is None:
+        return TerminalResult(
+            status=TerminalStatus.BLOCKED,
+            reason=IMPLEMENTATION_BLOCKED_REASON,
+            stage=request.stage,
+            input_path=_input_path(request),
+            plan_material_digest=plan_state.material_digest,
+            specification_digest=plan_state.specification_digest,
+            blocker=TerminalBlocker(
+                code="slice_selection_missing",
+                summary="selected implementation slice was not returned by slice selection",
+                evidence=plan_state.work_id,
+            ),
+        )
+
+    result = run_plan_implementation_runtime(
+        PlanImplementationRuntimeRequest(
+            invocation=request,
+            repository_root=cwd,
+            plan_path=plan_path,
+            plan_content=plan_content,
+            plan_state=plan_state,
+            tasks=tasks,
+        )
     )
+    return _terminal_result_from_plan_implementation_result(request, result, plan_path=plan_path)
 
 
 def _plan_state_from_markdown_or_legacy_plan(markdown: str, *, plan_path: Path, repository_root: Path) -> PlanState:
@@ -700,6 +720,45 @@ def _terminal_result_from_plan_review_result(
         blocker=TerminalBlocker(
             code=blocker.code if blocker is not None else "plan_review_failed",
             summary=blocker.summary if blocker is not None else "plan review did not mark the plan ready",
+            evidence=blocker.evidence if blocker is not None else None,
+        ),
+    )
+
+
+def _terminal_result_from_plan_implementation_result(
+    request: InvocationRequest,
+    result: PlanImplementationResult,
+    *,
+    plan_path: Path,
+) -> TerminalResult:
+    if result.status is PlanImplementationStatus.COMPLETED:
+        return TerminalResult(
+            status=TerminalStatus.COMPLETED,
+            reason=IMPLEMENTATION_COMPLETED_REASON,
+            stage=request.stage,
+            input_path=_input_path(request),
+            output_paths=(plan_path.as_posix(),),
+            specification_digest=result.approval.specification_digest,
+            plan_material_digest=result.approval.material_digest,
+        )
+    blocker = result.blocker
+    terminal_status = {
+        PlanImplementationStatus.BLOCKED: TerminalStatus.BLOCKED,
+        PlanImplementationStatus.FAILED: TerminalStatus.FAILED,
+        PlanImplementationStatus.INTERRUPTED: TerminalStatus.INTERRUPTED,
+        PlanImplementationStatus.RECOVERY_REQUIRED: TerminalStatus.BLOCKED,
+    }.get(result.status, TerminalStatus.FAILED)
+    reason = IMPLEMENTATION_FAILED_REASON if terminal_status is TerminalStatus.FAILED else IMPLEMENTATION_BLOCKED_REASON
+    return TerminalResult(
+        status=terminal_status,
+        reason=reason,
+        stage=request.stage,
+        input_path=_input_path(request),
+        specification_digest=result.approval.specification_digest,
+        plan_material_digest=result.approval.material_digest,
+        blocker=TerminalBlocker(
+            code=blocker.code if blocker is not None else "plan_implementation_incomplete",
+            summary=blocker.summary if blocker is not None else "plan implementation did not complete",
             evidence=blocker.evidence if blocker is not None else None,
         ),
     )

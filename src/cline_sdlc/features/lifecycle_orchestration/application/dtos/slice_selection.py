@@ -23,11 +23,17 @@ class PlanSliceDefinition:
 
     slice_id: str
     dependencies: tuple[str, ...] = ()
+    expected_paths: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         _require_stable_identifier(self.slice_id, field_name="slice_id")
         for dependency in self.dependencies:
             _require_stable_identifier(dependency, field_name="slice dependency")
+        if len(set(self.expected_paths)) != len(self.expected_paths):
+            message = "slice expected paths must be unique"
+            raise ValueError(message)
+        for path in self.expected_paths:
+            _require_repository_path(path, field_name="slice expected path")
 
 
 @dataclass(frozen=True)
@@ -118,4 +124,13 @@ class SliceSelectionResult:
 def _require_stable_identifier(value: str, *, field_name: str) -> None:
     if _STABLE_IDENTIFIER_PATTERN.fullmatch(value) is None:
         message = f"{field_name} must be a non-empty stable identifier"
+        raise ValueError(message)
+
+
+def _require_repository_path(value: str, *, field_name: str) -> None:
+    if not value.strip() or value.startswith(("/", "../")) or "\\" in value:
+        message = f"{field_name} must be a normalized repository-relative POSIX path"
+        raise ValueError(message)
+    if any(part in {"", ".", ".."} for part in value.split("/")):
+        message = f"{field_name} must not contain traversal or empty segments"
         raise ValueError(message)

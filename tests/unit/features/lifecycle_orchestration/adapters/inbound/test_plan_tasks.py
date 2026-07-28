@@ -21,6 +21,12 @@ def test_extracts_repository_plan_task_list() -> None:
     assert tasks[0].task_id == "task-1"
     assert tasks[-1].task_id == "task-13"
     assert tasks[-1].slices[0].dependencies == ("task-12",)
+    assert tasks[0].slices[0].expected_paths == (
+        "src/cline_sdlc/features/repository_tasks/domain/recipe.py",
+        "src/cline_sdlc/features/repository_tasks/domain/policy.py",
+        "src/cline_sdlc/features/repository_tasks/application/dtos/recipe.py",
+        "tests/unit/features/repository_tasks/domain/test_recipe.py",
+    )
 
 
 def test_extracts_linear_task_slice_definitions_from_markdown_headings() -> None:
@@ -56,3 +62,33 @@ def test_rejects_plan_without_supported_task_headings() -> None:
 def test_rejects_duplicate_task_numbers() -> None:
     with pytest.raises(PlanTaskParseError, match="unique: 1"):
         parse_plan_task_definitions("## Task 1: First\n\n## Task 1: Duplicate\n")
+
+
+def test_extracts_task_local_expected_paths_from_likely_files_section() -> None:
+    tasks = parse_plan_task_definitions(
+        """# Implementation Plan
+
+## Task 1: First
+
+**Likely files/components touched:**
+
+- `src/example.py`
+- `tests/unit/test_example.py`
+- `src/example.py`
+- `/absolute.py`
+- `../escape.py`
+
+**Acceptance criteria:**
+
+- [ ] Done.
+
+## Task 2: Second
+
+**Likely files/components touched:**
+
+- `docs/example.md`
+"""
+    )
+
+    assert tasks[0].slices[0].expected_paths == ("src/example.py", "tests/unit/test_example.py")
+    assert tasks[1].slices[0].expected_paths == ("docs/example.md",)

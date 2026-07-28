@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -27,6 +28,10 @@ from cline_sdlc.features.lifecycle_orchestration.application.dtos.plan_authoring
     PlanAuthoringResult,
     PlanAuthoringStatus,
 )
+from cline_sdlc.features.lifecycle_orchestration.application.dtos.plan_implementation import (
+    PlanImplementationResult,
+    PlanImplementationStatus,
+)
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.plan_review import (
     PlanReviewRequest,
     PlanReviewResult,
@@ -40,8 +45,12 @@ from cline_sdlc.features.lifecycle_orchestration.application.dtos.specification_
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.terminal_result import TerminalBlocker, TerminalResult
 from cline_sdlc.features.lifecycle_orchestration.domain.stage import LifecycleStage, StageInputKind
 from cline_sdlc.features.lifecycle_orchestration.domain.terminal_result import ExitCategory, TerminalStatus
+from cline_sdlc.features.repository_coordination.application.dtos.reconciliation import InvocationApproval
 
 if TYPE_CHECKING:
+    from cline_sdlc.features.lifecycle_orchestration.adapters.inbound.plan_implementation_runtime import (
+        PlanImplementationRuntimeRequest,
+    )
     from cline_sdlc.features.lifecycle_orchestration.application.dtos.invocation import InvocationRequest
 
 CUSTOM_TIMEOUT_SECONDS = 42.0
@@ -471,12 +480,86 @@ def test_plan_file_invocation_extracts_legacy_task_metadata_before_runtime_block
         encoding="utf-8",
     )
 
-    result = run_cli_invocation(["--plan-file", "docs/plans/accepted-plan.md", "--json"], cwd=tmp_path)
+    def fake_run_plan_implementation_runtime(request: PlanImplementationRuntimeRequest) -> PlanImplementationResult:
+        runtime_request = request
+        approval = cli._plan_state_from_markdown_or_legacy_plan(  # noqa: SLF001
+            plan_file.read_text(encoding="utf-8"),
+            plan_path=plan_file,
+            repository_root=tmp_path,
+        )
+        assert runtime_request.tasks[0].task_id == "task-1"
+        return PlanImplementationResult(
+            status=PlanImplementationStatus.BLOCKED,
+            approval=InvocationApproval(
+                run_id="run-test",
+                profile="balanced",
+                starting_head="a" * 40,
+                approved_at=datetime.now(UTC),
+                specification_digest=approval.specification_digest,
+                material_digest=approval.material_digest,
+                remediation_envelope_applicable=True,
+            ),
+        )
+
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(cli, "run_plan_implementation_runtime", fake_run_plan_implementation_runtime)
+    try:
+        result = run_cli_invocation(["--plan-file", "docs/plans/accepted-plan.md", "--json"], cwd=tmp_path)
+    finally:
+        monkeypatch.undo()
 
     assert result.exit_code == ExitCategory.BLOCKED
     payload = json.loads(result.stdout)
-    assert payload["blocker"]["code"] == "plan_implementation_runtime_unavailable"
-    assert payload["blocker"]["evidence"] == "task-1:task-1"
+    assert payload["blocker"]["code"] == "plan_implementation_incomplete"
+
+
+def test_plan_file_invocation_runs_plan_implementation_runtime(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    docs = tmp_path / "docs"
+    specs = docs / "specs"
+    plans = docs / "plans"
+    specs.mkdir(parents=True)
+    plans.mkdir(parents=True)
+    spec_file = specs / "accepted-spec.md"
+    spec_file.write_text("# Accepted Spec\n\nRequirements.\n", encoding="utf-8")
+    plan_file = plans / "accepted-plan.md"
+    plan_file.write_text(
+        "# Implementation Plan\n\n"
+        "Based on `docs/specs/accepted-spec.md`.\n\n"
+        "## Task 1: First slice\n\n"
+        "**Likely files/components touched:**\n\n"
+        "- `src/example.py`\n",
+        encoding="utf-8",
+    )
+    calls = []
+
+    def fake_run_plan_implementation_runtime(request: PlanImplementationRuntimeRequest) -> PlanImplementationResult:
+        calls.append(request)
+        return PlanImplementationResult(
+            status=PlanImplementationStatus.COMPLETED,
+            approval=InvocationApproval(
+                run_id="run-test",
+                profile="balanced",
+                starting_head="a" * 40,
+                approved_at=datetime.now(UTC),
+                specification_digest=request.plan_state.specification_digest,
+                material_digest=request.plan_state.material_digest,
+                remediation_envelope_applicable=True,
+            ),
+        )
+
+    monkeypatch.setattr(cli, "run_plan_implementation_runtime", fake_run_plan_implementation_runtime)
+
+    result = run_cli_invocation(["--plan-file", "docs/plans/accepted-plan.md", "--json"], cwd=tmp_path)
+
+    assert result.exit_code == ExitCategory.COMPLETED
+    assert len(calls) == 1
+    assert calls[0].tasks[0].slices[0].expected_paths == ("src/example.py",)
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "completed"
+    assert payload["reason"] == "plan_implementation_completed"
 
 
 def test_plan_creation_and_review_uses_attached_tty_runner(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
