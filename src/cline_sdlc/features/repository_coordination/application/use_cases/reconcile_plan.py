@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from cline_sdlc.features.lifecycle_orchestration.application.dtos.slice_selection import SliceSelectionStatus
+from cline_sdlc.features.lifecycle_orchestration.application.dtos.slice_selection import (
+    SelectedSlice,
+    SliceSelectionRequest,
+    SliceSelectionStatus,
+)
 from cline_sdlc.features.lifecycle_orchestration.application.use_cases.select_slice import SelectSlice
 from cline_sdlc.features.repository_coordination.application.dtos.reconciliation import (
     InvocationApproval,
@@ -23,6 +28,13 @@ if TYPE_CHECKING:
         PlanArtifactInspectorPort,
         PlanHistoryReaderPort,
     )
+
+
+@dataclass(frozen=True)
+class _RecoveredPartialSlice:
+    """Dirty path ownership inferred from deterministic plan slice metadata."""
+
+    selection: SelectedSlice
 
 
 class ReconcilePlan:
@@ -82,9 +94,22 @@ class ReconcilePlan:
         if isinstance(owners_result, PlanReconciliationResult):
             return owners_result
 
-        partial_blocker = _partial_state_blocker(current, history.head_commit, history.dirty_paths)
-        if partial_blocker is not None:
-            return partial_blocker
+        partial_result = _partial_state_blocker(
+            current,
+            history.head_commit,
+            history.dirty_paths,
+            plan_path=request.plan_path,
+            selection_request=request.selection_request,
+        )
+        if isinstance(partial_result, PlanReconciliationResult):
+            return partial_result
+        if isinstance(partial_result, _RecoveredPartialSlice):
+            return PlanReconciliationResult(
+                status=PlanReconciliationStatus.AUTHORIZED,
+                approval=approval,
+                selection=partial_result.selection,
+                owning_commits=tuple((slice_id, commit) for slice_id, commit in owners_result.items()),
+            )
 
         selection = SelectSlice().execute(request.selection_request)
         if selection.status is SliceSelectionStatus.BLOCKED:
@@ -152,9 +177,15 @@ def _partial_state_blocker(
     current: PlanArtifactEvidence,
     head_commit: str,
     dirty_paths: tuple[str, ...],
-) -> PlanReconciliationResult | None:
+    *,
+    plan_path: str,
+    selection_request: SliceSelectionRequest,
+) -> PlanReconciliationResult | _RecoveredPartialSlice | None:
     has_partial = current.current_slice is not None
     if not has_partial and dirty_paths:
+        recovered = _recover_partial_from_next_slice(dirty_paths, plan_path=plan_path, request=selection_request)
+        if recovered is not None:
+            return recovered
         return _blocked(
             "unexpected_dirty_paths",
             "dirty paths require a recorded partial slice",
@@ -170,6 +201,40 @@ def _partial_state_blocker(
         return _blocked(
             "partial_slice_paths_mismatch",
             "observed dirty paths must be a non-empty subset of recorded partial slice paths",
+        )
+    return None
+
+
+def _recover_partial_from_next_slice(
+    dirty_paths: tuple[str, ...],
+    *,
+    plan_path: str,
+    request: SliceSelectionRequest,
+) -> _RecoveredPartialSlice | None:
+    selection = SelectSlice().execute(request)
+    if selection.status is not SliceSelectionStatus.SELECTED or selection.selection is None:
+        return None
+    selected = selection.selection
+    selected_definition = next(
+        (
+            definition
+            for task in request.tasks
+            if task.task_id == selected.task_id
+            for definition in task.slices
+            if definition.slice_id == selected.slice_id
+        ),
+        None,
+    )
+    if selected_definition is None:
+        return None
+    owned_paths = {plan_path, *selected_definition.expected_paths}
+    if set(dirty_paths).issubset(owned_paths):
+        return _RecoveredPartialSlice(
+            selection=SelectedSlice(
+                task_id=selected.task_id,
+                slice_id=selected.slice_id,
+                resuming_partial=True,
+            )
         )
     return None
 

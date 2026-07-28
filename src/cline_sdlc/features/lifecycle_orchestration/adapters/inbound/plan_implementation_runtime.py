@@ -249,7 +249,8 @@ class _FilesystemPlanProgress:
     def _expected_paths(self, selection: SelectedSlice) -> tuple[str, ...]:
         if selection.resuming_partial:
             state = self._read_plan_state()
-            return tuple(dict.fromkeys((self.plan_path, *state.partial_slice_paths)))
+            if state.partial_slice_paths:
+                return tuple(dict.fromkeys((self.plan_path, *state.partial_slice_paths)))
         selected_definition = _slice_definition(self.tasks, selection)
         if selected_definition.expected_paths:
             return tuple(dict.fromkeys((self.plan_path, *selected_definition.expected_paths)))

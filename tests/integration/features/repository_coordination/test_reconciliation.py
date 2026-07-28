@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
@@ -105,7 +105,9 @@ def test_blocks_material_or_specification_drift_before_recording_approval(tmp_pa
     material_result = _reconciler().execute(
         _request(repository, specification, plan.replace(b"## Scope", b"## Changed Scope"))
     )
-    specification_result = _reconciler().execute(_request(repository, b"changed specification", plan, run_id="run-2"))
+    specification_result = _reconciler().execute(
+        replace(_request(repository, b"changed specification", plan), run_id="run-2")
+    )
 
     assert _blocker_code(material_result) == "artifact_reconciliation_failed"
     assert _blocker_code(specification_result) == "artifact_reconciliation_failed"
@@ -133,6 +135,34 @@ def test_blocks_unrecorded_dirty_paths(tmp_path: Path) -> None:
     _write(repository, "unexpected.txt", b"dirty\n")
 
     result = _reconciler().execute(_request(repository, specification, plan))
+
+    assert _blocker_code(result) == "unexpected_dirty_paths"
+
+
+def test_authorizes_unrecorded_dirty_paths_owned_by_next_plan_slice(tmp_path: Path) -> None:
+    repository, specification = _repository_with_completed_slice(tmp_path)
+    plan = (repository / PLAN_PATH).read_bytes()
+    _write(repository, "src/slice_2.py", b"dirty\n")
+
+    result = _reconciler().execute(
+        _request(repository, specification, plan, next_slice_expected_paths=("src/slice_2.py",))
+    )
+
+    assert result.status is PlanReconciliationStatus.AUTHORIZED
+    assert result.selection is not None
+    assert result.selection.task_id == "task-2"
+    assert result.selection.slice_id == "slice-2"
+    assert result.selection.resuming_partial is True
+
+
+def test_blocks_unrecorded_dirty_paths_outside_next_plan_slice_scope(tmp_path: Path) -> None:
+    repository, specification = _repository_with_completed_slice(tmp_path)
+    plan = (repository / PLAN_PATH).read_bytes()
+    _write(repository, "src/slice_3.py", b"dirty\n")
+
+    result = _reconciler().execute(
+        _request(repository, specification, plan, next_slice_expected_paths=("src/slice_2.py",))
+    )
 
     assert _blocker_code(result) == "unexpected_dirty_paths"
 
@@ -187,13 +217,13 @@ def _request(
     specification: bytes,
     plan: bytes,
     *,
-    run_id: str = "run-1",
     partial_slice: PartialSliceProgress | None = None,
+    next_slice_expected_paths: tuple[str, ...] = (),
 ) -> PlanReconciliationRequest:
     completed = () if partial_slice is not None else ("slice-1",)
     return PlanReconciliationRequest(
         repository_root=repository,
-        run_id=run_id,
+        run_id="run-1",
         approved_at=APPROVED_AT,
         plan_path=PLAN_PATH,
         plan_content=plan,
@@ -204,7 +234,13 @@ def _request(
                 PlanTaskDefinition(task_id="task-1", slices=(PlanSliceDefinition(slice_id="slice-1"),)),
                 PlanTaskDefinition(
                     task_id="task-2",
-                    slices=(PlanSliceDefinition(slice_id="slice-2", dependencies=("slice-1",)),),
+                    slices=(
+                        PlanSliceDefinition(
+                            slice_id="slice-2",
+                            dependencies=("slice-1",),
+                            expected_paths=next_slice_expected_paths,
+                        ),
+                    ),
                 ),
             ),
             completed_slice_ids=completed,
