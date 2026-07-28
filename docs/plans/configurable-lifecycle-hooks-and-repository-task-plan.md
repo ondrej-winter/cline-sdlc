@@ -82,25 +82,25 @@ Do not mark the implementation complete until all checkpoints, validation comman
 
 **Acceptance criteria:**
 
-- [ ] Empty messages are rejected.
-- [ ] Messages without a Conventional Commit type are rejected.
-- [ ] Malformed type/scope/description syntax is rejected.
-- [ ] Types outside `build`, `chore`, `docs`, `feat`, `fix`, `refactor`, and `test` are rejected.
-- [ ] `type: description`, `type(scope): description`, `type!: description`, and `type(scope)!: description` are accepted when valid.
-- [ ] Scope values are limited to stable lowercase identifier characters such as letters, digits, dots, underscores, and hyphens.
-- [ ] Multiline messages require a blank line after the subject before body/footer content.
-- [ ] Standard footers, `BREAKING CHANGE:`, and `Cline-SDLC-*` trailers are accepted when otherwise safe.
-- [ ] Unsafe control characters and message forms that cannot be passed safely to non-interactive Git commit execution are rejected.
+- [x] Empty messages are rejected.
+- [x] Messages without a Conventional Commit type are rejected.
+- [x] Malformed type/scope/description syntax is rejected.
+- [x] Types outside `build`, `chore`, `docs`, `feat`, `fix`, `refactor`, and `test` are rejected.
+- [x] `type: description`, `type(scope): description`, `type!: description`, and `type(scope)!: description` are accepted when valid.
+- [x] Scope values are limited to stable lowercase identifier characters such as letters, digits, dots, underscores, and hyphens.
+- [x] Multiline messages require a blank line after the subject before body/footer content.
+- [x] Standard footers, `BREAKING CHANGE:`, and `Cline-SDLC-*` trailers are accepted when otherwise safe.
+- [x] Unsafe control characters and message forms that cannot be passed safely to non-interactive Git commit execution are rejected.
 
 **Verification:**
 
-- [ ] Run focused unit tests for Conventional Commit validation.
-- [ ] Include edge-case tests documenting all accepted and rejected forms from the specification.
+- [x] Run focused unit tests for Conventional Commit validation.
+- [x] Include edge-case tests documenting all accepted and rejected forms from the specification.
 
 ### Checkpoint: Foundation
 
-- [ ] Built-in recipe metadata is represented without repository-defined execution control.
-- [ ] Conventional Commit validation is deterministic and independently tested.
+- [x] Built-in recipe metadata is represented without repository-defined execution control.
+- [x] Conventional Commit validation is deterministic and independently tested.
 
 ### Phase 2: Typed Git Primitives for Staged Task Commits
 
