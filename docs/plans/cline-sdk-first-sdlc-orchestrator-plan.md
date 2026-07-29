@@ -463,19 +463,34 @@ strict protocol parsing.
 
 **Acceptance criteria:**
 
-- [ ] Adapter invokes Node without shell interpolation.
-- [ ] Adapter sends/receives only the adapter protocol and validates all results.
-- [ ] Timeout and interruption terminate the child process safely and produce
+- [x] Adapter invokes Node without shell interpolation.
+- [x] Adapter sends/receives only the adapter protocol and validates all results.
+- [x] Timeout and interruption terminate the child process safely and produce
       structured blockers.
-- [ ] Nonzero runner exits retain safe diagnostic evidence.
-- [ ] Unknown event/result shapes fail closed rather than being ignored.
+- [x] Nonzero runner exits retain safe diagnostic evidence.
+- [x] Unknown event/result shapes fail closed rather than being ignored.
+
+Task 5 implementation note: `cline_sdk/adapter.py` now exposes
+`ClineSdkSessionRunner`, a Python outbound adapter that implements the existing
+`ClineSessionRunnerPort` shape by invoking the adapter-owned `node_runner` with
+argument-array subprocess execution, no shell interpolation, serialized protocol
+input on stdin, bounded timeout/interruption handling, and strict
+`parse_runner_output(...)` validation. CI-safe fake-runner unit tests cover
+success, nonzero exit, malformed output, timeout, interruption, and startup
+failure. A local integration test invokes the real adapter-owned `runner.mjs`
+through the Python adapter far enough to verify structured missing-configuration
+failure without live provider credentials.
 
 **Verification:**
 
-- [ ] Run unit tests with fake runner executables.
-- [ ] Run integration tests against the real runner locally before marking the
+- [x] Run unit tests with fake runner executables.
+- [x] Run integration tests against the real runner locally before marking the
       adapter gate complete. If SDK prerequisites are unavailable, document the
       blocker and do not mark Checkpoint A complete.
+
+Verification evidence: `uv run pytest tests/unit/features/cline_execution/adapters/outbound/cline_sdk tests/integration/features/cline_execution/test_cline_sdk_runner.py`
+passed locally on 2026-07-29 after adding the Python adapter tests and the real
+Node-runner boundary integration check.
 
 **Dependencies:** Task 4a for minimal Agent execution; Task 4b before any
 repository-changing lifecycle use.
