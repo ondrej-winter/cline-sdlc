@@ -9,7 +9,12 @@ from cline_sdlc.features.cline_execution.adapters.outbound.cline_sdk.runtime_pro
     ClineSdkRuntimeProbe,
     CommandResult,
 )
-from cline_sdlc.features.cline_execution.application.dtos.sdk_runtime import SdkRuntimePreflightRequest
+from cline_sdlc.features.cline_execution.application.dtos.sdk_runtime import (
+    SdkRuntimeCapability,
+    SdkRuntimeCapabilitySource,
+    SdkRuntimeCapabilityStatus,
+    SdkRuntimePreflightRequest,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -46,6 +51,16 @@ def test_probe_reports_ready_when_node_version_and_sdk_resolution_pass(monkeypat
     assert observation.node_version == "v22.11.0"
     assert observation.sdk_resolved
     assert observation.blockers == ()
+    capabilities = {evidence.capability: evidence for evidence in observation.capabilities}
+    assert capabilities[SdkRuntimeCapability.NODE_RUNTIME].status is SdkRuntimeCapabilityStatus.PROVEN
+    assert capabilities[SdkRuntimeCapability.SDK_PACKAGE].status is SdkRuntimeCapabilityStatus.PROVEN
+    assert capabilities[SdkRuntimeCapability.AGENT_RUN].source is SdkRuntimeCapabilitySource.AGENT_SMOKE
+    assert capabilities[SdkRuntimeCapability.CLINECORE_SESSION].source is SdkRuntimeCapabilitySource.CLINECORE_SMOKE
+    assert capabilities[SdkRuntimeCapability.TOOL_POLICY_COVERAGE].status is SdkRuntimeCapabilityStatus.PROVEN
+    assert capabilities[SdkRuntimeCapability.PERMISSION_APPROVAL].status is SdkRuntimeCapabilityStatus.UNPROVEN
+    assert capabilities[SdkRuntimeCapability.PLAN_ACT_OBSERVATION].status is SdkRuntimeCapabilityStatus.UNPROVEN
+    assert capabilities[SdkRuntimeCapability.ACT_AUTHORIZATION].status is SdkRuntimeCapabilityStatus.UNPROVEN
+    assert capabilities[SdkRuntimeCapability.CLI_PROBE_EXCLUDED].status is SdkRuntimeCapabilityStatus.PROVEN
     assert runner.commands[0] == (("node", "--version"), None)
     assert runner.commands[1][0] == (
         "node",

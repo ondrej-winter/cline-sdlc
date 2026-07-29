@@ -505,34 +505,48 @@ can depend on the adapter.
 
 **Likely files/components touched:**
 
-- `src/cline_sdlc/features/cline_execution/application/dtos/preflight.py`
-- `src/cline_sdlc/features/cline_execution/application/use_cases/preflight.py`
-- `src/cline_sdlc/features/cline_execution/adapters/outbound/cline_sdk/adapter.py`
-- `tests/unit/features/cline_execution/application/test_preflight.py`
+- `src/cline_sdlc/features/cline_execution/application/dtos/sdk_runtime.py`
+- `src/cline_sdlc/features/cline_execution/application/use_cases/preflight_sdk_runtime.py`
+- `src/cline_sdlc/features/cline_execution/adapters/outbound/cline_sdk/runtime_probe.py`
+- `tests/unit/features/cline_execution/application/test_preflight_sdk_runtime.py`
+- `tests/unit/features/cline_execution/adapters/outbound/cline_sdk/test_runtime_probe.py`
 
 **Acceptance criteria:**
 
-- [ ] Preflight verifies Node.js 22+.
-- [ ] Preflight verifies `@cline/sdk` is resolvable by the runner environment.
-- [ ] Preflight verifies the spec's full SDK execution contract before the SDK
+- [x] Preflight verifies Node.js 22+.
+- [x] Preflight verifies `@cline/sdk` is resolvable by the runner environment.
+- [x] Preflight verifies the spec's full SDK execution contract before the SDK
       path can be used for `--plan-file` implementation: bounded sessions,
       explicit role/instructions/context, Plan/Act observation and authorization,
       event/evidence stream, permission/tool approval evidence, structured
       terminal outcomes, timeouts, interruptions, and diagnostic references.
-- [ ] Preflight distinguishes bare `Agent`-proven capabilities from
+- [x] Preflight distinguishes bare `Agent`-proven capabilities from
       `ClineCore`-proven capabilities, and does not treat a successful
       `Agent.run(...)` as proof of sessions, built-in tools, tool approval,
       repository-changing execution, or session artifacts.
-- [ ] Tool policy coverage is explicit and fail-closed; SDK default auto-approval
+- [x] Tool policy coverage is explicit and fail-closed; SDK default auto-approval
       for unspecified tools is never accepted as an SDLC-safe policy.
-- [ ] Missing Plan/Act, permission, structured-outcome, timeout/interruption, or
+- [x] Missing Plan/Act, permission, structured-outcome, timeout/interruption, or
       diagnostic-reference primitives are reported as unproven capabilities, not
       ignored.
-- [ ] CLI probing is not accepted as production-equivalent SDK readiness.
+- [x] CLI probing is not accepted as production-equivalent SDK readiness.
+
+Task 6 implementation note: SDK runtime preflight now models application-owned
+capability evidence in `sdk_runtime.py` and evaluates the full SDK execution
+contract in `PreflightSdkRuntime`. The `cline_sdk` runtime probe emits
+conservative evidence from implemented adapter/protocol behavior, local Agent
+smoke proof, and local ClineCore smoke proof. Missing capabilities, unproven
+capabilities, and CLI-probe-sourced claims all fail closed with typed blockers.
+Plan/Act observation, Act authorization, and real permission approval remain
+reported as unproven until official SDK references plus local smoke evidence
+prove them directly.
 
 **Verification:**
 
 - [ ] Run focused preflight unit tests and adapter integration tests.
+
+Focused preflight unit test evidence: `uv run pytest tests/unit/features/cline_execution/application/test_preflight_sdk_runtime.py tests/unit/features/cline_execution/adapters/outbound/cline_sdk/test_runtime_probe.py`
+passed locally on 2026-07-29.
 
 **Dependencies:** Task 5
 

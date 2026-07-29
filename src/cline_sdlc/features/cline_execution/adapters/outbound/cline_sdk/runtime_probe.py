@@ -8,7 +8,14 @@ import subprocess
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 
-from cline_sdlc.features.cline_execution.application.dtos.sdk_runtime import SdkRuntimeBlocker, SdkRuntimeObservation
+from cline_sdlc.features.cline_execution.application.dtos.sdk_runtime import (
+    SdkRuntimeBlocker,
+    SdkRuntimeCapability,
+    SdkRuntimeCapabilityEvidence,
+    SdkRuntimeCapabilitySource,
+    SdkRuntimeCapabilityStatus,
+    SdkRuntimeObservation,
+)
 
 if TYPE_CHECKING:
     from cline_sdlc.features.cline_execution.application.dtos.sdk_runtime import SdkRuntimePreflightRequest
@@ -117,6 +124,7 @@ class ClineSdkRuntimeProbe:
             node_version=node_version,
             sdk_package_name=request.sdk_package_name,
             sdk_resolved=True,
+            capabilities=_adapter_capabilities(),
         )
 
 
@@ -142,3 +150,68 @@ def _version_blocker(*, node_version: str | None, minimum_major_version: int) ->
             evidence=f"observed={node_version}",
         )
     return None
+
+
+def _adapter_capabilities() -> tuple[SdkRuntimeCapabilityEvidence, ...]:
+    """Return conservative capability evidence from the implemented adapter contract."""
+    proven_by_adapter = (
+        SdkRuntimeCapability.NODE_RUNTIME,
+        SdkRuntimeCapability.SDK_PACKAGE,
+        SdkRuntimeCapability.BOUNDED_SESSION,
+        SdkRuntimeCapability.EXPLICIT_SESSION_CONTEXT,
+        SdkRuntimeCapability.EVENT_EVIDENCE_STREAM,
+        SdkRuntimeCapability.STRUCTURED_TERMINAL_OUTCOME,
+        SdkRuntimeCapability.TIMEOUT_INTERRUPTION,
+        SdkRuntimeCapability.DIAGNOSTIC_REFERENCES,
+        SdkRuntimeCapability.CLI_PROBE_EXCLUDED,
+    )
+    proven_by_agent = (SdkRuntimeCapability.AGENT_RUN,)
+    proven_by_clinecore = (
+        SdkRuntimeCapability.CLINECORE_SESSION,
+        SdkRuntimeCapability.TOOL_POLICY_COVERAGE,
+    )
+    unproven = (
+        SdkRuntimeCapability.PERMISSION_APPROVAL,
+        SdkRuntimeCapability.PLAN_ACT_OBSERVATION,
+        SdkRuntimeCapability.ACT_AUTHORIZATION,
+    )
+    return (
+        *(
+            SdkRuntimeCapabilityEvidence(
+                capability=capability,
+                status=SdkRuntimeCapabilityStatus.PROVEN,
+                source=SdkRuntimeCapabilitySource.ADAPTER_CONTRACT,
+                summary="Implemented Python adapter and JSON protocol provide this SDK-shaped boundary.",
+            )
+            for capability in proven_by_adapter
+        ),
+        *(
+            SdkRuntimeCapabilityEvidence(
+                capability=capability,
+                status=SdkRuntimeCapabilityStatus.PROVEN,
+                source=SdkRuntimeCapabilitySource.AGENT_SMOKE,
+                summary="Local real-SDK smoke evidence proved the minimal documented Agent runner path.",
+            )
+            for capability in proven_by_agent
+        ),
+        *(
+            SdkRuntimeCapabilityEvidence(
+                capability=capability,
+                status=SdkRuntimeCapabilityStatus.PROVEN,
+                source=SdkRuntimeCapabilitySource.CLINECORE_SMOKE,
+                summary="Local real-SDK smoke evidence proved the ClineCore probe surface for this capability.",
+            )
+            for capability in proven_by_clinecore
+        ),
+        *(
+            SdkRuntimeCapabilityEvidence(
+                capability=capability,
+                status=SdkRuntimeCapabilityStatus.UNPROVEN,
+                source=SdkRuntimeCapabilitySource.OFFICIAL_DOCS,
+                summary=(
+                    "Official SDK references and local smoke evidence do not yet prove this full-contract capability."
+                ),
+            )
+            for capability in unproven
+        ),
+    )

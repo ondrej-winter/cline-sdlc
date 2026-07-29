@@ -18,6 +18,45 @@ class SdkRuntimePreflightStatus(StrEnum):
     FAILED = "failed"
 
 
+class SdkRuntimeCapability(StrEnum):
+    """SDK execution capabilities required by the SDLC adapter gate."""
+
+    NODE_RUNTIME = "node_runtime"
+    SDK_PACKAGE = "sdk_package"
+    BOUNDED_SESSION = "bounded_session"
+    EXPLICIT_SESSION_CONTEXT = "explicit_session_context"
+    EVENT_EVIDENCE_STREAM = "event_evidence_stream"
+    STRUCTURED_TERMINAL_OUTCOME = "structured_terminal_outcome"
+    TIMEOUT_INTERRUPTION = "timeout_interruption"
+    DIAGNOSTIC_REFERENCES = "diagnostic_references"
+    AGENT_RUN = "agent_run"
+    CLINECORE_SESSION = "clinecore_session"
+    TOOL_POLICY_COVERAGE = "tool_policy_coverage"
+    PERMISSION_APPROVAL = "permission_approval"
+    PLAN_ACT_OBSERVATION = "plan_act_observation"
+    ACT_AUTHORIZATION = "act_authorization"
+    CLI_PROBE_EXCLUDED = "cli_probe_excluded"
+
+
+class SdkRuntimeCapabilityStatus(StrEnum):
+    """Evidence status for one SDK runtime capability."""
+
+    PROVEN = "proven"
+    UNPROVEN = "unproven"
+    BLOCKED = "blocked"
+
+
+class SdkRuntimeCapabilitySource(StrEnum):
+    """Source category for a capability claim."""
+
+    ADAPTER_CONTRACT = "adapter_contract"
+    AGENT_SMOKE = "agent_smoke"
+    CLINECORE_SMOKE = "clinecore_smoke"
+    FAKE_SDK_TEST = "fake_sdk_test"
+    OFFICIAL_DOCS = "official_docs"
+    CLI_PROBE = "cli_probe"
+
+
 @dataclass(frozen=True)
 class SdkRuntimeBlocker:
     """Actionable reason that prevents using the Cline SDK adapter."""
@@ -35,6 +74,21 @@ class SdkRuntimeBlocker:
             raise ValueError(message)
         if not self.evidence.strip():
             message = "SDK runtime blocker evidence must not be empty"
+            raise ValueError(message)
+
+
+@dataclass(frozen=True)
+class SdkRuntimeCapabilityEvidence:
+    """Safe evidence for one SDK execution capability."""
+
+    capability: SdkRuntimeCapability
+    status: SdkRuntimeCapabilityStatus
+    source: SdkRuntimeCapabilitySource
+    summary: str
+
+    def __post_init__(self) -> None:
+        if not self.summary.strip():
+            message = "SDK runtime capability evidence summary must not be empty"
             raise ValueError(message)
 
 
@@ -70,6 +124,7 @@ class SdkRuntimeObservation:
     node_version: str | None
     sdk_package_name: str = DEFAULT_SDK_PACKAGE_NAME
     sdk_resolved: bool = False
+    capabilities: tuple[SdkRuntimeCapabilityEvidence, ...] = field(default_factory=tuple)
     blockers: tuple[SdkRuntimeBlocker, ...] = field(default_factory=tuple)
 
 
@@ -81,6 +136,7 @@ class SdkRuntimePreflightResult:
     node_executable: str | None
     node_version: str | None
     sdk_package_name: str
+    capabilities: tuple[SdkRuntimeCapabilityEvidence, ...] = field(default_factory=tuple)
     blockers: tuple[SdkRuntimeBlocker, ...] = field(default_factory=tuple)
 
     @property
