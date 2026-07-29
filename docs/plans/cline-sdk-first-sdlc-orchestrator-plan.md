@@ -5,6 +5,10 @@
 - State: Draft implementation plan
 - Source specification: `docs/specs/cline-sdk-first-sdlc-orchestrator-spec.md`
 - Source SDK documentation: <https://docs.cline.bot/sdk/overview>
+- Source SDK Agent reference: <https://docs.cline.bot/sdk/reference/agent.md>
+- Source SDK Events reference: <https://docs.cline.bot/sdk/reference/events.md>
+- Source SDK Permission Handling guide: <https://docs.cline.bot/sdk/guides/permission-handling.md>
+- Source SDK ClineCore guide: <https://docs.cline.bot/sdk/clinecore.md>
 - Related ADR: `docs/adr/0002-use-cline-sdk-contract-instead-of-cli-probing.md`
 - Supersedes active delivery sequencing from: `docs/plans/configurable-lifecycle-hooks-and-repository-task-plan.md`
 - Primary gate: prove a working `@cline/sdk` adapter before continuing SDLC delivery
@@ -88,6 +92,45 @@ adapter proves or explicitly blocks those SDK capabilities.
 - The overview demonstrates an `assistant-text-delta` event.
 - The docs recommend the `cline/sdk-skill` skill for deeper SDK API and best
   practice work.
+
+## SDK Facts From Focused Official References
+
+- The official Agent reference documents `Agent` as an alias for `AgentRuntime`
+  from `@cline/agents`, exported from `@cline/sdk` together with
+  `AgentRuntime`, `createAgent`, and `createAgentRuntime`.
+- `new Agent(config: AgentRuntimeConfig)` accepts either a prebuilt model or
+  `providerId`, `modelId`, and optional provider credentials such as `apiKey`,
+  `baseUrl`, and `headers`.
+- Documented `Agent` configuration fields include `systemPrompt`, `tools`,
+  `initialMessages`, `toolPolicies`, and `hooks`.
+- Documented `Agent` methods include `run(input)`, `continue(input?)`,
+  `abort(reason?)`, `subscribe(listener)`, `restore(messages)`, and
+  `snapshot()`.
+- `AgentRunResult.status` is documented as the closed set `completed`, `aborted`,
+  or `failed`; the result also includes `agentId`, optional `agentRole`, `runId`,
+  `iterations`, `outputText`, `messages`, `usage`, and optional `error`.
+- The Events reference documents direct `AgentRuntime` events through
+  `agent.subscribe(listener)`. Runtime results use `AgentRunResult.status` rather
+  than `finishReason`.
+- Core/host-facing SDK events include content lifecycle events, iteration events,
+  `usage`, `notice`, `done`, and `error`. A documented `done` event has reason
+  values `completed`, `max_iterations`, `aborted`, `mistake_limit`, or `error`.
+- `ClineCore` is the documented full Cline harness for built-in file, shell,
+  search, and web tools; sessions; approvals; persistence; scheduling; hub
+  support; and plugins.
+- `ClineCore.start(...)` documents session-oriented configuration including
+  `prompt`, `providerId`, `modelId`, `apiKey`, `systemPrompt`, `cwd`,
+  `workspaceRoot`, `enableTools`, `enableSpawnAgent`, and `enableAgentTeams`.
+- `ClineCore` session results document `sessionId`, `manifest`, `manifestPath`,
+  `messagesPath`, and final `result` when available.
+- Tool policies default to enabled and auto-approved when no policy is set. SDLC
+  execution must therefore explicitly specify fail-closed tool policies rather
+  than relying on SDK defaults.
+- Dynamic tool approval is documented through `ClineCore.create(...)` capability
+  `requestToolApproval`.
+- The focused official SDK pages prove `Agent`, event subscription, `AgentRunResult`,
+  `ClineCore` sessions, tool policies, and dynamic tool approval. They do not, by
+  themselves, prove a direct SDK Plan/Act transition or Act-authorization API.
 
 ## Existing Patterns and Likely Touchpoints
 
@@ -253,11 +296,15 @@ runner is wired to the real SDK.
 
 ### Phase 2: Working `@cline/sdk` Adapter
 
-## Task 4: Implement minimal Node runner using official `@cline/sdk`
+## Task 4a: Implement minimal `Agent` runner proof using official `@cline/sdk`
 
-**Description:** Implement the adapter-owned Node/TypeScript runner that imports
-`Agent` from `@cline/sdk`, subscribes to events, runs one prompt, and emits the
-normalized JSON protocol for Python.
+**Description:** Implement the first adapter-owned Node/TypeScript runner proof
+against the narrowest officially documented SDK primitive. The runner imports
+`Agent` from `@cline/sdk`, constructs it with provider/model configuration,
+subscribes to runtime events, runs one prompt, normalizes `AgentRunResult`, and
+emits the stable JSON protocol for Python. This task proves the SDK package,
+`Agent`, event subscription, `run`, result status, and cancellation wiring; it
+does not by itself prove full SDLC repository-changing capability.
 
 **Likely files/components touched:**
 
@@ -271,16 +318,23 @@ normalized JSON protocol for Python.
 - [ ] Runner uses documented SDK shape: `new Agent(...)`, `agent.subscribe(...)`,
       and `await agent.run(...)`.
 - [ ] Runner implementation cites or records the official SDK docs/API references
-      used for `Agent`, subscription, run, events, Plan/Act, and permission/tool
-      approval behavior.
+      used for `Agent`, subscription, run, events, `abort(reason?)`, and
+      `AgentRunResult` normalization.
 - [ ] Runner captures documented `assistant-text-delta` events as normalized
       diagnostic or assistant-output evidence.
+- [ ] Runner normalizes documented `AgentRunResult.status` values `completed`,
+      `aborted`, and `failed` into Python-owned result statuses.
+- [ ] Runner preserves safe diagnostic references such as `agentId`, `runId`,
+      iteration count, and usage metadata without exposing raw secrets or model
+      reasoning.
 - [ ] Runner emits exactly one terminal JSON result for success, block, failure,
       timeout, or interruption.
 - [ ] Runner never prints secrets, API keys, raw model reasoning, or raw sensitive
       repository content by default.
 - [ ] Runner exits with a typed failure when SDK construction, event handling, or
       `agent.run(...)` fails.
+- [ ] Plan/Act mediation, built-in repository tools, `ClineCore` session artifacts,
+      and dynamic permission approval remain explicitly unproven by this task.
 
 **Verification:**
 
@@ -289,6 +343,54 @@ normalized JSON protocol for Python.
       smoke cannot run, leave this task incomplete and record the exact blocker.
 
 **Dependencies:** Task 3
+
+**Estimated scope:** Medium
+
+## Task 4b: Implement `ClineCore` capability probe for sessions and approvals
+
+**Description:** Add a second SDK proof path for capabilities that official docs
+place under `ClineCore` rather than bare `Agent`: sessions, workspace roots,
+built-in tools, session artifacts, tool policies, dynamic tool approval, and
+session event subscription. This task is required before any repository-changing
+SDLC lifecycle work can rely on SDK execution.
+
+**Likely files/components touched:**
+
+- `src/cline_sdlc/features/cline_execution/adapters/outbound/cline_sdk/node_runner/`
+- `src/cline_sdlc/features/cline_execution/adapters/outbound/cline_sdk/protocol.py`
+- `tests/unit/features/cline_execution/adapters/outbound/test_cline_sdk_protocol.py`
+- `tests/integration/features/cline_execution/test_cline_sdk_clinecore_probe.py`
+
+**Acceptance criteria:**
+
+- [ ] Probe uses documented `ClineCore.create(...)` and `cline.start(...)` shapes.
+- [ ] Probe supplies safe `cwd` and `workspaceRoot` values through adapter-owned
+      configuration and never from unvalidated raw input.
+- [ ] Probe captures documented session diagnostics such as `sessionId`,
+      `manifestPath`, `messagesPath`, and final `result` when available.
+- [ ] Probe explicitly configures tool policies for every tool category used by
+      SDLC runs; no write, shell, or network-capable tool is left to SDK default
+      auto-approval.
+- [ ] Probe exercises or verifies dynamic approval through documented
+      `capabilities.requestToolApproval` before permission support can be marked
+      proven.
+- [ ] Probe subscribes to session events when available and treats unknown event
+      payloads as diagnostic observations unless the capability matrix promotes
+      them to reconciliation evidence with proof.
+- [ ] Missing `ClineCore`, missing session artifacts, unsupported tool policies,
+      or unavailable dynamic approval are reported as unproven or blocked
+      capabilities.
+- [ ] A direct SDK Plan/Act transition or Act-authorization primitive remains
+      blocked unless a focused official SDK reference and real smoke evidence
+      prove it.
+
+**Verification:**
+
+- [ ] Run CI-safe fake/protocol tests for ClineCore probe output.
+- [ ] Run local real-SDK smoke evidence for ClineCore session creation and
+      permission handling before marking permission/session capabilities proven.
+
+**Dependencies:** Task 4a
 
 **Estimated scope:** Medium
 
@@ -321,7 +423,8 @@ strict protocol parsing.
       adapter gate complete. If SDK prerequisites are unavailable, document the
       blocker and do not mark Checkpoint A complete.
 
-**Dependencies:** Task 4
+**Dependencies:** Task 4a for minimal Agent execution; Task 4b before any
+repository-changing lifecycle use.
 
 **Estimated scope:** Medium
 
@@ -347,6 +450,12 @@ can depend on the adapter.
       explicit role/instructions/context, Plan/Act observation and authorization,
       event/evidence stream, permission/tool approval evidence, structured
       terminal outcomes, timeouts, interruptions, and diagnostic references.
+- [ ] Preflight distinguishes bare `Agent`-proven capabilities from
+      `ClineCore`-proven capabilities, and does not treat a successful
+      `Agent.run(...)` as proof of sessions, built-in tools, tool approval,
+      repository-changing execution, or session artifacts.
+- [ ] Tool policy coverage is explicit and fail-closed; SDK default auto-approval
+      for unspecified tools is never accepted as an SDLC-safe policy.
 - [ ] Missing Plan/Act, permission, structured-outcome, timeout/interruption, or
       diagnostic-reference primitives are reported as unproven capabilities, not
       ignored.
@@ -367,6 +476,11 @@ complete.
 
 - [ ] Adapter invokes documented `@cline/sdk` primitives locally.
 - [ ] Python receives typed normalized events and results.
+- [ ] Minimal `Agent` proof is complete and clearly scoped to documented
+      `Agent`/`AgentRunResult` behavior.
+- [ ] `ClineCore` proof is complete for any session, workspace, built-in tool,
+      session artifact, or dynamic approval capability claimed by lifecycle
+      delivery.
 - [ ] CI-safe fake-runner and protocol tests pass.
 - [ ] Local real-SDK smoke and integration tests pass. If SDK prerequisites are
       absent, this checkpoint remains incomplete and the blocker is documented.
@@ -461,10 +575,18 @@ capabilities. The full SDK execution contract in
 - [ ] Matrix covers `Agent.run`, event subscription, session identity,
       diagnostics, permission handling, tool approval, Plan/Act mediation,
       structured outcomes, timeout, interruption, and file-change evidence.
+- [ ] Matrix labels each capability as `Agent`-proven, `ClineCore`-proven,
+      orchestrator-owned, unproven, unsupported, or blocked.
 - [ ] Every capability claim includes official SDK docs/API references and local
       real-SDK smoke test evidence.
 - [ ] Every reset MVP SDK requirement is mapped to documented SDK primitive,
       adapter-derived proof, or explicit blocker.
+- [ ] Plan/Act mediation remains unproven or blocked unless a direct SDK API
+      reference and real smoke evidence prove observation and authorization
+      semantics without prose inference.
+- [ ] `AgentRunResult.outputText` and SDK messages are treated as diagnostic or
+      model-output evidence, not as authoritative lifecycle state or a substitute
+      for role-specific structured outcomes.
 - [ ] Missing full-contract primitives block `--plan-file` delivery planning
       rather than being approximated from prose.
 
@@ -694,7 +816,10 @@ Use the final verification commands below for handoff.
 
 ## Dependencies and Sequencing Constraints
 
-- Tasks 1-6 are mandatory before any lifecycle delivery work.
+- Tasks 1-4a prove the minimal documented `Agent` path but are not sufficient for
+  repository-changing lifecycle delivery.
+- Tasks 1-6, including the `ClineCore` proof in Task 4b, are mandatory before any
+  lifecycle delivery work.
 - Tasks 7-8 are mandatory before the adapter is considered proven for local use.
 - Task 9 must precede Plan/Act, permission, structured outcome, or `--plan-file`
   delivery claims.
@@ -705,7 +830,7 @@ Use the final verification commands below for handoff.
 - Task 12 must block rather than emulate Plan/Act mediation, permission/tool
   approval, structured outcomes, timeout/interruption handling, diagnostic
   references, or any other full-contract primitive if the SDK adapter cannot
-  prove it.
+  prove it from official SDK references plus local real-SDK smoke evidence.
 - Task 15 runs after implementation, tests, scripts, and docs are complete or
   explicitly blocked.
 
@@ -740,6 +865,9 @@ Use the final verification commands below for handoff.
 | The official SDK is TypeScript/Node while this project is Python. | High | Isolate Node/TypeScript in an outbound adapter and normalize JSON into Python DTOs. |
 | Node dependency management complicates Python packaging. | High | Keep adapter-owned Node package files and lockfile under `cline_execution/adapters/outbound/cline_sdk/node_runner/`; document local setup and ignore generated dependency artifacts. |
 | The SDK overview proves `Agent.run` and events but deeper Plan/Act, permission, and structured-outcome behavior must be verified. | High | Add capability matrix with official SDK docs/API references and local real-SDK smoke evidence for every proven capability; block `--plan-file` delivery until the full SDK execution contract is proven. |
+| A minimal `Agent` proof is mistaken for full SDLC execution readiness. | High | Split Task 4 into `Agent` and `ClineCore` proofs; require `ClineCore` proof and capability matrix completion before repository-changing lifecycle work. |
+| SDK tool policies default to enabled and auto-approved when unspecified. | High | Require explicit fail-closed tool policy coverage and dynamic approval evidence before permission capabilities are considered proven. |
+| Official SDK references do not prove direct Plan/Act transition APIs. | High | Mark Plan/Act mediation unproven or blocked unless a focused SDK API reference and real smoke evidence prove observation and authorization semantics. |
 | Adapter examples accidentally log secrets or raw repository content. | High | Redact by default and keep raw payloads out of normal output. |
 | Existing CLI probe code continues to imply production readiness. | Medium | Quarantine or rename CLI probe readiness language after adapter proof. |
 | Integration tests become dependent on live providers. | Medium | Keep CI-safe fake-runner/protocol tests separate, but require local real-SDK smoke/integration evidence before adapter gates are marked complete. |
@@ -761,11 +889,9 @@ Use the final verification commands below for handoff.
 
 ## Open Questions
 
-- Which Node package manager and lockfile format should the adapter-local runner
-  use? The plan requires a committed lockfile but leaves npm, pnpm, or another
-  concrete tool to Task 1 implementation review.
 - Which exact official SDK docs/API pages and local package APIs prove Plan/Act
-  semantics, permission/tool approval, structured outcomes, and evidence fields?
+  semantics and structured outcomes? The currently fetched focused SDK references
+  do not prove a direct Plan/Act transition or Act-authorization API.
 - Which SDK event fields are reconciliation evidence versus diagnostic-only
   observations?
 - Which real-provider credentials or local provider settings are required for the
@@ -778,16 +904,24 @@ Use the final verification commands below for handoff.
 
 - Adapter-owned Node package files live under
   `src/cline_sdlc/features/cline_execution/adapters/outbound/cline_sdk/node_runner/`.
-- The project commits adapter-local `package.json` and a Node lockfile, installs
+- The project uses npm for the adapter-local runner because the official SDK
+  overview documents `npm install @cline/sdk` and local `npm` is available. The
+  project commits adapter-local `package.json` and `package-lock.json`, installs
   dependencies from the adapter runner directory, and does not rely on global
   `@cline/sdk` installation.
 - The existing `SessionRunner` contract and `session.py` DTOs evolve in place into
   the SDK-shaped application contract.
+- Minimal `Agent` proof is separated from `ClineCore` capability proof. A
+  successful `Agent.run(...)` does not prove sessions, workspace roots, built-in
+  tools, dynamic permission approval, session artifacts, repository-changing
+  execution, or Plan/Act mediation.
 - Real SDK smoke/integration evidence is required locally before the adapter gate
   can be marked complete.
 - `cline/sdk` is expected to provide Plan/Act and permission/tool approval
   support, but lifecycle delivery may rely on those capabilities only after
   official SDK docs/API references and local real-SDK smoke evidence prove them.
+  The fetched focused SDK references prove tool policies and dynamic approval via
+  `ClineCore`, but do not prove direct Plan/Act mediation.
 - The full SDK execution contract from
   `docs/specs/cline-sdk-first-sdlc-orchestrator-spec.md` is the minimum gate
   before `--plan-file` implementation may use the SDK-first path.
