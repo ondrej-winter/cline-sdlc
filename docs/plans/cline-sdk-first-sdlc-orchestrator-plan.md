@@ -234,21 +234,21 @@ shapes, and should avoid a permanent parallel SDK-specific session port.
 
 **Acceptance criteria:**
 
-- [ ] Session DTOs model session request, SDK event evidence, SDK terminal result,
+- [x] Session DTOs model session request, SDK event evidence, SDK terminal result,
       blockers, timeout/interruption evidence, and diagnostic references.
-- [ ] DTOs use closed enum values for known normalized event/result/status types.
-- [ ] DTOs reject unsafe repository-relative paths, missing required fields, and
+- [x] DTOs use closed enum values for known normalized event/result/status types.
+- [x] DTOs reject unsafe repository-relative paths, missing required fields, and
       unsupported statuses.
-- [ ] `SessionRunner` signatures use application DTOs and domain values only.
-- [ ] No TypeScript SDK package names appear in application port signatures except
+- [x] `SessionRunner` signatures use application DTOs and domain values only.
+- [x] No TypeScript SDK package names appear in application port signatures except
       as safe diagnostic strings.
-- [ ] Existing CLI/subprocess runner assets are either adapted to the evolved
+- [x] Existing CLI/subprocess runner assets are either adapted to the evolved
       contract for compatibility tests or explicitly quarantined as legacy
       fixtures before lifecycle code depends on the SDK-shaped path.
 
 **Verification:**
 
-- [ ] Run focused unit and contract tests for session DTO validation and
+- [x] Run focused unit and contract tests for session DTO validation and
       `SessionRunner` compatibility.
 
 **Dependencies:** Task 1
@@ -289,7 +289,7 @@ runner is wired to the real SDK.
 
 ### Checkpoint: Adapter Contract Foundation
 
-- [ ] Python session DTOs and `SessionRunner` port express SDK-shaped
+- [x] Python session DTOs and `SessionRunner` port express SDK-shaped
       application semantics.
 - [ ] Adapter-owned JSON protocol is validated independently.
 - [ ] Runtime dependency strategy is documented and fail-closed.

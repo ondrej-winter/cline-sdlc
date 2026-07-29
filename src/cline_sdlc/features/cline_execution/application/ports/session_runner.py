@@ -1,4 +1,4 @@
-"""Outbound port for supervised Cline session execution."""
+"""Outbound port for bounded Cline session execution."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 
 class ClineSessionRunnerPort(Protocol):
-    """Run one bounded Cline subprocess session and return typed observations."""
+    """Run one bounded Cline session and return typed application observations."""
 
     def run(self, request: ClineSessionRequest) -> ClineSessionResult:
-        """Execute the requested session command without workflow retry."""
+        """Execute the requested session once without workflow retry."""
