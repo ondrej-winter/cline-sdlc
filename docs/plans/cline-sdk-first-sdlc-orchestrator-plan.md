@@ -604,16 +604,29 @@ for local proof and diagnostics, not production orchestration.
 
 **Acceptance criteria:**
 
-- [ ] Script uses the Python adapter path, not direct ad hoc SDK invocation from
+- [x] Script uses the Python adapter path, not direct ad hoc SDK invocation from
       outside the adapter boundary.
-- [ ] Script documents required environment variables with safe placeholders.
-- [ ] Script redacts secrets and does not print raw model reasoning.
-- [ ] Script exits with stable process categories or clear safe diagnostics.
+- [x] Script documents required environment variables with safe placeholders.
+- [x] Script redacts secrets and does not print raw model reasoning.
+- [x] Script exits with stable process categories or clear safe diagnostics.
+
+Task 7 implementation note: `scripts/run_cline_sdk_adapter_example.py` exercises
+the Python `ClineSdkSessionRunner` path and prints safe normalized JSON containing
+process status, SDK terminal status, normalized events, blockers, and diagnostic
+references. The script does not call `@cline/sdk` directly, and normal output
+omits raw runner stdout/stderr, raw model reasoning, secrets, and raw repository
+payloads.
 
 **Verification:**
 
-- [ ] Run the script in a configured local environment or document the exact
+- [x] Run the script in a configured local environment or document the exact
       unrun prerequisite.
+
+CI-safe script test evidence: `uv run pytest tests/unit/scripts/test_run_cline_sdk_adapter_example.py`
+passed locally on 2026-07-29 with 4 tests. Live-provider example execution still
+requires adapter-local Node dependencies plus safe `CLINE_SDK_PROVIDER_ID` and
+`CLINE_SDK_MODEL_ID` environment settings; missing live configuration remains a
+structured runtime blocker, not an example failure.
 
 **Dependencies:** Checkpoint A
 

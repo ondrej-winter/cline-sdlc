@@ -304,6 +304,22 @@ documented minimal `Agent` path and a ClineCore session/probe path, while CI-saf
 tests cover fake-runner behavior, protocol failures, and missing-configuration
 integration boundaries without requiring live provider credentials.
 
+Run the Python adapter example from the repository root after installing the
+adapter-local Node dependencies and exporting safe SDK provider settings:
+
+```bash
+uv run python scripts/run_cline_sdk_adapter_example.py \
+  --repository-root . \
+  --timeout-seconds 30 \
+  --safe-context slice=adapter-example
+```
+
+The example uses `ClineSdkSessionRunner` and the adapter-owned Node runner; it does
+not invoke `@cline/sdk` directly from the script. Normal output is stable JSON with
+normalized event summaries, blockers, terminal status, and safe diagnostic
+references. It intentionally omits raw runner stdout/stderr, raw model reasoning,
+secrets, and raw repository payloads.
+
 This is still not a production-ready lifecycle execution claim. The full SDK
 execution contract remains blocked until official SDK references plus local
 real-SDK smoke evidence prove direct Plan/Act observation, Act authorization, and
