@@ -198,6 +198,9 @@ examples, and local use.
       `src/cline_sdlc/features/cline_execution/adapters/outbound/cline_sdk/node_runner/`.
 - [x] Adapter-local `package.json` and a Node lockfile are committed for
       reproducible `@cline/sdk` installation.
+- [x] Adapter-local Node dependencies include the optional
+      `ai-sdk-provider-codex-cli` package required by the configured
+      `openai-codex-cli` SDK provider.
 - [x] `@cline/sdk` dependency location and install/sync workflow are documented,
       and setup installs dependencies from the adapter runner directory.
 - [x] Python application/domain modules do not import or depend on Node/TypeScript
@@ -339,22 +342,31 @@ does not by itself prove full SDLC repository-changing capability.
 Task 4a implementation note: `node_runner/runner.mjs` and `runner-lib.mjs`
 provide the minimal `Agent` proof. CI-safe Node tests use a fake Agent class;
 Python integration tests invoke the real runner only far enough to verify typed
-fail-closed configuration blocking. A local real-SDK smoke was run with `.env`
-loaded and reached the official SDK `Agent` event stream, but the SDK run returned
-`run-failed` and terminal status `failed`; Task 4a remains incomplete pending a
-successful live provider smoke.
+fail-closed configuration blocking. Local runtime inspection on 2026-07-29 found
+Node.js v22.22.3, confirmed adapter-local `@cline/sdk` resolution, and confirmed
+that `.env` provides `CLINE_SDK_PROVIDER_ID`, `CLINE_SDK_MODEL_ID`, and
+`CLINE_SDK_REASONING_EFFORT` without printing secret values. The first local
+real-SDK smoke reached the official SDK `Agent` event stream but returned
+`run-failed` because the configured `openai-codex-cli` provider required the
+optional adapter-local `ai-sdk-provider-codex-cli` package. After adding that
+package, a second local real-SDK smoke completed through the minimal `Agent` path.
 
 **Verification:**
 
 - [x] Run CI-safe fake-runner tests for protocol behavior.
-- [ ] Run a local real-SDK smoke test before marking this task complete. If the
+- [x] Run a local real-SDK smoke test before marking this task complete. If the
       smoke cannot run, leave this task incomplete and record the exact blocker.
 
-Real-SDK smoke blocker: no local provider/model/API-key configuration has been
-proven to complete successfully. A `.env`-loaded smoke invocation emitted SDK
-events `run-started`, `message-added`, `turn-started`, and `run-failed`, plus safe
-diagnostics for `agentId`, `runId`, iteration count, and usage metadata, then
-returned terminal status `failed`. No secrets were printed by the runner.
+Real-SDK smoke evidence: the 2026-07-29 `.env`-loaded smoke invocation used the
+adapter-owned `node_runner/runner.mjs` with `CLINE_SDK_DEBUG_SAFE=1` and the
+configured `openai-codex-cli` provider. Safe debug diagnostics first identified
+the missing optional `ai-sdk-provider-codex-cli` package as the root cause of the
+previous `run-failed` result. After installing that adapter-local dependency, the
+smoke emitted SDK events `run-started`, `message-added`, `turn-started`,
+`assistant-text-delta`, `usage-updated`, `assistant-message`, `turn-finished`, and
+`run-finished`, plus safe diagnostics for `agentId`, `runId`, iteration count,
+and usage metadata, then returned terminal status `completed`. No secrets, API
+keys, raw model reasoning, or raw repository content were printed by the runner.
 
 **Dependencies:** Task 3
 

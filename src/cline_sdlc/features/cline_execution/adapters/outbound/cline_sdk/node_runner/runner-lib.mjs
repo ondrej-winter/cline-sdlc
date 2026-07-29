@@ -17,6 +17,7 @@ const SAFE_STATUS_MAP = new Map([
   ["aborted", "aborted"],
   ["failed", "failed"],
 ]);
+const REDACTED_VALUE = "[REDACTED]";
 
 export class RunnerProtocolError extends Error {
   constructor(message, code = "invalid_runner_request") {
@@ -95,9 +96,11 @@ export async function runAgentProof({ AgentClass, request, env = process.env, em
   try {
     const result = await agent.run(buildPrompt(request), { signal: abortController.signal });
     emitAgentDiagnostics(result, emitRecord);
+    emitSafeDebugDiagnostics({ error: result?.error, env, emitRecord });
     emitRecord({ type: "terminal_result", status: normalizeAgentStatus(result?.status) });
   } catch (error) {
     const timedOut = abortController.signal.aborted;
+    emitSafeDebugDiagnostics({ error, env, emitRecord });
     emitRecord({
       type: "blocker",
       code: timedOut ? "sdk_agent_timeout" : "sdk_agent_run_failed",
@@ -151,6 +154,39 @@ export function emitAgentDiagnostics(result, emitRecord) {
   }
 }
 
+export function emitSafeDebugDiagnostics({ error, env = process.env, emitRecord }) {
+  if (env.CLINE_SDK_DEBUG_SAFE !== "1" || error === undefined || error === null) {
+    return;
+  }
+  const errorName = typeof error?.name === "string" && error.name.trim() ? error.name : typeof error;
+  emitRecord({
+    type: "diagnostic",
+    kind: "sdk_error_type",
+    value: sanitizeDiagnosticText(errorName, env),
+    summary: "Cline SDK Agent returned safe debug error type",
+  });
+  const message = error instanceof Error ? error.message : typeof error?.message === "string" ? error.message : String(error);
+  if (message.trim()) {
+    emitRecord({
+      type: "diagnostic",
+      kind: "sdk_error_message",
+      value: sanitizeDiagnosticText(message, env),
+      summary: "Cline SDK Agent returned safe debug error message",
+    });
+  }
+}
+
+export function sanitizeDiagnosticText(value, env = process.env) {
+  let sanitized = String(value);
+  for (const secretValue of knownSecretValues(env)) {
+    sanitized = sanitized.split(secretValue).join(REDACTED_VALUE);
+  }
+  return sanitized
+    .replace(/sk-[A-Za-z0-9_-]{8,}/g, REDACTED_VALUE)
+    .replace(/Bearer\s+[A-Za-z0-9._~+/=-]{8,}/gi, `Bearer ${REDACTED_VALUE}`)
+    .replace(/api[-_ ]?key\s*[:=]\s*[^\s,;]+/gi, `api_key=${REDACTED_VALUE}`);
+}
+
 export function jsonlEmitter(write = process.stdout.write.bind(process.stdout)) {
   let emittedTerminal = false;
   return (record) => {
@@ -195,6 +231,12 @@ function optionalEnv(env, fieldName) {
 
 function removeUndefinedValues(payload) {
   return Object.fromEntries(Object.entries(payload).filter(([, value]) => value !== undefined));
+}
+
+function knownSecretValues(env) {
+  return [env.CLINE_SDK_API_KEY]
+    .filter((value) => typeof value === "string" && value.length >= 4)
+    .sort((left, right) => right.length - left.length);
 }
 
 function emitDiagnosticIfPresent(emitRecord, kind, value, summary) {

@@ -4,11 +4,13 @@ import test from "node:test";
 import {
   createAgentConfig,
   emitSdkEvent,
+  emitSafeDebugDiagnostics,
   jsonlEmitter,
   normalizeAgentStatus,
   parseRunnerRequest,
   runAgentProof,
   RunnerProtocolError,
+  sanitizeDiagnosticText,
 } from "./runner-lib.mjs";
 
 const BASE_REQUEST = {
@@ -125,4 +127,94 @@ test("runAgentProof uses Agent subscribe and run and emits one terminal result",
   assert.deepEqual(records.at(-1), { type: "terminal_result", status: "completed" });
   assert.equal(records.some((record) => JSON.stringify(record).includes("secret")), false);
   assert.equal(records.some((record) => record.kind === "run" && record.value === "run-1"), true);
+});
+
+test("runAgentProof omits SDK error details unless safe debug is enabled", async () => {
+  const records = [];
+  class FailingAgent {
+    subscribe() {
+      return () => undefined;
+    }
+
+    async run() {
+      return {
+        status: "failed",
+        error: new Error("provider rejected secret sk-test-secret-token"),
+      };
+    }
+  }
+
+  await runAgentProof({
+    AgentClass: FailingAgent,
+    request: BASE_REQUEST,
+    env: {
+      CLINE_SDK_PROVIDER_ID: "openai-codex-cli",
+      CLINE_SDK_MODEL_ID: "gpt-5.5",
+    },
+    emitRecord: (record) => records.push(record),
+  });
+
+  assert.equal(records.some((record) => record.kind === "sdk_error_message"), false);
+  assert.deepEqual(records.at(-1), { type: "terminal_result", status: "failed" });
+});
+
+test("runAgentProof emits redacted SDK error details when safe debug is enabled", async () => {
+  const records = [];
+  class FailingAgent {
+    subscribe() {
+      return () => undefined;
+    }
+
+    async run() {
+      return {
+        status: "failed",
+        error: new Error("provider rejected secret-token and sk-test-secret-token"),
+      };
+    }
+  }
+
+  await runAgentProof({
+    AgentClass: FailingAgent,
+    request: BASE_REQUEST,
+    env: {
+      CLINE_SDK_PROVIDER_ID: "openai-codex-cli",
+      CLINE_SDK_MODEL_ID: "gpt-5.5",
+      CLINE_SDK_API_KEY: "secret-token",
+      CLINE_SDK_DEBUG_SAFE: "1",
+    },
+    emitRecord: (record) => records.push(record),
+  });
+
+  const debugMessage = records.find((record) => record.kind === "sdk_error_message");
+
+  assert.equal(records.some((record) => JSON.stringify(record).includes("secret-token")), false);
+  assert.equal(records.some((record) => JSON.stringify(record).includes("sk-test-secret-token")), false);
+  assert.match(debugMessage.value, /\[REDACTED\]/);
+  assert.deepEqual(records.at(-1), { type: "terminal_result", status: "failed" });
+});
+
+test("emitSafeDebugDiagnostics redacts thrown SDK errors", () => {
+  const records = [];
+
+  emitSafeDebugDiagnostics({
+    error: new TypeError("Bearer abcdefghijklmnop failed with api_key=plain-secret"),
+    env: { CLINE_SDK_DEBUG_SAFE: "1", CLINE_SDK_API_KEY: "plain-secret" },
+    emitRecord: (record) => records.push(record),
+  });
+
+  assert.equal(records[0].kind, "sdk_error_type");
+  assert.equal(records[0].value, "TypeError");
+  assert.equal(records[1].kind, "sdk_error_message");
+  assert.equal(records[1].value.includes("abcdefghijklmnop"), false);
+  assert.equal(records[1].value.includes("plain-secret"), false);
+});
+
+test("sanitizeDiagnosticText redacts known secret patterns", () => {
+  const sanitized = sanitizeDiagnosticText("sk-abcdefghijklmnop Bearer abcdefghijklmnop api key: abc secret-token", {
+    CLINE_SDK_API_KEY: "secret-token",
+  });
+
+  assert.equal(sanitized.includes("sk-abcdefghijklmnop"), false);
+  assert.equal(sanitized.includes("Bearer abcdefghijklmnop"), false);
+  assert.equal(sanitized.includes("secret-token"), false);
 });
