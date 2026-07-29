@@ -419,16 +419,30 @@ provides explicit fail-closed tool policies for known tool/mode categories, and
 installs a `capabilities.requestToolApproval` handler that records normalized
 approval evidence while denying by default. CI-safe fake ClineCore tests verify
 session diagnostics, event normalization, dynamic approval evidence, and blocked
-capability reporting. This proves the probe contract and SDK API surface shape;
-local real-SDK session creation and permission smoke evidence remains required
-before Checkpoint A can be marked complete. No direct SDK Plan/Act transition or
-Act-authorization primitive has been proven.
+capability reporting. This proves the probe contract and SDK API surface shape.
+Local real-SDK smoke
+on 2026-07-29 loaded the adapter-owned `.env` SDK provider/model settings
+without printing values, ran `node_runner/clinecore-probe.mjs` against the
+configured provider with `CLINE_SDK_DEBUG_SAFE=1`, emitted SDK session events
+`status`, `session_snapshot`, `agent_event`, `chunk`, and `ended`, reported safe
+diagnostics for `session`, `manifest`, `messages`, `session_result`,
+`tool_policy_coverage`, and `dynamic_approval_handler`, and returned terminal
+status `completed` without blocker records or detected secret leakage. This
+proves local ClineCore session creation, workspace-root use, session event
+subscription, and session artifact diagnostics for the probe path. The smoke did
+not observe a real `requestToolApproval` callback, so dynamic approval remains
+installed and CI-fake verified but not yet real-SDK exercised. No direct SDK
+Plan/Act transition or Act-authorization primitive has been proven.
 
 **Verification:**
 
 - [x] Run CI-safe fake/protocol tests for ClineCore probe output.
-- [ ] Run local real-SDK smoke evidence for ClineCore session creation and
+- [x] Run local real-SDK smoke evidence for ClineCore session creation and
       permission handling before marking permission/session capabilities proven.
+      Session creation and session artifact diagnostics are proven locally;
+      permission handling remains limited to installed-deny-by-default evidence
+      plus CI-safe fake-callback verification until a real SDK approval request
+      is observed.
 
 **Dependencies:** Task 4a
 
