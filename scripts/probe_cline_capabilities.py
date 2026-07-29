@@ -1,4 +1,9 @@
-"""Run the public Cline CLI capability probe adapter and print a JSON report."""
+"""Run the legacy Cline CLI discovery probe and print a JSON report.
+
+This script is retained for compatibility diagnostics. It is not the production
+SDK-first execution contract and does not produce SDK readiness evidence; see
+ADR 0002.
+"""
 
 from __future__ import annotations
 
@@ -27,8 +32,13 @@ DEFAULT_REQUIRED_SKILLS = (
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """Build the capability probe script argument parser."""
-    parser = argparse.ArgumentParser(description="Run the Cline CLI capability probe and print a JSON report.")
+    """Build the legacy discovery probe script argument parser."""
+    parser = argparse.ArgumentParser(
+        description=(
+            "Run the legacy Cline CLI discovery probe and print a JSON report. "
+            "This is not SDK readiness evidence; see ADR 0002."
+        )
+    )
     parser.add_argument(
         "--cline-command",
         nargs="+",
@@ -71,7 +81,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def run_probe(arguments: argparse.Namespace) -> ClineCapabilityReport:
-    """Run the public capability proof use case for script arguments."""
+    """Run the legacy CLI discovery use case for script arguments."""
     required_skills = tuple(arguments.required_skills) or DEFAULT_REQUIRED_SKILLS
     request = CapabilityProbeRequest(
         command=tuple(arguments.cline_command),
@@ -90,6 +100,7 @@ def report_to_json(report: ClineCapabilityReport) -> str:
     """Serialize the capability report as stable JSON."""
     payload = asdict(report)
     payload["critical_capabilities_proven"] = report.critical_capabilities_proven
+    payload["sdk_readiness_evidence"] = report.sdk_readiness_evidence
     payload["blocking_observations"] = [asdict(observation) for observation in report.blocking_observations]
     payload["first_unproven_observation"] = (
         asdict(report.first_unproven_observation) if report.first_unproven_observation is not None else None

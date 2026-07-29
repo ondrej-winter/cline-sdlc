@@ -1,4 +1,8 @@
-"""DTOs for supervised Cline CLI capability probes."""
+"""DTOs for legacy Cline CLI discovery probes.
+
+These DTOs support compatibility checks for existing supervised CLI surfaces.
+They must not be treated as SDK-first execution readiness evidence.
+"""
 
 from __future__ import annotations
 
@@ -11,7 +15,7 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class CapabilityProbeRequest:
-    """Request to inspect one explicit Cline executable command."""
+    """Request to inspect one explicit legacy Cline CLI command."""
 
     command: tuple[str, ...] = ("cline",)
     required_skills: tuple[str, ...] = ()

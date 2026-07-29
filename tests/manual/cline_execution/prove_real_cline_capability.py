@@ -1,9 +1,9 @@
-"""Supervised real-Cline capability proof entry point.
+"""Supervised legacy real-Cline CLI discovery entry point.
 
 This module is intentionally outside the default automated proof path. It can be
 run manually against an explicitly selected Cline command and disposable
 repository while unit tests exercise the same reporting behavior with a fake
-executable.
+executable. It does not prove SDK-first execution readiness; see ADR 0002.
 """
 
 from __future__ import annotations
@@ -34,7 +34,9 @@ DEFAULT_REQUIRED_SKILLS = (
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the supervised proof command parser."""
-    parser = argparse.ArgumentParser(description="Run a supervised Cline CLI capability proof.")
+    parser = argparse.ArgumentParser(
+        description="Run a supervised legacy Cline CLI discovery probe; this is not SDK readiness evidence."
+    )
     parser.add_argument(
         "--cline-command",
         required=True,
@@ -100,6 +102,7 @@ def report_to_json(report: ClineCapabilityReport) -> str:
     """Serialize the redacted capability report as stable JSON."""
     payload = asdict(report)
     payload["critical_capabilities_proven"] = report.critical_capabilities_proven
+    payload["sdk_readiness_evidence"] = report.sdk_readiness_evidence
     payload["blocking_observations"] = [asdict(observation) for observation in report.blocking_observations]
     payload["first_unproven_observation"] = (
         asdict(report.first_unproven_observation) if report.first_unproven_observation is not None else None

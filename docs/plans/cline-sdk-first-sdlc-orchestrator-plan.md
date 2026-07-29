@@ -765,15 +765,22 @@ production readiness for SDK-first orchestration.
 
 **Acceptance criteria:**
 
-- [ ] CLI probe naming/docs do not present terminal probing as the production SDK
+- [x] CLI probe naming/docs do not present terminal probing as the production SDK
       execution contract.
-- [ ] Useful subprocess/fake Cline tests remain available as compatibility tests.
-- [ ] Documentation references ADR 0002 where appropriate.
+- [x] Useful subprocess/fake Cline tests remain available as compatibility tests.
+- [x] Documentation references ADR 0002 where appropriate.
+
+Task 10 implementation note: legacy CLI probe modules, ports, DTOs, scripts, and
+manual proof entry points now describe themselves as compatibility/discovery
+surfaces rather than SDK readiness evidence. `ClineCapabilityReport` exposes
+`sdk_readiness_evidence=False`, JSON script output includes the same flag, and
+script help text points readers to ADR 0002. Existing subprocess/fake Cline tests
+remain in place as compatibility coverage.
 
 **Verification:**
 
-- [ ] Run focused `cline_execution` tests.
-- [ ] Search for misleading CLI-readiness claims.
+- [x] Run focused `cline_execution` tests.
+- [x] Search for misleading CLI-readiness claims.
 
 **Dependencies:** Task 9
 
@@ -782,7 +789,7 @@ production readiness for SDK-first orchestration.
 ### Checkpoint: Capability Gate Ready for Delivery Decision
 
 - [x] SDK capability matrix is complete.
-- [ ] CLI probe surfaces are quarantined.
+- [x] CLI probe surfaces are quarantined.
 - [ ] `--plan-file` delivery can proceed only after the spec's full SDK execution
       contract is proven by official docs/API references and local real-SDK smoke
       evidence.

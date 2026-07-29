@@ -44,3 +44,4 @@ def test_delegates_capability_probe_request() -> None:
     assert probe.request == request
     assert report.version == "3.0.46"
     assert not report.critical_capabilities_proven
+    assert not report.sdk_readiness_evidence

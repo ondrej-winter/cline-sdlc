@@ -84,3 +84,21 @@ def test_report_exposes_first_unproven_supporting_observation_after_critical_rea
     assert report.critical_capabilities_proven
     assert report.blocking_observations == ()
     assert report.first_unproven_observation is report.observations[2]
+
+
+def test_report_is_not_sdk_readiness_evidence() -> None:
+    report = ClineCapabilityReport(
+        executable="cline",
+        version="3.0.47",
+        observations=(
+            CapabilityObservation(
+                name="terminal_outcome",
+                status=CapabilityStatus.PROVEN,
+                criticality=CapabilityCriticality.CRITICAL,
+                evidence="legacy CLI discovery passed",
+            ),
+        ),
+        limitations=(),
+    )
+
+    assert not report.sdk_readiness_evidence

@@ -1,4 +1,4 @@
-"""Subprocess-backed Cline CLI capability probe adapter package."""
+"""Subprocess-backed legacy Cline CLI discovery probe adapter package."""
 
 from .adapter import SubprocessClineCapabilityProbe
 

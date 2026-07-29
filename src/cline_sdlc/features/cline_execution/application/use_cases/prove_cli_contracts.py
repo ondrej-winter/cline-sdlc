@@ -1,4 +1,4 @@
-"""Use case for the Phase 0 Cline CLI capability spike."""
+"""Use case for legacy Cline CLI discovery checks."""
 
 from __future__ import annotations
 
@@ -11,11 +11,11 @@ if TYPE_CHECKING:
 
 
 class ProveClineCliContracts:
-    """Collect supervised evidence for the CLI-wrapper viability gate."""
+    """Collect compatibility evidence without proving SDK-first readiness."""
 
     def __init__(self, probe: ClineCapabilityProbePort) -> None:
         self._probe = probe
 
     def execute(self, request: CapabilityProbeRequest) -> ClineCapabilityReport:
-        """Probe the requested Cline CLI command and return typed evidence."""
+        """Probe the requested Cline CLI command and return typed discovery evidence."""
         return self._probe.probe(request)

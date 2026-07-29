@@ -1,4 +1,4 @@
-"""Outbound port for Cline CLI capability probing."""
+"""Outbound port for legacy Cline CLI discovery probing."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 
 class ClineCapabilityProbePort(Protocol):
-    """Probe a Cline CLI executable without starting lifecycle work."""
+    """Probe a Cline CLI executable for compatibility, not SDK readiness."""
 
     def probe(self, request: CapabilityProbeRequest) -> ClineCapabilityReport:
-        """Return capability evidence for the requested Cline command."""
+        """Return legacy CLI discovery evidence for the requested command."""

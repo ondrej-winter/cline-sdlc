@@ -1,4 +1,4 @@
-"""Public subprocess-backed Cline CLI capability probe adapter."""
+"""Public subprocess-backed legacy Cline CLI discovery probe adapter."""
 
 from typing import TYPE_CHECKING
 
@@ -17,10 +17,10 @@ if TYPE_CHECKING:
 
 
 class SubprocessClineCapabilityProbe:
-    """Inspect Cline CLI help/version output with argument-array subprocess calls."""
+    """Inspect Cline CLI output for compatibility, not SDK readiness."""
 
     def probe(self, request: CapabilityProbeRequest) -> ClineCapabilityReport:
-        """Return advertised capabilities and explicitly unproven critical contracts."""
+        """Return advertised legacy CLI capabilities and unproven contracts."""
         help_result = run((*request.command, "--help"))
         version_result = run((*request.command, "--version"))
 

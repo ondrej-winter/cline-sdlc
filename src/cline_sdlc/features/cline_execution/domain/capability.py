@@ -1,11 +1,11 @@
-"""Capability evidence collected from a supervised Cline CLI spike."""
+"""Legacy Cline CLI discovery evidence retained outside SDK readiness."""
 
 from dataclasses import dataclass
 from enum import StrEnum
 
 
 class CapabilityStatus(StrEnum):
-    """Evidence strength for one Cline CLI capability."""
+    """Evidence strength for one legacy Cline CLI discovery observation."""
 
     PROVEN = "proven"
     ADVERTISED = "advertised"
@@ -14,7 +14,7 @@ class CapabilityStatus(StrEnum):
 
 
 class CapabilityCriticality(StrEnum):
-    """Whether a capability blocks the CLI-wrapper architecture."""
+    """Whether a legacy CLI discovery observation blocks supervised compatibility."""
 
     CRITICAL = "critical"
     SUPPORTING = "supporting"
@@ -22,7 +22,7 @@ class CapabilityCriticality(StrEnum):
 
 @dataclass(frozen=True)
 class CapabilityObservation:
-    """Observed evidence for a required Cline CLI behavior."""
+    """Observed evidence for a legacy Cline CLI behavior."""
 
     name: str
     status: CapabilityStatus
@@ -37,12 +37,22 @@ class CapabilityObservation:
 
 @dataclass(frozen=True)
 class ClineCapabilityReport:
-    """Aggregated capability-spike result for the CLI-wrapper viability gate."""
+    """Aggregated legacy CLI discovery result.
+
+    CLI probe reports are compatibility and discovery evidence only. They are not
+    production-equivalent SDK readiness evidence; ADR 0002 rejects CLI probing as
+    the SDK-first execution contract.
+    """
 
     executable: str
     version: str | None
     observations: tuple[CapabilityObservation, ...]
     limitations: tuple[str, ...]
+
+    @property
+    def sdk_readiness_evidence(self) -> bool:
+        """Return whether this report can prove SDK-first execution readiness."""
+        return False
 
     @property
     def critical_capabilities_proven(self) -> bool:
