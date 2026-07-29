@@ -74,7 +74,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--probe-prompt",
-        default="Emit one machine-readable capability outcome and no lifecycle artifact writes.",
+        default="Write the requested machine-readable capability sidecar and no lifecycle artifact writes.",
         help="Prompt sent to Cline during the supervised session probe.",
     )
     return parser

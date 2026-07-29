@@ -20,4 +20,4 @@ class CapabilityProbeRequest:
     data_directory: Path | None = None
     hooks_directory: Path | None = None
     session_timeout_seconds: float = 10.0
-    probe_prompt: str = "Emit one machine-readable capability outcome."
+    probe_prompt: str = "Write one machine-readable capability status sidecar."

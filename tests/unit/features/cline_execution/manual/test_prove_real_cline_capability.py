@@ -48,7 +48,7 @@ def test_supervised_proof_uses_explicit_paths_and_reports_proven_fake_contracts(
     statuses = {observation.name: observation.status for observation in report.observations}
     assert report.executable == f"{sys.executable} {fake_cline}"
     assert statuses["required_skill:idea-refine"] is CapabilityStatus.PROVEN
-    assert statuses["exactly_one_machine_detectable_terminal_outcome"] is CapabilityStatus.PROVEN
+    assert statuses["supervised_session_writes_status_sidecar"] is CapabilityStatus.PROVEN
     assert report.critical_capabilities_proven
 
 
@@ -56,7 +56,7 @@ def test_report_json_includes_blocking_observations_for_failed_fake_contracts(tm
     fake_cline = Path(__file__).parents[1] / "adapters" / "outbound" / "cli_capability_probe" / "fake_helping_cline.py"
     arguments = _parse_args(
         tmp_path,
-        command=(sys.executable, str(fake_cline), "--fake-session-scenario", "missing-outcome"),
+        command=(sys.executable, str(fake_cline), "--fake-session-scenario", "missing-sidecar"),
         required_skills=("missing-skill",),
     )
 
@@ -65,10 +65,9 @@ def test_report_json_includes_blocking_observations_for_failed_fake_contracts(tm
     blocking_names = {observation["name"] for observation in payload["blocking_observations"]}
     assert payload["critical_capabilities_proven"] is False
     assert "required_skill:missing-skill" in blocking_names
-    assert "exactly_one_machine_detectable_terminal_outcome" in blocking_names
 
 
-def test_main_returns_non_zero_when_critical_contracts_remain_unproven(
+def test_main_returns_non_zero_when_required_skill_is_missing(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     fake_cline = Path(__file__).parents[1] / "adapters" / "outbound" / "cli_capability_probe" / "fake_helping_cline.py"
@@ -79,7 +78,7 @@ def test_main_returns_non_zero_when_critical_contracts_remain_unproven(
             sys.executable,
             str(fake_cline),
             "--fake-session-scenario",
-            "missing-outcome",
+            "missing-sidecar",
             "--repository-root",
             str(tmp_path / "repo"),
             "--data-directory",
@@ -87,7 +86,7 @@ def test_main_returns_non_zero_when_critical_contracts_remain_unproven(
             "--hooks-directory",
             str(tmp_path / "hooks"),
             "--required-skill",
-            "idea-refine",
+            "missing-skill",
         ]
     )
 

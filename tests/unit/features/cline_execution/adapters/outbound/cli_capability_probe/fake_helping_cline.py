@@ -3,6 +3,7 @@
 import json
 import sys
 import time
+from pathlib import Path
 
 
 def main() -> int:
@@ -41,25 +42,18 @@ def main() -> int:
 
 
 def _run_session_scenario(scenario: str) -> None:
-    if scenario == "missing-outcome":
+    if scenario == "missing-sidecar":
         return
-    if scenario == "malformed-outcome":
-        sys.stdout.write("{not-json}\n")
+    if scenario == "malformed-sidecar":
+        _write_sidecar("{not-json}")
         return
-    if scenario == "duplicate-outcome":
-        _write_outcome()
-        _write_outcome()
-        return
-    if scenario == "wrapped-message-outcome":
-        _write_wrapped_outcome("message")
-        return
-    if scenario == "wrapped-content-text-outcome":
-        _write_wrapped_outcome_text("content")
+    if scenario == "missing-interruption-recovery":
+        _write_sidecar(json.dumps({"schema_version": 1, "status": "ok"}))
         return
     if scenario == "timeout":
         time.sleep(10.0)
         return
-    _write_outcome()
+    _write_sidecar(json.dumps(_sidecar_payload()))
 
 
 def _argument_after(flag: str) -> str | None:
@@ -69,23 +63,31 @@ def _argument_after(flag: str) -> str | None:
         return None
 
 
-def _write_outcome() -> None:
-    sys.stdout.write(json.dumps(_outcome_payload()) + "\n")
+def _write_sidecar(content: str) -> None:
+    sidecar_path = _sidecar_path_from_prompt()
+    if sidecar_path is None:
+        return
+    sidecar_path.parent.mkdir(parents=True, exist_ok=True)
+    sidecar_path.write_text(content, encoding="utf-8")
 
 
-def _write_wrapped_outcome(key: str) -> None:
-    sys.stdout.write(json.dumps({"type": "assistant", key: _outcome_payload()}) + "\n")
+def _sidecar_path_from_prompt() -> Path | None:
+    if not sys.argv:
+        return None
+    lines = sys.argv[-1].splitlines()
+    for index, line in enumerate(lines):
+        if line == "Before exiting, write a UTF-8 JSON status sidecar file at this exact path:":
+            try:
+                return Path(lines[index + 1])
+            except IndexError:
+                return None
+    return None
 
 
-def _write_wrapped_outcome_text(key: str) -> None:
-    sys.stdout.write(json.dumps({"type": "assistant", key: json.dumps(_outcome_payload())}) + "\n")
-
-
-def _outcome_payload() -> dict[str, object]:
+def _sidecar_payload() -> dict[str, object]:
     return {
         "schema_version": 1,
-        "status": "completed",
-        "changed_paths": [],
+        "status": "ok",
         "interruption_recovery": True,
     }
 

@@ -10,7 +10,7 @@ from cline_sdlc.features.cline_execution.domain.capability import CapabilityStat
 UNPROVEN_CRITICAL_CAPABILITY_COUNT = 0
 
 
-def test_probe_records_advertised_supporting_capabilities_and_unproven_cline_authored_contracts() -> None:
+def test_probe_records_advertised_supporting_capabilities_and_unproven_sidecar_contracts() -> None:
     fake_cline = Path(__file__).with_name("fake_helping_cline.py")
 
     report = SubprocessClineCapabilityProbe().probe(CapabilityProbeRequest(command=(sys.executable, str(fake_cline))))
@@ -23,7 +23,7 @@ def test_probe_records_advertised_supporting_capabilities_and_unproven_cline_aut
     assert statuses["hook_injection_directory"] is CapabilityStatus.ADVERTISED
     assert statuses["explicit_working_directory"] is CapabilityStatus.ADVERTISED
     assert statuses["skill_management_command"] is CapabilityStatus.ADVERTISED
-    assert statuses["cline_authored_terminal_outcome"] is CapabilityStatus.UNPROVEN
+    assert statuses["supervised_session_writes_status_sidecar"] is CapabilityStatus.UNPROVEN
     assert statuses["cline_authored_interruption_recovery_metadata"] is CapabilityStatus.UNPROVEN
     assert report.critical_capabilities_proven
     assert len(report.limitations) == UNPROVEN_CRITICAL_CAPABILITY_COUNT
@@ -94,11 +94,11 @@ def test_probe_fails_closed_for_missing_executable() -> None:
 
     statuses = {observation.name: observation.status for observation in report.observations}
     assert statuses["json_output"] is CapabilityStatus.MISSING
-    assert statuses["cline_authored_terminal_outcome"] is CapabilityStatus.UNPROVEN
+    assert statuses["supervised_session_writes_status_sidecar"] is CapabilityStatus.UNPROVEN
     assert report.critical_capabilities_proven
 
 
-def test_supervised_session_probe_can_prove_critical_contracts(tmp_path: Path) -> None:
+def test_supervised_session_probe_can_prove_status_sidecar_contract(tmp_path: Path) -> None:
     fake_cline = Path(__file__).with_name("fake_helping_cline.py")
 
     report = SubprocessClineCapabilityProbe().probe(
@@ -112,56 +112,57 @@ def test_supervised_session_probe_can_prove_critical_contracts(tmp_path: Path) -
     )
 
     statuses = {observation.name: observation.status for observation in report.observations}
-    assert statuses["cline_authored_terminal_outcome"] is CapabilityStatus.PROVEN
+    assert statuses["supervised_session_writes_status_sidecar"] is CapabilityStatus.PROVEN
     assert statuses["cline_authored_interruption_recovery_metadata"] is CapabilityStatus.PROVEN
     assert report.critical_capabilities_proven
 
 
-def test_supervised_session_probe_extracts_wrapped_message_outcome(tmp_path: Path) -> None:
+def test_supervised_session_probe_fails_closed_for_missing_sidecar(tmp_path: Path) -> None:
     fake_cline = Path(__file__).with_name("fake_helping_cline.py")
 
     report = SubprocessClineCapabilityProbe().probe(
         CapabilityProbeRequest(
-            command=(sys.executable, str(fake_cline), "--fake-session-scenario", "wrapped-message-outcome"),
+            command=(sys.executable, str(fake_cline), "--fake-session-scenario", "missing-sidecar"),
             supervised_session_probe=True,
             repository_root=tmp_path,
         )
     )
 
     statuses = {observation.name: observation.status for observation in report.observations}
-    assert statuses["cline_authored_terminal_outcome"] is CapabilityStatus.PROVEN
-    assert statuses["cline_authored_interruption_recovery_metadata"] is CapabilityStatus.PROVEN
+    assert statuses["supervised_session_writes_status_sidecar"] is CapabilityStatus.UNPROVEN
+    assert statuses["cline_authored_interruption_recovery_metadata"] is CapabilityStatus.UNPROVEN
 
 
-def test_supervised_session_probe_extracts_wrapped_content_text_outcome(tmp_path: Path) -> None:
+def test_supervised_session_probe_fails_closed_for_malformed_sidecar(tmp_path: Path) -> None:
     fake_cline = Path(__file__).with_name("fake_helping_cline.py")
 
     report = SubprocessClineCapabilityProbe().probe(
         CapabilityProbeRequest(
-            command=(sys.executable, str(fake_cline), "--fake-session-scenario", "wrapped-content-text-outcome"),
+            command=(sys.executable, str(fake_cline), "--fake-session-scenario", "malformed-sidecar"),
             supervised_session_probe=True,
             repository_root=tmp_path,
         )
     )
 
     statuses = {observation.name: observation.status for observation in report.observations}
-    assert statuses["cline_authored_terminal_outcome"] is CapabilityStatus.PROVEN
-    assert statuses["cline_authored_interruption_recovery_metadata"] is CapabilityStatus.PROVEN
+    assert statuses["supervised_session_writes_status_sidecar"] is CapabilityStatus.UNPROVEN
+    assert statuses["cline_authored_interruption_recovery_metadata"] is CapabilityStatus.UNPROVEN
 
 
-def test_supervised_session_probe_fails_closed_for_duplicate_outcomes(tmp_path: Path) -> None:
+def test_supervised_session_probe_reports_missing_recovery_metadata(tmp_path: Path) -> None:
     fake_cline = Path(__file__).with_name("fake_helping_cline.py")
 
     report = SubprocessClineCapabilityProbe().probe(
         CapabilityProbeRequest(
-            command=(sys.executable, str(fake_cline), "--fake-session-scenario", "duplicate-outcome"),
+            command=(sys.executable, str(fake_cline), "--fake-session-scenario", "missing-interruption-recovery"),
             supervised_session_probe=True,
             repository_root=tmp_path,
         )
     )
 
     statuses = {observation.name: observation.status for observation in report.observations}
-    assert statuses["cline_authored_terminal_outcome"] is CapabilityStatus.UNPROVEN
+    assert statuses["supervised_session_writes_status_sidecar"] is CapabilityStatus.PROVEN
+    assert statuses["cline_authored_interruption_recovery_metadata"] is CapabilityStatus.UNPROVEN
     assert report.critical_capabilities_proven
 
 
@@ -178,6 +179,6 @@ def test_supervised_session_probe_records_bounded_timeout(tmp_path: Path) -> Non
     )
 
     statuses = {observation.name: observation.status for observation in report.observations}
-    assert statuses["cline_authored_terminal_outcome"] is CapabilityStatus.UNPROVEN
+    assert statuses["supervised_session_writes_status_sidecar"] is CapabilityStatus.UNPROVEN
     assert statuses["cline_authored_interruption_recovery_metadata"] is CapabilityStatus.PROVEN
     assert report.critical_capabilities_proven

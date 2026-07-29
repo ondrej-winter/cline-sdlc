@@ -64,7 +64,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--probe-prompt",
-        default="Emit one machine-readable capability outcome.",
+        default="Write one machine-readable capability status sidecar.",
         help="Prompt sent to Cline during the supervised session probe.",
     )
     return parser
