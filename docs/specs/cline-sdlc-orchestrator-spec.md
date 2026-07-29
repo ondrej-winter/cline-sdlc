@@ -5,7 +5,7 @@
 - Artifact type: product and behavior specification
 - Date: 2026-07-23
 - Source brief: archived discovery brief absorbed into this specification
-- Decision state: serial plan-implementation automation accepted on 2026-07-25
+- Decision state: SDK-first execution-boundary pivot accepted on 2026-07-29
 - Intended scope: portable Cline SDLC orchestrator with bounded unattended plan implementation
 
 ## MVP scope decision
@@ -35,8 +35,8 @@ deferred.
 ## Objective
 
 Build a standalone Python 3 command-line application that coordinates one
-bounded software development lifecycle stage per invocation through the Cline
-CLI.
+bounded software development lifecycle stage per invocation through a
+`cline-sdk`-shaped Cline execution boundary.
 The application must accept one rough idea or one repository artifact, invoke
 the existing stage-specific Agent Skills in bounded Cline sessions, persist logs
 and summaries, and stop at the next major artifact boundary. Plan implementation
@@ -55,42 +55,47 @@ The `cline-sdlc` package must be installable and runnable as a Python CLI throug
 Focused Agent Skills already define the detailed procedures for idea refinement,
 specification, planning, plan review, incremental implementation, testing, and
 quality gates. The missing MVP capability is a portable orchestrator around those
-skills: input selection, subprocess coordination, bounded stage execution, dry-run
-support, Cline logs, run summaries, slice reconciliation, and local commits.
+skills: input selection, SDK-backed Cline session coordination, bounded stage
+execution, dry-run support, Cline logs, run summaries, slice reconciliation, and
+local commits.
 
-Cline CLI is the execution engine for the MVP. The orchestrator owns process and
-transaction coordination but does not replace Cline or reproduce specialist skill
-instructions. It establishes completion only from validated artifacts, process
-observations, validation evidence, and Git state, never from free-form prose alone.
+Cline is the execution engine for the MVP, but the intended integration boundary
+is a `cline-sdk` contract rather than terminal probing of `cline-cli` behavior.
+The orchestrator owns transaction coordination but does not replace Cline or
+reproduce specialist skill instructions. It establishes completion only from
+validated artifacts, SDK session evidence, validation evidence, and Git state,
+never from free-form prose alone.
 
 Repository-visible Markdown artifacts plus reconciled Git history remain the
-portable source of truth. Cline session identifiers, CLI event logs, summaries,
-and Checkpoints support diagnosis and handoff but do not independently establish
-lifecycle phase, plan readiness, approval, or completed work.
+portable source of truth. Cline session identifiers, SDK diagnostic events,
+summaries, and Checkpoints support diagnosis and handoff but do not independently
+establish lifecycle phase, plan readiness, approval, or completed work.
 
 ## Assumptions
 
 1. The host workspace is usually a local Git repository, but rough-idea runs may
    operate outside Git when the user chooses an output location.
-2. Cline CLI provides non-interactive invocation, JSON/event output when
-   requested, bounded timeouts, and optional isolated data directories suitable
-   for bounded workflow execution.
+2. A supported `cline-sdk` contract provides bounded Cline session creation,
+   structured lifecycle events or outcomes, Plan/Act transition mediation,
+   timeouts or interruption handling, and diagnostic references suitable for
+   bounded workflow execution.
 3. The required stage skills are installed or discoverable by each Cline
    session.
 4. Markdown artifacts can contain a fenced YAML state block that is readable by
    humans and parsed safely by the orchestrator.
-5. A fresh Cline session provides process observations and a machine-detectable
+5. A fresh Cline session provides SDK observations and a machine-detectable
    outcome sufficient for independent reconciliation; ordinary prose is not
    authoritative lifecycle state.
 6. Plan implementation creates one local atomic commit per independently verified
    slice. Other artifact-producing stages leave changes for human review.
-7. The application may depend on Git, `uvx`, Python 3.14 or newer, and the Cline
-   CLI, but must not require this repository's directory layout or maintenance
-   tooling when used in another repository.
+7. The application may depend on Git, `uvx`, Python 3.14 or newer, and a Cline
+   SDK or SDK facade, but must not require this repository's directory layout or
+   maintenance tooling when used in another repository.
 
-If the CLI cannot provide enforceable operation mediation or attributable recovery,
-the implementation must stop and revisit the transport or SDK direction rather
-than weaken these contracts.
+If the SDK contract cannot provide enforceable operation mediation or
+attributable recovery, the implementation must stop and revisit the execution
+boundary rather than weaken these contracts. CLI probing must not be treated as a
+production-equivalent substitute for the SDK contract.
 
 ## Product boundaries
 
@@ -99,11 +104,12 @@ than weaken these contracts.
 - one `cline-sdlc` entry point runnable through `uvx`;
 - rough-idea, idea-file, specification-file, and implementation-plan-file inputs;
 - exactly one major lifecycle stage per invocation;
-- direct attachment or normal subprocess execution for bounded Cline sessions;
+- SDK-backed bounded Cline sessions with optional supervised terminal attachment
+  where the SDK supports it;
 - stage-specific prompt generation that asks Cline to use the relevant Agent Skill;
-- dry-run preview of generated Cline commands and prompts;
-- optional bounded timeout, Cline executable, provider, model, thinking effort,
-  auto-approval, and isolated data-directory options;
+- dry-run preview of generated Cline session requests and prompts;
+- optional bounded timeout, Cline SDK endpoint or adapter selection, provider,
+  model, thinking effort, auto-approval, and isolated data-directory options;
 - per-run log directories and JSON summaries similar to `cline-skill-workflow`;
 - Git reconciliation, explicit staging, local atomic slice commits, and bounded recovery;
 - serial fresh-session implementation of every remaining accepted plan slice;
@@ -113,7 +119,8 @@ than weaken these contracts.
 ### Out of scope
 
 - automatic cascading across two or more major lifecycle stages;
-- Cline SDK or Agent Team orchestration;
+- production reliance on `cline-cli` probing as the primary execution contract;
+- Agent Team orchestration;
 - Ritebook or other product-specific integration;
 - pushes, pull requests, issue updates, releases, publication, or deployment;
 - concurrent implementation sessions or concurrent repository writers;
@@ -190,9 +197,9 @@ The MVP must support:
 
 ```text
 --timeout <duration>       Maximum duration for one Cline session.
---cline-command <path>    Explicit Cline CLI executable for capability testing.
+--cline-sdk-adapter <id>   Explicit Cline SDK adapter or endpoint selection.
 --json                    Emit only the terminal result as JSON on stdout.
---verbose                 Emit subprocess and reconciliation diagnostics.
+--verbose                 Emit SDK session and reconciliation diagnostics.
 --version                 Print orchestrator version and exit.
 --help                    Print usage and exit.
 ```
@@ -258,9 +265,8 @@ success from prose. The terminal result schema must reject unknown status values
 Before starting any Cline session, the orchestrator must:
 
 1. verify its supported Python runtime;
-2. locate and execute a non-interactive Cline CLI capability or version check;
-3. verify required CLI capabilities rather than accepting an untested version
-   string alone;
+2. locate the configured Cline SDK adapter or endpoint;
+3. verify required SDK capabilities rather than accepting a version string alone;
 4. verify the input and artifact schema appropriate to the selected stage;
 5. locate the Git repository root when the stage can modify repository files;
 6. inspect branch, HEAD, and working-tree state;
@@ -359,7 +365,7 @@ The reviewer session must be fresh and read-only. Its prompt may include the
 specification, proposed plan, relevant repository constraints and files, known
 failure modes, and required findings schema. It must not include the author's
 private reasoning or instruct the reviewer to confirm the author's conclusion.
-The reviewer reports findings through its terminal outcome; the orchestrator,
+The reviewer reports findings through its structured session outcome; the orchestrator,
 not the reviewer session, writes those findings into the plan or adjacent
 findings artifact after validating the outcome.
 
@@ -405,8 +411,8 @@ The orchestrator must then:
 5. require implementation, focused tests, validation, progress update, and
    bounded session evidence;
 6. classify the slice transaction exactly once after independently checking Git
-   status, plan progress, validation evidence, process observations, and any
-   structured Cline output;
+   status, plan progress, validation evidence, SDK observations, and any
+   structured Cline outcome;
 7. create one local atomic commit containing implementation, tests or
    documentation, validation evidence in the plan, and updated progress state,
    with machine-readable work and slice trailers;
@@ -662,9 +668,9 @@ transaction must be classified exactly once as `completed`, `needs_user_input`,
 `approval_required`, `blocked`, `failed`, or `interrupted` before the orchestrator
 commits work or starts another slice.
 
-The classification must be derived from bounded process observations, explicit
+The classification must be derived from bounded SDK observations, explicit
 Plan-to-Act transition handling, repository reconciliation, validation evidence,
-plan progress, and any structured Cline output available. Ordinary assistant
+plan progress, and any structured Cline outcome available. Ordinary assistant
 prose must not be the sole authority for committing work or advancing to the next
 slice.
 
@@ -1042,7 +1048,7 @@ The directory must contain a machine-readable summary with:
 - orchestrator and detected Cline versions;
 - run identifier, stage, timestamps, and starting commit;
 - input and artifact paths;
-- session roles and terminal outcomes;
+- session roles and structured session outcomes;
 - attempt counters and timeout events;
 - command classifications and redacted command results;
 - reconciliation decisions;
@@ -1062,8 +1068,9 @@ existing ignore file destructively or commit log content.
 - The application must support macOS and Linux for the MVP.
 - The application must support Python 3.14 or newer, consistent with the package
   metadata, on supported macOS and Linux environments.
-- Cline compatibility must be capability-based. Unsupported or missing required
-  behavior produces an actionable preflight error naming the failed capability.
+- Cline SDK compatibility must be capability-based. Unsupported or missing
+  required behavior produces an actionable preflight error naming the failed
+  capability.
 - File writes must use UTF-8 and preserve host line endings where practical;
   digest canonicalization remains deterministic across supported platforms.
 - Structured schemas are versioned. Unsupported versions fail closed; migrations
@@ -1074,11 +1081,11 @@ existing ignore file destructively or commit log content.
 - Treat artifact paths, branch names, Cline output, repository files, and command
   text as untrusted input.
 - Avoid shell string interpolation; use argument arrays and explicit working
-  directories for subprocesses.
+  directories for any subprocesses the orchestrator still owns directly.
 - Prevent path traversal and symlink escapes for orchestrator-managed writes.
 - Redact environment values and command arguments identified as secrets.
 - Do not send repository data anywhere except through the user-configured Cline
-  CLI execution path.
+  SDK execution path and locally configured validation commands.
 - Do not load executable configuration from the target repository merely to
   classify permissions.
 - Validation discovery may inspect documented project commands, but execution is
@@ -1247,8 +1254,8 @@ Implementation planning must cover these test levels:
   slice selection;
 - property or parameterized tests for path normalization, malicious paths,
   duplicate keys, digest stability, and state invariants;
-- subprocess contract tests with a fake Cline executable emitting successful,
-  malformed, conflicting, timed-out, and approval-required outcomes;
+- SDK contract tests with a fake Cline SDK adapter emitting successful,
+  malformed, conflicting, timed-out, interrupted, and approval-required outcomes;
 - temporary-Git-repository integration tests for clean and dirty trees, protected
   branches, commits, hook failures, HEAD movement, partial slices, and resume;
 - end-to-end fixture workflows covering all four input types and every required
@@ -1270,23 +1277,23 @@ these responsibilities:
 
 - CLI adapter for arguments, terminal attachment, JSON output, and exit codes;
 - lifecycle application service and explicit state transitions;
-- Cline subprocess adapter and capability detection;
+- Cline SDK port, adapter, and capability detection;
 - artifact parser, schema validation, and digest service;
 - Git status, reconciliation, staging, and commit adapter;
 - permission policy and command classifier;
 - run-log and terminal-result writer;
-- tests separated by unit, subprocess contract, Git integration, and end-to-end
+- tests separated by unit, SDK contract, Git integration, and end-to-end
   concerns;
 - Python packaging metadata with a console script runnable by `uvx`.
 
 Domain lifecycle logic must be testable without launching real Cline or invoking
-the developer's Git repository. Subprocess, clock, filesystem, and Git effects
-must be behind replaceable boundaries.
+the developer's Git repository. SDK, subprocess, clock, filesystem, and Git
+effects must be behind replaceable boundaries.
 
 ## Implementation constraints
 
 - Prefer the smallest dependency set that safely supports CLI parsing, strict
-  schema parsing, and subprocess control.
+  schema parsing, SDK integration, and any remaining subprocess control.
 - Pin supported schema behavior in tests rather than relying on permissive model
   output.
 - Use typed Python interfaces and explicit domain values for phases, outcomes,
@@ -1295,11 +1302,11 @@ must be behind replaceable boundaries.
   available.
 - Keep prompts and stage adapters compositional so existing Agent Skills remain
   the procedural source rather than copied prompt text.
-- Detect required skills by stable skill name and a capability probe that asks
-  the session to confirm it can load the required procedure before allowing
-  artifact writes. Skills are external prerequisites in the MVP, not bundled by
-  the Python package; missing or incompatible skills fail preflight or return the
-  structured `required_context_unavailable` blocker before writes.
+- Detect required skills by stable skill name through SDK capability discovery or
+  a structured SDK session check before allowing artifact writes. Skills are
+  external prerequisites in the MVP, not bundled by the Python package; missing
+  or incompatible skills fail preflight or return the structured
+  `required_context_unavailable` blocker before writes.
 - Keep all retries bounded and visible.
 - Make every state transition validate its preconditions and postconditions.
 - Do not implement fallback behavior that converts an invalid structured outcome
@@ -1364,14 +1371,15 @@ telemetry; local summaries are sufficient.
 These choices do not change the product contract and may be resolved in the
 implementation plan:
 
-- the minimum supported Cline CLI version after capability spikes;
+- the minimum supported Cline SDK contract version after source-driven SDK
+  validation;
 - the concrete Python libraries for CLI parsing and strict YAML handling;
 - the default finite session timeout within the specified limit;
 - the exact ignored run-log insertion strategy for repositories with different
   ignore conventions;
 - whether plan-review findings are embedded in the plan or kept in one adjacent
   committed artifact;
-- the exact fake-Cline harness and cross-platform packaging test matrix.
+- the exact fake-SDK harness and cross-platform packaging test matrix.
 
 Any implementation discovery that changes approval semantics, state ownership,
 artifact boundaries, allowed effects, Git safety, or recovery behavior requires

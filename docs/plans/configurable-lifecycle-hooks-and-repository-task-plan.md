@@ -1,5 +1,18 @@
 # Implementation Plan: Configurable Lifecycle Hooks and Repository Task Recipes
 
+## Status
+
+- State: Deferred / superseded as active implementation plan
+- Superseding direction: `docs/ideas/cline-sdk-first-sdlc-orchestrator-idea.md`
+- Decision rationale: repository task recipes and lifecycle hooks depend on a
+  trustworthy Cline execution boundary. Continuing this plan would deepen the
+  current probe-heavy `cline-cli` path before the project has defined the desired
+  `cline-sdk` contract.
+
+Keep this document as captured design context for future repository task work.
+Do not continue implementing its remaining tasks until the SDK-first execution
+boundary is specified and accepted.
+
 ## Overview
 
 Implement the accepted configurable lifecycle hooks and repository task recipe specification by adding an orchestrator-owned, static repository-task model for the built-in `conventional-commit-staged` recipe. The first implementation slice is intentionally standalone-only: it must support standalone invocation as `cline-sdlc task conventional-commit-staged`, deterministic Conventional Commit validation, explicit accept/reject approval, and non-interactive local Git commit creation for exactly authorized staged content. Embedded reuse at the `before_slice_commit` plan-implementation hook is deferred until the standalone task boundary is proven.
