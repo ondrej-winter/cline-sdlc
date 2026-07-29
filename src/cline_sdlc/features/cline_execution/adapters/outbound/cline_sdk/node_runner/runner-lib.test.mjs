@@ -2,12 +2,18 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  createClineCoreOptions,
+  createClineCoreStartInput,
+  createFailClosedToolPolicies,
+  createProbeCapabilities,
   createAgentConfig,
+  emitClineCoreEvent,
   emitSdkEvent,
   emitSafeDebugDiagnostics,
   jsonlEmitter,
   normalizeAgentStatus,
   parseRunnerRequest,
+  runClineCoreProbe,
   runAgentProof,
   RunnerProtocolError,
   sanitizeDiagnosticText,
@@ -74,6 +80,61 @@ test("createAgentConfig maps provider model and reasoning effort from environmen
   assert.equal(config.systemPrompt, BASE_REQUEST.outcomeContract);
 });
 
+test("createClineCoreStartInput supplies safe workspace and fail-closed tool policy configuration", () => {
+  const startInput = createClineCoreStartInput(BASE_REQUEST, {
+    CLINE_SDK_PROVIDER_ID: "openai-codex-cli",
+    CLINE_SDK_MODEL_ID: "gpt-5.5",
+    CLINE_SDK_REASONING_EFFORT: "medium",
+  });
+
+  assert.equal(startInput.config.providerId, "openai-codex-cli");
+  assert.equal(startInput.config.modelId, "gpt-5.5");
+  assert.equal(startInput.config.cwd, "/repo");
+  assert.equal(startInput.config.workspaceRoot, "/repo");
+  assert.equal(startInput.config.enableTools, false);
+  assert.equal(startInput.config.enableSpawnAgent, false);
+  assert.equal(startInput.config.enableAgentTeams, false);
+  assert.equal(startInput.config.checkpoint.enabled, false);
+  assert.equal(startInput.config.toolPolicies.bash.autoApprove, false);
+  assert.equal(startInput.config.toolPolicies.editor.enabled, false);
+  assert.equal(startInput.toolPolicies.applyPatch.autoApprove, false);
+});
+
+test("createClineCoreOptions installs local backend and dynamic approval capability", async () => {
+  const records = [];
+  const options = createClineCoreOptions((record) => records.push(record));
+
+  const approval = await options.capabilities.requestToolApproval({ toolName: "bash" });
+
+  assert.equal(options.clientName, "cline-sdlc-clinecore-probe");
+  assert.equal(options.backendMode, "local");
+  assert.equal(options.toolPolicies.bash.enabled, false);
+  assert.deepEqual(approval, { approved: false, reason: "cline-sdlc ClineCore probe denies tool execution by default" });
+  assert.equal(records.some((record) => record.evidenceType === "approval_request"), true);
+  assert.equal(records.some((record) => record.kind === "tool" && record.value === "bash"), true);
+});
+
+test("createFailClosedToolPolicies returns independent policy objects", () => {
+  const first = createFailClosedToolPolicies();
+  const second = createFailClosedToolPolicies();
+
+  first.bash.enabled = true;
+
+  assert.equal(second.bash.enabled, false);
+});
+
+test("createProbeCapabilities records approval requests and denies by default", async () => {
+  const records = [];
+  const capabilities = createProbeCapabilities((record) => records.push(record));
+
+  const decision = await capabilities.requestToolApproval({ toolName: "editor" });
+
+  assert.equal(decision.approved, false);
+  assert.equal(records[0].evidenceType, "approval_request");
+  assert.equal(records[1].kind, "tool");
+  assert.equal(records[1].value, "editor");
+});
+
 test("jsonlEmitter prevents duplicate terminal results", () => {
   const lines = [];
   const emit = jsonlEmitter((line) => lines.push(line));
@@ -127,6 +188,91 @@ test("runAgentProof uses Agent subscribe and run and emits one terminal result",
   assert.deepEqual(records.at(-1), { type: "terminal_result", status: "completed" });
   assert.equal(records.some((record) => JSON.stringify(record).includes("secret")), false);
   assert.equal(records.some((record) => record.kind === "run" && record.value === "run-1"), true);
+});
+
+test("runClineCoreProbe uses ClineCore create subscribe and start and emits session diagnostics", async () => {
+  const records = [];
+  const calls = [];
+  class FakeClineCore {
+    static async create(options) {
+      calls.push(["create", options]);
+      return new FakeClineCore();
+    }
+
+    subscribe(listener) {
+      calls.push(["subscribe"]);
+      listener({ type: "status", payload: { sessionId: "session-1", status: "running" } });
+      return () => calls.push(["unsubscribe"]);
+    }
+
+    async start(input) {
+      calls.push(["start", input]);
+      assert.equal(input.config.cwd, "/repo");
+      assert.equal(input.config.workspaceRoot, "/repo");
+      assert.equal(input.config.enableTools, false);
+      assert.equal(input.config.toolPolicies.bash.autoApprove, false);
+      assert.equal(input.capabilities, calls[0][1].capabilities);
+      return {
+        sessionId: "session-1",
+        manifestPath: ".cline/sessions/session-1/manifest.json",
+        messagesPath: ".cline/sessions/session-1/messages.json",
+        result: { status: "completed" },
+      };
+    }
+
+    async dispose(reason) {
+      calls.push(["dispose", reason]);
+    }
+  }
+
+  await runClineCoreProbe({
+    ClineCoreClass: FakeClineCore,
+    request: BASE_REQUEST,
+    env: {
+      CLINE_SDK_PROVIDER_ID: "openai-codex-cli",
+      CLINE_SDK_MODEL_ID: "gpt-5.5",
+    },
+    emitRecord: (record) => records.push(record),
+  });
+
+  assert.equal(calls.map((call) => call[0]).includes("create"), true);
+  assert.equal(calls.map((call) => call[0]).includes("subscribe"), true);
+  assert.equal(calls.map((call) => call[0]).includes("start"), true);
+  assert.equal(calls.map((call) => call[0]).includes("dispose"), true);
+  assert.equal(records.some((record) => record.kind === "manifest"), true);
+  assert.equal(records.some((record) => record.kind === "messages"), true);
+  assert.deepEqual(records.at(-1), { type: "terminal_result", status: "completed" });
+});
+
+test("runClineCoreProbe reports missing ClineCore as blocked capability", async () => {
+  const records = [];
+
+  await runClineCoreProbe({
+    ClineCoreClass: undefined,
+    request: BASE_REQUEST,
+    env: {
+      CLINE_SDK_PROVIDER_ID: "openai-codex-cli",
+      CLINE_SDK_MODEL_ID: "gpt-5.5",
+    },
+    emitRecord: (record) => records.push(record),
+  });
+
+  assert.equal(records.some((record) => record.code === "clinecore_missing"), true);
+  assert.deepEqual(records.at(-1), { type: "terminal_result", status: "failed" });
+});
+
+test("emitClineCoreEvent maps session events to diagnostic lifecycle and tool evidence", () => {
+  const records = [];
+
+  emitClineCoreEvent({ type: "hook", payload: { sessionId: "session-1", hookEventName: "tool_call" } }, (record) => records.push(record));
+  emitClineCoreEvent({ type: "hook", payload: { sessionId: "session-1", hookEventName: "tool_result" } }, (record) => records.push(record));
+  emitClineCoreEvent({ type: "ended", payload: { sessionId: "session-1", reason: "completed" } }, (record) => records.push(record));
+  emitClineCoreEvent({ type: "future-event", payload: { sessionId: "session-1" } }, (record) => records.push(record));
+
+  assert.equal(records[0].evidenceType, "tool_request");
+  assert.equal(records[2].evidenceType, "tool_result");
+  assert.equal(records[4].evidenceType, "lifecycle");
+  assert.equal(records[6].evidenceType, "diagnostic");
 });
 
 test("runAgentProof omits SDK error details unless safe debug is enabled", async () => {

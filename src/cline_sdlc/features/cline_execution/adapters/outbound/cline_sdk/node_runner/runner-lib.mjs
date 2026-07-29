@@ -5,10 +5,10 @@
  * - Agent reference: https://docs.cline.bot/sdk/reference/agent.md
  * - Events reference: https://docs.cline.bot/sdk/reference/events.md
  *
- * The documented shape is `new Agent(...)`, `agent.subscribe(...)`, and
- * `await agent.run(...)`. This runner intentionally proves only the bare Agent
- * path. ClineCore sessions, repository tools, Plan/Act mediation, and dynamic
- * approvals remain unproven here.
+ * The documented Agent shape is `new Agent(...)`, `agent.subscribe(...)`, and
+ * `await agent.run(...)`. The documented ClineCore shape is
+ * `await ClineCore.create(...)`, `cline.subscribe(...)`, and
+ * `await cline.start(...)`. Plan/Act mediation remains unproven here.
  */
 
 const SCHEMA_VERSION = 1;
@@ -17,6 +17,20 @@ const SAFE_STATUS_MAP = new Map([
   ["aborted", "aborted"],
   ["failed", "failed"],
 ]);
+const FAIL_CLOSED_TOOL_POLICIES = Object.freeze({
+  act: Object.freeze({ enabled: false, autoApprove: false }),
+  applyPatch: Object.freeze({ enabled: false, autoApprove: false }),
+  askQuestion: Object.freeze({ enabled: false, autoApprove: false }),
+  bash: Object.freeze({ enabled: false, autoApprove: false }),
+  editor: Object.freeze({ enabled: false, autoApprove: false }),
+  plan: Object.freeze({ enabled: false, autoApprove: false }),
+  readFile: Object.freeze({ enabled: false, autoApprove: false }),
+  search: Object.freeze({ enabled: false, autoApprove: false }),
+  skills: Object.freeze({ enabled: false, autoApprove: false }),
+  submit: Object.freeze({ enabled: false, autoApprove: false }),
+  webFetch: Object.freeze({ enabled: false, autoApprove: false }),
+  yolo: Object.freeze({ enabled: false, autoApprove: false }),
+});
 const REDACTED_VALUE = "[REDACTED]";
 
 export class RunnerProtocolError extends Error {
@@ -72,6 +86,71 @@ export function createAgentConfig(request, env = process.env) {
   });
 }
 
+export function createClineCoreStartInput(request, env = process.env) {
+  const providerId = requiredEnv(env, "CLINE_SDK_PROVIDER_ID");
+  const modelId = requiredEnv(env, "CLINE_SDK_MODEL_ID");
+  const reasoningEffort = optionalEnv(env, "CLINE_SDK_REASONING_EFFORT");
+  const apiKey = optionalEnv(env, "CLINE_SDK_API_KEY");
+  const baseUrl = optionalEnv(env, "CLINE_SDK_BASE_URL");
+  const workingDirectory = requiredString(request, "workingDirectory");
+  const toolPolicies = createFailClosedToolPolicies();
+  return {
+    config: removeUndefinedValues({
+      providerId,
+      modelId,
+      reasoningEffort,
+      apiKey,
+      baseUrl,
+      cwd: workingDirectory,
+      workspaceRoot: workingDirectory,
+      systemPrompt: request.outcomeContract,
+      enableTools: false,
+      enableSpawnAgent: false,
+      enableAgentTeams: false,
+      checkpoint: { enabled: false },
+      toolPolicies,
+      skills: Array.isArray(request.requiredSkills) ? request.requiredSkills : [],
+    }),
+    prompt: buildPrompt(request),
+    interactive: false,
+    sessionMetadata: {
+      clineSdlcProbe: "clinecore-capability",
+      executionMode: request.executionMode ?? "read_only",
+      role: request.role ?? "unknown",
+    },
+    capabilities: createProbeCapabilities(emitNoopRecord),
+    toolPolicies,
+  };
+}
+
+export function createClineCoreOptions(emitRecord) {
+  return {
+    clientName: "cline-sdlc-clinecore-probe",
+    backendMode: "local",
+    capabilities: createProbeCapabilities(emitRecord),
+    toolPolicies: createFailClosedToolPolicies(),
+  };
+}
+
+export function createFailClosedToolPolicies() {
+  return Object.fromEntries(Object.entries(FAIL_CLOSED_TOOL_POLICIES).map(([name, policy]) => [name, { ...policy }]));
+}
+
+export function createProbeCapabilities(emitRecord) {
+  return {
+    requestToolApproval: (request) => {
+      emitRecord({
+        type: "event",
+        evidenceType: "approval_request",
+        summary: "ClineCore requested dynamic tool approval; probe denies by default.",
+        sdkEventType: "requestToolApproval",
+      });
+      emitDiagnosticIfPresent(emitRecord, "tool", request?.toolName, "ClineCore approval request tool name");
+      return { approved: false, reason: "cline-sdlc ClineCore probe denies tool execution by default" };
+    },
+  };
+}
+
 export function buildPrompt(request) {
   const context = Array.isArray(request.safeContext) ? request.safeContext : [];
   const artifacts = Array.isArray(request.artifactContext) ? request.artifactContext : [];
@@ -116,6 +195,64 @@ export async function runAgentProof({ AgentClass, request, env = process.env, em
   }
 }
 
+export async function runClineCoreProbe({ ClineCoreClass, request, env = process.env, emitRecord }) {
+  let cline;
+  let unsubscribe;
+  try {
+    const options = createClineCoreOptions(emitRecord);
+    const startInput = createClineCoreStartInput(request, env);
+    startInput.capabilities = options.capabilities;
+    emitRecord({
+      type: "diagnostic",
+      kind: "tool_policy_coverage",
+      value: Object.keys(startInput.toolPolicies).sort().join(","),
+      summary: "ClineCore probe configured explicit fail-closed tool policies",
+    });
+    emitRecord({
+      type: "diagnostic",
+      kind: "dynamic_approval_handler",
+      value: "installed-deny-by-default",
+      summary: "ClineCore probe installed requestToolApproval capability",
+    });
+
+    if (!ClineCoreClass || typeof ClineCoreClass.create !== "function") {
+      throw new RunnerProtocolError("ClineCore.create is not available from @cline/sdk.", "clinecore_missing");
+    }
+    cline = await ClineCoreClass.create(options);
+    if (!cline || typeof cline.start !== "function") {
+      throw new RunnerProtocolError("ClineCore start method is not available.", "clinecore_start_missing");
+    }
+    unsubscribe = typeof cline.subscribe === "function" ? cline.subscribe((event) => emitClineCoreEvent(event, emitRecord)) : undefined;
+    if (typeof cline.subscribe !== "function") {
+      emitRecord({
+        type: "blocker",
+        code: "clinecore_subscribe_missing",
+        summary: "ClineCore session event subscription is unavailable.",
+      });
+    }
+
+    const result = await cline.start(startInput);
+    emitClineCoreDiagnostics(result, emitRecord);
+    emitRecord({ type: "terminal_result", status: "completed" });
+  } catch (error) {
+    emitSafeDebugDiagnostics({ error, env, emitRecord });
+    emitRecord({
+      type: "blocker",
+      code: error instanceof RunnerProtocolError ? error.code : "clinecore_probe_failed",
+      summary: error instanceof RunnerProtocolError ? error.message : "ClineCore capability probe failed.",
+      evidence: safeErrorEvidence(error),
+    });
+    emitRecord({ type: "terminal_result", status: "failed" });
+  } finally {
+    if (typeof unsubscribe === "function") {
+      unsubscribe();
+    }
+    if (cline && typeof cline.dispose === "function") {
+      await cline.dispose("cline-sdlc ClineCore probe complete");
+    }
+  }
+}
+
 export function emitSdkEvent(event, emitRecord) {
   const eventType = typeof event?.type === "string" ? event.type : "unknown";
   if (eventType === "assistant-text-delta") {
@@ -133,6 +270,28 @@ export function emitSdkEvent(event, emitRecord) {
     summary: "Cline SDK Agent emitted a diagnostic event.",
     sdkEventType: eventType,
   });
+}
+
+export function emitClineCoreEvent(event, emitRecord) {
+  const eventType = typeof event?.type === "string" ? event.type : "unknown";
+  const sessionId = typeof event?.payload?.sessionId === "string" ? event.payload.sessionId : undefined;
+  const evidenceType = clineCoreEvidenceType(eventType, event?.payload);
+  emitRecord({
+    type: "event",
+    evidenceType,
+    summary: `ClineCore emitted ${eventType} session event.`,
+    sdkEventType: eventType,
+  });
+  emitDiagnosticIfPresent(emitRecord, "session", sessionId, "ClineCore event session identifier");
+}
+
+export function emitClineCoreDiagnostics(result, emitRecord) {
+  emitDiagnosticIfPresent(emitRecord, "session", result?.sessionId, "ClineCore session identifier");
+  emitDiagnosticIfPresent(emitRecord, "manifest", result?.manifestPath, "ClineCore session manifest path");
+  emitDiagnosticIfPresent(emitRecord, "messages", result?.messagesPath, "ClineCore session messages path");
+  if (result?.result !== undefined) {
+    emitRecord({ type: "diagnostic", kind: "session_result", value: "present", summary: "ClineCore returned a final session result" });
+  }
 }
 
 export function normalizeAgentStatus(status) {
@@ -243,6 +402,23 @@ function emitDiagnosticIfPresent(emitRecord, kind, value, summary) {
   if (typeof value === "string" && value.trim()) {
     emitRecord({ type: "diagnostic", kind, value, summary });
   }
+}
+
+function clineCoreEvidenceType(eventType, payload) {
+  if (eventType === "hook" && payload?.hookEventName === "tool_call") {
+    return "tool_request";
+  }
+  if (eventType === "hook" && payload?.hookEventName === "tool_result") {
+    return "tool_result";
+  }
+  if (eventType === "ended" || eventType === "status") {
+    return "lifecycle";
+  }
+  return "diagnostic";
+}
+
+function emitNoopRecord() {
+  return undefined;
 }
 
 function safeErrorEvidence(error) {

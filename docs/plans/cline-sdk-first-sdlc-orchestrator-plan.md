@@ -389,30 +389,44 @@ SDLC lifecycle work can rely on SDK execution.
 
 **Acceptance criteria:**
 
-- [ ] Probe uses documented `ClineCore.create(...)` and `cline.start(...)` shapes.
-- [ ] Probe supplies safe `cwd` and `workspaceRoot` values through adapter-owned
+- [x] Probe uses documented `ClineCore.create(...)` and `cline.start(...)` shapes.
+- [x] Probe supplies safe `cwd` and `workspaceRoot` values through adapter-owned
       configuration and never from unvalidated raw input.
-- [ ] Probe captures documented session diagnostics such as `sessionId`,
+- [x] Probe captures documented session diagnostics such as `sessionId`,
       `manifestPath`, `messagesPath`, and final `result` when available.
-- [ ] Probe explicitly configures tool policies for every tool category used by
+- [x] Probe explicitly configures tool policies for every tool category used by
       SDLC runs; no write, shell, or network-capable tool is left to SDK default
       auto-approval.
-- [ ] Probe exercises or verifies dynamic approval through documented
+- [x] Probe exercises or verifies dynamic approval through documented
       `capabilities.requestToolApproval` before permission support can be marked
       proven.
-- [ ] Probe subscribes to session events when available and treats unknown event
+- [x] Probe subscribes to session events when available and treats unknown event
       payloads as diagnostic observations unless the capability matrix promotes
       them to reconciliation evidence with proof.
-- [ ] Missing `ClineCore`, missing session artifacts, unsupported tool policies,
+- [x] Missing `ClineCore`, missing session artifacts, unsupported tool policies,
       or unavailable dynamic approval are reported as unproven or blocked
       capabilities.
-- [ ] A direct SDK Plan/Act transition or Act-authorization primitive remains
+- [x] A direct SDK Plan/Act transition or Act-authorization primitive remains
       blocked unless a focused official SDK reference and real smoke evidence
       prove it.
 
+Task 4b implementation note: `node_runner/clinecore-probe.mjs` and the shared
+`runner-lib.mjs` ClineCore probe path use the documented `ClineCore.create(...)`,
+`cline.subscribe(...)`, and `cline.start(...)` shapes re-exported by `@cline/sdk`.
+The probe configures adapter-owned `cwd` and `workspaceRoot` values from the
+validated runner request, disables repository-changing tools by default,
+provides explicit fail-closed tool policies for known tool/mode categories, and
+installs a `capabilities.requestToolApproval` handler that records normalized
+approval evidence while denying by default. CI-safe fake ClineCore tests verify
+session diagnostics, event normalization, dynamic approval evidence, and blocked
+capability reporting. This proves the probe contract and SDK API surface shape;
+local real-SDK session creation and permission smoke evidence remains required
+before Checkpoint A can be marked complete. No direct SDK Plan/Act transition or
+Act-authorization primitive has been proven.
+
 **Verification:**
 
-- [ ] Run CI-safe fake/protocol tests for ClineCore probe output.
+- [x] Run CI-safe fake/protocol tests for ClineCore probe output.
 - [ ] Run local real-SDK smoke evidence for ClineCore session creation and
       permission handling before marking permission/session capabilities proven.
 
