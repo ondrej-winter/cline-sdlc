@@ -27,6 +27,8 @@ def test_probe_records_advertised_supporting_capabilities_and_unproven_sidecar_c
     assert statuses["cline_authored_interruption_recovery_metadata"] is CapabilityStatus.UNPROVEN
     assert report.critical_capabilities_proven
     assert len(report.limitations) == UNPROVEN_CRITICAL_CAPABILITY_COUNT
+    assert report.first_unproven_observation is not None
+    assert report.first_unproven_observation.name == "supervised_session_writes_status_sidecar"
 
 
 def test_probe_records_required_skill_availability() -> None:
@@ -115,6 +117,7 @@ def test_supervised_session_probe_can_prove_status_sidecar_contract(tmp_path: Pa
     assert statuses["supervised_session_writes_status_sidecar"] is CapabilityStatus.PROVEN
     assert statuses["cline_authored_interruption_recovery_metadata"] is CapabilityStatus.PROVEN
     assert report.critical_capabilities_proven
+    assert report.first_unproven_observation is None
 
 
 def test_supervised_session_probe_fails_closed_for_missing_sidecar(tmp_path: Path) -> None:

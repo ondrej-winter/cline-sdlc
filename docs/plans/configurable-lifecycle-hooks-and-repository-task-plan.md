@@ -118,16 +118,16 @@ Do not mark the implementation complete until all checkpoints, validation comman
 **Acceptance criteria:**
 
 - [ ] Inspection requires execution inside a Git repository.
-- [ ] Inspection reports staged paths and staged diff summary or digest evidence.
-- [ ] Inspection distinguishes no staged changes from unsafe repository state.
+- [x] Inspection reports staged paths and staged diff summary or digest evidence.
+- [x] Inspection distinguishes no staged changes from unsafe repository state.
 - [ ] Inspection does not stage, unstage, commit, reset, merge, rebase, clean, push, or otherwise mutate repository state.
-- [ ] Embedded inspection can compare observed staged paths with authorized slice-owned paths.
-- [ ] Blockers are structured with actionable codes, summaries, and safe evidence.
+- [x] Embedded inspection can compare observed staged paths with authorized slice-owned paths.
+- [x] Blockers are structured with actionable codes, summaries, and safe evidence.
 
 **Verification:**
 
-- [ ] Run focused unit tests for the inspection use case with fake Git ports.
-- [ ] Confirm repository task inspection does not reuse lifecycle preflight in a way that requires a clean working tree when standalone staged work is expected.
+- [x] Run focused unit tests for the inspection use case with fake Git ports.
+- [x] Confirm repository task inspection does not reuse lifecycle preflight in a way that requires a clean working tree when standalone staged work is expected.
 
 ## Task 4: Add Git CLI staged inspection adapter and integration tests
 

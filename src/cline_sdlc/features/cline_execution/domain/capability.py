@@ -61,3 +61,11 @@ class ClineCapabilityReport:
             for observation in self.observations
             if observation.criticality is CapabilityCriticality.CRITICAL and not observation.is_satisfied
         )
+
+    @property
+    def first_unproven_observation(self) -> CapabilityObservation | None:
+        """Return the first explicitly unproven observation, if any."""
+        return next(
+            (observation for observation in self.observations if observation.status is CapabilityStatus.UNPROVEN),
+            None,
+        )

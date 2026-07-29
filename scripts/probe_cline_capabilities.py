@@ -91,6 +91,9 @@ def report_to_json(report: ClineCapabilityReport) -> str:
     payload = asdict(report)
     payload["critical_capabilities_proven"] = report.critical_capabilities_proven
     payload["blocking_observations"] = [asdict(observation) for observation in report.blocking_observations]
+    payload["first_unproven_observation"] = (
+        asdict(report.first_unproven_observation) if report.first_unproven_observation is not None else None
+    )
     return json.dumps(payload, indent=2, sort_keys=True)
 
 

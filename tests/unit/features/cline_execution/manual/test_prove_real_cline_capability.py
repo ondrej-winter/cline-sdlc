@@ -65,6 +65,7 @@ def test_report_json_includes_blocking_observations_for_failed_fake_contracts(tm
     blocking_names = {observation["name"] for observation in payload["blocking_observations"]}
     assert payload["critical_capabilities_proven"] is False
     assert "required_skill:missing-skill" in blocking_names
+    assert payload["first_unproven_observation"]["name"] == "supervised_session_writes_status_sidecar"
 
 
 def test_main_returns_non_zero_when_required_skill_is_missing(
