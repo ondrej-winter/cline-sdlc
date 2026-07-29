@@ -315,32 +315,42 @@ does not by itself prove full SDLC repository-changing capability.
 
 **Acceptance criteria:**
 
-- [ ] Runner uses documented SDK shape: `new Agent(...)`, `agent.subscribe(...)`,
+- [x] Runner uses documented SDK shape: `new Agent(...)`, `agent.subscribe(...)`,
       and `await agent.run(...)`.
-- [ ] Runner implementation cites or records the official SDK docs/API references
+- [x] Runner implementation cites or records the official SDK docs/API references
       used for `Agent`, subscription, run, events, `abort(reason?)`, and
       `AgentRunResult` normalization.
-- [ ] Runner captures documented `assistant-text-delta` events as normalized
+- [x] Runner captures documented `assistant-text-delta` events as normalized
       diagnostic or assistant-output evidence.
-- [ ] Runner normalizes documented `AgentRunResult.status` values `completed`,
+- [x] Runner normalizes documented `AgentRunResult.status` values `completed`,
       `aborted`, and `failed` into Python-owned result statuses.
-- [ ] Runner preserves safe diagnostic references such as `agentId`, `runId`,
+- [x] Runner preserves safe diagnostic references such as `agentId`, `runId`,
       iteration count, and usage metadata without exposing raw secrets or model
       reasoning.
-- [ ] Runner emits exactly one terminal JSON result for success, block, failure,
+- [x] Runner emits exactly one terminal JSON result for success, block, failure,
       timeout, or interruption.
-- [ ] Runner never prints secrets, API keys, raw model reasoning, or raw sensitive
+- [x] Runner never prints secrets, API keys, raw model reasoning, or raw sensitive
       repository content by default.
-- [ ] Runner exits with a typed failure when SDK construction, event handling, or
+- [x] Runner exits with a typed failure when SDK construction, event handling, or
       `agent.run(...)` fails.
-- [ ] Plan/Act mediation, built-in repository tools, `ClineCore` session artifacts,
+- [x] Plan/Act mediation, built-in repository tools, `ClineCore` session artifacts,
       and dynamic permission approval remain explicitly unproven by this task.
+
+Task 4a implementation note: `node_runner/runner.mjs` and `runner-lib.mjs`
+provide the minimal `Agent` proof. CI-safe Node tests use a fake Agent class;
+Python integration tests invoke the real runner only far enough to verify typed
+fail-closed configuration blocking. A live provider smoke has not been run, so
+Task 4a remains incomplete pending real-SDK smoke evidence.
 
 **Verification:**
 
-- [ ] Run CI-safe fake-runner tests for protocol behavior.
+- [x] Run CI-safe fake-runner tests for protocol behavior.
 - [ ] Run a local real-SDK smoke test before marking this task complete. If the
       smoke cannot run, leave this task incomplete and record the exact blocker.
+
+Real-SDK smoke blocker: no local provider/model/API-key configuration has been
+provided for `CLINE_SDK_PROVIDER_ID`, `CLINE_SDK_MODEL_ID`, and optional provider
+credentials. The runner reports missing configuration as a structured blocker.
 
 **Dependencies:** Task 3
 

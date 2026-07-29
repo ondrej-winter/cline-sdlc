@@ -4,6 +4,9 @@
   "private": true,
   "description": "Adapter-local Node.js runner for the cline-sdlc Cline SDK outbound adapter.",
   "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
   "engines": {
     "node": ">=22"
   },

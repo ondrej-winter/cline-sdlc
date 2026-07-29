@@ -253,10 +253,29 @@ creates no commit.
 
 ## Configuration
 
-`cline-sdlc` currently has **no environment-backed runtime settings** and requires no
-`.env` file. Runtime choices are explicit CLI options, accepted artifact content, or
-application defaults. Consequently, this version does not maintain an `.env.example`
-or a separate environment-settings reference.
+Core `cline-sdlc` runtime choices are explicit CLI options, accepted artifact
+content, or application defaults. The experimental adapter-local `@cline/sdk`
+runner also reads a small environment contract when running a live SDK smoke:
+
+| Variable | Required | Meaning | Safe example |
+| --- | --- | --- | --- |
+| `CLINE_SDK_PROVIDER_ID` | Yes | SDK provider identifier passed to `Agent` | `openai-codex-cli` |
+| `CLINE_SDK_MODEL_ID` | Yes | SDK model identifier passed to `Agent` | `gpt-5.5` |
+| `CLINE_SDK_REASONING_EFFORT` | No | Optional reasoning-effort hint passed to `Agent` when supported by the provider | `medium` |
+| `CLINE_SDK_API_KEY` | No | Optional provider API key for SDK providers that require one | `sk-...` placeholder only |
+| `CLINE_SDK_BASE_URL` | No | Optional provider base URL for compatible SDK providers | `https://example.invalid/v1` |
+
+For the local Codex CLI provider smoke, export:
+
+```bash
+export CLINE_SDK_PROVIDER_ID=openai-codex-cli
+export CLINE_SDK_MODEL_ID=gpt-5.5
+export CLINE_SDK_REASONING_EFFORT=medium
+```
+
+Do not commit real credentials. The SDK runner records safe diagnostics and must not
+print secrets, raw prompts containing sensitive repository content, or raw model
+reasoning by default.
 
 ## Experimental Cline SDK adapter foundation
 
