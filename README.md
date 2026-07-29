@@ -29,6 +29,7 @@ assistant prose—determine whether work completed.
 - [uv](https://docs.astral.sh/uv/), including `uvx`
 - Git for every file-backed stage and in-repository artifact write
 - A separately installed compatible Cline CLI for real lifecycle sessions
+- Node.js 22 or newer for the experimental adapter-local `@cline/sdk` runner
 - The stage-specific Agent Skills required by the selected workflow
 
 ## Install and run
@@ -256,6 +257,31 @@ creates no commit.
 `.env` file. Runtime choices are explicit CLI options, accepted artifact content, or
 application defaults. Consequently, this version does not maintain an `.env.example`
 or a separate environment-settings reference.
+
+## Experimental Cline SDK adapter foundation
+
+The SDK-first execution boundary is being introduced behind the `cline_execution`
+outbound adapter boundary. The adapter-local Node.js package lives under:
+
+```text
+src/cline_sdlc/features/cline_execution/adapters/outbound/cline_sdk/node_runner/
+```
+
+Install its local Node dependencies from that directory, not globally:
+
+```bash
+cd src/cline_sdlc/features/cline_execution/adapters/outbound/cline_sdk/node_runner
+npm ci
+```
+
+The package declares a Node.js `>=22` engine and depends on `@cline/sdk` through the
+adapter-local `package.json` and `package-lock.json`. Generated `node_modules/`
+content is ignored and must not be committed.
+
+This foundation only proves the local dependency strategy and structured runtime
+preflight blockers for missing Node.js, unsupported Node.js, or an unresolvable
+`@cline/sdk` package. It does not yet prove SDK-backed lifecycle execution, Plan/Act
+mediation, permission handling, or unattended readiness.
 
 ## Current limitations and supervised proof
 

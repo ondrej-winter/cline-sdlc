@@ -14,13 +14,13 @@ if TYPE_CHECKING:
     from cline_sdlc.features.repository_coordination.application.dtos.task_repository import (
         TaskRepositoryInspectionRequest,
     )
-    from cline_sdlc.features.repository_coordination.application.ports.git import GitRepositoryInspectorPort
+    from cline_sdlc.features.repository_coordination.application.ports.git import GitTaskRepositoryInspectorPort
 
 
 class InspectTaskRepository:
     """Inspect already staged repository changes before repository task execution."""
 
-    def __init__(self, inspector: GitRepositoryInspectorPort) -> None:
+    def __init__(self, inspector: GitTaskRepositoryInspectorPort) -> None:
         self._inspector = inspector
 
     def execute(self, request: TaskRepositoryInspectionRequest) -> TaskRepositoryInspectionResult:

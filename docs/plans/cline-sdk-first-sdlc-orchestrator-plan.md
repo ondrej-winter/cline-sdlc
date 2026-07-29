@@ -193,25 +193,25 @@ examples, and local use.
 
 **Acceptance criteria:**
 
-- [ ] The adapter has an explicit Node.js 22+ runtime prerequisite.
-- [ ] Adapter-owned Node package files live under
+- [x] The adapter has an explicit Node.js 22+ runtime prerequisite.
+- [x] Adapter-owned Node package files live under
       `src/cline_sdlc/features/cline_execution/adapters/outbound/cline_sdk/node_runner/`.
-- [ ] Adapter-local `package.json` and a Node lockfile are committed for
+- [x] Adapter-local `package.json` and a Node lockfile are committed for
       reproducible `@cline/sdk` installation.
-- [ ] `@cline/sdk` dependency location and install/sync workflow are documented,
+- [x] `@cline/sdk` dependency location and install/sync workflow are documented,
       and setup installs dependencies from the adapter runner directory.
-- [ ] Python application/domain modules do not import or depend on Node/TypeScript
+- [x] Python application/domain modules do not import or depend on Node/TypeScript
       SDK objects.
-- [ ] Missing Node.js, unsupported Node.js, or missing `@cline/sdk` produces a
+- [x] Missing Node.js, unsupported Node.js, or missing `@cline/sdk` produces a
       structured preflight blocker.
-- [ ] No global package installation is required by automated tests.
-- [ ] Generated Node dependency artifacts such as `node_modules/` are ignored and
+- [x] No global package installation is required by automated tests.
+- [x] Generated Node dependency artifacts such as `node_modules/` are ignored and
       are not required to be committed.
 
 **Verification:**
 
-- [ ] Run focused preflight tests for missing/unsupported runtime cases.
-- [ ] Manually verify the documented local setup command sequence.
+- [x] Run focused preflight tests for missing/unsupported runtime cases.
+- [x] Manually verify the documented local setup command sequence.
 
 **Dependencies:** None
 

@@ -21,5 +21,9 @@ class GitRepositoryInspectorPort(Protocol):
     def inspect(self, request: RepositoryInspectionRequest) -> RepositoryInspectionResult:
         """Return a typed repository snapshot or actionable blockers."""
 
+
+class GitTaskRepositoryInspectorPort(Protocol):
+    """Inspect staged repository task state without making repository changes."""
+
     def inspect_task_repository(self, request: TaskRepositoryInspectionRequest) -> TaskRepositoryInspectionResult:
         """Return staged task repository evidence or actionable blockers."""

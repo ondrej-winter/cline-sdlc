@@ -1,0 +1,13 @@
+{
+  "name": "@cline-sdlc/cline-sdk-node-runner",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Adapter-local Node.js runner for the cline-sdlc Cline SDK outbound adapter.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@cline/sdk": "latest"
+  }
+}
