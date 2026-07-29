@@ -339,8 +339,10 @@ does not by itself prove full SDLC repository-changing capability.
 Task 4a implementation note: `node_runner/runner.mjs` and `runner-lib.mjs`
 provide the minimal `Agent` proof. CI-safe Node tests use a fake Agent class;
 Python integration tests invoke the real runner only far enough to verify typed
-fail-closed configuration blocking. A live provider smoke has not been run, so
-Task 4a remains incomplete pending real-SDK smoke evidence.
+fail-closed configuration blocking. A local real-SDK smoke was run with `.env`
+loaded and reached the official SDK `Agent` event stream, but the SDK run returned
+`run-failed` and terminal status `failed`; Task 4a remains incomplete pending a
+successful live provider smoke.
 
 **Verification:**
 
@@ -349,8 +351,10 @@ Task 4a remains incomplete pending real-SDK smoke evidence.
       smoke cannot run, leave this task incomplete and record the exact blocker.
 
 Real-SDK smoke blocker: no local provider/model/API-key configuration has been
-provided for `CLINE_SDK_PROVIDER_ID`, `CLINE_SDK_MODEL_ID`, and optional provider
-credentials. The runner reports missing configuration as a structured blocker.
+proven to complete successfully. A `.env`-loaded smoke invocation emitted SDK
+events `run-started`, `message-added`, `turn-started`, and `run-failed`, plus safe
+diagnostics for `agentId`, `runId`, iteration count, and usage metadata, then
+returned terminal status `failed`. No secrets were printed by the runner.
 
 **Dependencies:** Task 3
 
