@@ -320,6 +320,21 @@ normalized event summaries, blockers, terminal status, and safe diagnostic
 references. It intentionally omits raw runner stdout/stderr, raw model reasoning,
 secrets, and raw repository payloads.
 
+Run the event-focused diagnostic example when you need to inspect safe normalized
+SDK event observations without reading raw runner output:
+
+```bash
+uv run python scripts/diagnose_cline_sdk_events.py \
+  --repository-root . \
+  --timeout-seconds 30 \
+  --safe-context purpose=event-diagnostics
+```
+
+The diagnostic output lists normalized event type, safe summary, SDK event type
+when available, and safe repository-relative path references. Unknown SDK events
+remain diagnostic observations only; they are not promoted to authoritative
+lifecycle, reconciliation, validation, or permission evidence.
+
 This is still not a production-ready lifecycle execution claim. The full SDK
 execution contract remains blocked until official SDK references plus local
 real-SDK smoke evidence prove direct Plan/Act observation, Act authorization, and

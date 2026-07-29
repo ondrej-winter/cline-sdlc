@@ -645,16 +645,42 @@ reading raw terminal output.
 
 **Acceptance criteria:**
 
-- [ ] Diagnostic output lists normalized event type, safe summary, and SDK event
+- [x] Diagnostic output lists normalized event type, safe summary, and SDK event
       type where safe.
-- [ ] High-cardinality or sensitive event payload fields are omitted or redacted.
-- [ ] Unknown SDK events are reported as diagnostic observations and do not become
+- [x] High-cardinality or sensitive event payload fields are omitted or redacted.
+- [x] Unknown SDK events are reported as diagnostic observations and do not become
       authoritative lifecycle evidence.
+
+Task 8 implementation note: `scripts/diagnose_cline_sdk_events.py` exercises the
+Python `ClineSdkSessionRunner` path and prints event-focused safe JSON containing
+normalized event type, safe summary, optional SDK event type, safe path
+references, blockers, terminal status, and diagnostic references. Normal output
+omits raw runner stdout/stderr, raw SDK event payloads, raw model reasoning,
+secrets, and raw repository content. Unknown SDK events are surfaced in an
+`unknown_sdk_event_observations` list only when the protocol has already
+normalized them as diagnostic evidence, and the payload explicitly marks that it
+is not authoritative lifecycle evidence.
 
 **Verification:**
 
-- [ ] Run the script in a configured local environment or document the exact
+- [x] Run the script in a configured local environment or document the exact
       unrun prerequisite.
+
+CI-safe script test evidence: `uv run pytest tests/unit/scripts/test_diagnose_cline_sdk_events.py tests/unit/scripts/test_run_cline_sdk_adapter_example.py`
+passed locally on 2026-07-29 with 9 tests. Live diagnostic evidence: the
+2026-07-29 `.env`-loaded invocation of `scripts/diagnose_cline_sdk_events.py`
+used the Python adapter path with `--safe-context purpose=event-diagnostics` and
+did not print `.env` values. A first run using the default diagnostic prompt hit
+the configured 30 second bound and returned structured blocker code
+`sdk_runner_timeout`. A second run with `--timeout-seconds 120` and the minimal
+instruction `Reply with one short safe sentence.` completed through the real SDK
+adapter path with terminal status `completed`, safe diagnostic references for the
+SDK agent ID, run ID, iteration count, and usage metadata, and normalized SDK
+event observations for `run-started`, `message-added`, `turn-started`,
+`assistant-text-delta`, `usage-updated`, `assistant-message`, `turn-finished`,
+and `run-finished`. Unknown SDK event observations remained diagnostic-only, and
+the output did not include raw runner stdout/stderr, raw SDK payloads, secrets,
+model reasoning, or raw repository content.
 
 **Dependencies:** Task 7
 
@@ -662,9 +688,9 @@ reading raw terminal output.
 
 ### Checkpoint: Adapter Examples Complete
 
-- [ ] `scripts/` examples demonstrate normal adapter execution.
-- [ ] `scripts/` examples demonstrate safe event diagnostics.
-- [ ] Documentation explains setup, prerequisites, and limitations.
+- [x] `scripts/` examples demonstrate normal adapter execution.
+- [x] `scripts/` examples demonstrate safe event diagnostics.
+- [x] Documentation explains setup, prerequisites, and limitations.
 
 ### Phase 4: SDK Capability Matrix Against SDLC Requirements
 
