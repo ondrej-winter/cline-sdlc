@@ -297,10 +297,19 @@ The package declares a Node.js `>=22` engine and depends on `@cline/sdk` through
 adapter-local `package.json` and `package-lock.json`. Generated `node_modules/`
 content is ignored and must not be committed.
 
-This foundation only proves the local dependency strategy and structured runtime
-preflight blockers for missing Node.js, unsupported Node.js, or an unresolvable
-`@cline/sdk` package. It does not yet prove SDK-backed lifecycle execution, Plan/Act
-mediation, permission handling, or unattended readiness.
+The current SDK adapter foundation includes an adapter-owned Node runner, a Python
+outbound adapter, strict JSONL protocol parsing, bounded timeout/interruption
+handling, and SDK runtime preflight evidence. Local proof has exercised the
+documented minimal `Agent` path and a ClineCore session/probe path, while CI-safe
+tests cover fake-runner behavior, protocol failures, and missing-configuration
+integration boundaries without requiring live provider credentials.
+
+This is still not a production-ready lifecycle execution claim. The full SDK
+execution contract remains blocked until official SDK references plus local
+real-SDK smoke evidence prove direct Plan/Act observation, Act authorization, and
+real dynamic permission approval behavior. The orchestrator must continue to fail
+closed for those unproven capabilities and must not claim unattended readiness from
+the SDK adapter foundation alone.
 
 ## Current limitations and supervised proof
 

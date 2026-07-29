@@ -543,10 +543,16 @@ prove them directly.
 
 **Verification:**
 
-- [ ] Run focused preflight unit tests and adapter integration tests.
+- [x] Run focused preflight unit tests and adapter integration tests.
 
 Focused preflight unit test evidence: `uv run pytest tests/unit/features/cline_execution/application/test_preflight_sdk_runtime.py tests/unit/features/cline_execution/adapters/outbound/cline_sdk/test_runtime_probe.py`
 passed locally on 2026-07-29.
+
+Focused adapter gate evidence: `uv run pytest tests/unit/features/cline_execution/application/test_preflight_sdk_runtime.py tests/unit/features/cline_execution/adapters/outbound/cline_sdk/test_runtime_probe.py`
+passed locally again on 2026-07-29 with 15 tests. `uv run pytest tests/unit/features/cline_execution/adapters/outbound/cline_sdk tests/integration/features/cline_execution/test_cline_sdk_runner.py tests/integration/features/cline_execution/test_cline_sdk_clinecore_probe.py`
+also passed locally on 2026-07-29 with 21 tests, covering the Python SDK adapter,
+protocol parser, runtime probe, real Node runner missing-configuration boundary,
+and ClineCore probe missing-configuration boundary.
 
 **Dependencies:** Task 5
 
@@ -557,20 +563,30 @@ passed locally on 2026-07-29.
 Do not continue to SDLC delivery work until all items in this checkpoint are
 complete.
 
-- [ ] Adapter invokes documented `@cline/sdk` primitives locally.
-- [ ] Python receives typed normalized events and results.
-- [ ] Minimal `Agent` proof is complete and clearly scoped to documented
+- [x] Adapter invokes documented `@cline/sdk` primitives locally.
+- [x] Python receives typed normalized events and results.
+- [x] Minimal `Agent` proof is complete and clearly scoped to documented
       `Agent`/`AgentRunResult` behavior.
-- [ ] `ClineCore` proof is complete for any session, workspace, built-in tool,
+- [x] `ClineCore` proof is complete for any session, workspace, built-in tool,
       session artifact, or dynamic approval capability claimed by lifecycle
       delivery.
-- [ ] CI-safe fake-runner and protocol tests pass.
-- [ ] Local real-SDK smoke and integration tests pass. If SDK prerequisites are
+- [x] CI-safe fake-runner and protocol tests pass.
+- [x] Local real-SDK smoke and integration tests pass. If SDK prerequisites are
       absent, this checkpoint remains incomplete and the blocker is documented.
-- [ ] Runtime setup and limitations are documented.
+- [x] Runtime setup and limitations are documented.
 - [ ] Plan/Act and permission support are proven with official SDK docs/API
       references plus local real-SDK smoke evidence, or the checkpoint remains
       blocked.
+
+Checkpoint A status note: the adapter foundation is implemented and locally
+validated through the documented `Agent` path, the ClineCore session/probe path,
+the Python subprocess adapter, the JSONL protocol parser, and SDK runtime
+preflight. The full Working SDK Adapter Gate remains blocked because official SDK
+references and local real-SDK smoke evidence still do not prove direct Plan/Act
+observation, Act authorization, or a real dynamic permission approval callback.
+Do not start Task 7 or any repository-changing lifecycle delivery work as a
+readiness claim until those full-contract blockers are resolved or this plan is
+explicitly revised to split examples from Checkpoint A readiness.
 
 ### Phase 3: Scripts and Examples for Adapter Proof
 
