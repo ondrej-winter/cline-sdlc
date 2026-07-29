@@ -710,29 +710,41 @@ capabilities. The full SDK execution contract in
 
 **Acceptance criteria:**
 
-- [ ] Matrix covers `Agent.run`, event subscription, session identity,
+- [x] Matrix covers `Agent.run`, event subscription, session identity,
       diagnostics, permission handling, tool approval, Plan/Act mediation,
       structured outcomes, timeout, interruption, and file-change evidence.
-- [ ] Matrix labels each capability as `Agent`-proven, `ClineCore`-proven,
+- [x] Matrix labels each capability as `Agent`-proven, `ClineCore`-proven,
       orchestrator-owned, unproven, unsupported, or blocked.
-- [ ] Every capability claim includes official SDK docs/API references and local
+- [x] Every capability claim includes official SDK docs/API references and local
       real-SDK smoke test evidence.
-- [ ] Every reset MVP SDK requirement is mapped to documented SDK primitive,
+- [x] Every reset MVP SDK requirement is mapped to documented SDK primitive,
       adapter-derived proof, or explicit blocker.
-- [ ] Plan/Act mediation remains unproven or blocked unless a direct SDK API
+- [x] Plan/Act mediation remains unproven or blocked unless a direct SDK API
       reference and real smoke evidence prove observation and authorization
       semantics without prose inference.
-- [ ] `AgentRunResult.outputText` and SDK messages are treated as diagnostic or
+- [x] `AgentRunResult.outputText` and SDK messages are treated as diagnostic or
       model-output evidence, not as authoritative lifecycle state or a substitute
       for role-specific structured outcomes.
-- [ ] Missing full-contract primitives block `--plan-file` delivery planning
+- [x] Missing full-contract primitives block `--plan-file` delivery planning
       rather than being approximated from prose.
+
+Task 9 implementation note: `docs/sdk-capability-matrix.md` now maps the reset
+MVP SDK execution requirements to official SDK references, implemented adapter
+evidence, local smoke evidence, orchestrator-owned checks, and explicit blockers.
+The matrix marks minimal `Agent` execution, event subscription, ClineCore session
+probing, tool policy coverage, timeout/interruption handling, and safe diagnostic
+references as proven only within their documented scope. It keeps Plan/Act
+observation, Act authorization, real dynamic permission approval, SDK-native
+role-specific structured outcomes, and authoritative SDK file-change evidence
+blocked or unproven. `AgentRunResult.outputText`, SDK messages, unknown events,
+terminal output, Cline Checkpoints, and CLI probe observations remain
+non-authoritative diagnostic/model-output evidence.
 
 **Verification:**
 
-- [ ] Review matrix against `docs/specs/cline-sdk-first-sdlc-orchestrator-spec.md`
+- [x] Review matrix against `docs/specs/cline-sdk-first-sdlc-orchestrator-spec.md`
       and official SDK docs.
-- [ ] Review local real-SDK smoke evidence for every capability marked proven.
+- [x] Review local real-SDK smoke evidence for every capability marked proven.
 
 **Dependencies:** Adapter Examples Complete
 
@@ -769,7 +781,7 @@ production readiness for SDK-first orchestration.
 
 ### Checkpoint: Capability Gate Ready for Delivery Decision
 
-- [ ] SDK capability matrix is complete.
+- [x] SDK capability matrix is complete.
 - [ ] CLI probe surfaces are quarantined.
 - [ ] `--plan-file` delivery can proceed only after the spec's full SDK execution
       contract is proven by official docs/API references and local real-SDK smoke

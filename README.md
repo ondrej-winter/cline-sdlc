@@ -335,6 +335,11 @@ when available, and safe repository-relative path references. Unknown SDK events
 remain diagnostic observations only; they are not promoted to authoritative
 lifecycle, reconciliation, validation, or permission evidence.
 
+The current SDK capability gate is tracked in
+[`docs/sdk-capability-matrix.md`](docs/sdk-capability-matrix.md). That matrix maps
+each reset MVP requirement to proven SDK behavior, orchestrator-owned evidence, or
+an explicit blocker.
+
 This is still not a production-ready lifecycle execution claim. The full SDK
 execution contract remains blocked until official SDK references plus local
 real-SDK smoke evidence prove direct Plan/Act observation, Act authorization, and
