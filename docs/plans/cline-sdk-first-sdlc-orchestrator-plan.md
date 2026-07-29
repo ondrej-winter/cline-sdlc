@@ -269,19 +269,19 @@ runner is wired to the real SDK.
 
 **Acceptance criteria:**
 
-- [ ] Python request serialization includes prompt/instructions, provider/model
+- [x] Python request serialization includes prompt/instructions, provider/model
       configuration references, timeout, working directory, role, and safe context
       fields.
-- [ ] Runner output serialization supports normalized events, terminal result,
+- [x] Runner output serialization supports normalized events, terminal result,
       blocker, diagnostics, and raw SDK event type when safe.
-- [ ] Malformed JSON, duplicate terminal results, missing terminal result, unknown
+- [x] Malformed JSON, duplicate terminal results, missing terminal result, unknown
       required fields, and unsafe paths fail closed.
-- [ ] Raw prompts, secrets, API keys, and model reasoning are not logged or echoed
+- [x] Raw prompts, secrets, API keys, and model reasoning are not logged or echoed
       by default.
 
 **Verification:**
 
-- [ ] Run unit tests with representative valid and invalid protocol payloads.
+- [x] Run unit tests with representative valid and invalid protocol payloads.
 
 **Dependencies:** Task 2
 
@@ -291,7 +291,7 @@ runner is wired to the real SDK.
 
 - [x] Python session DTOs and `SessionRunner` port express SDK-shaped
       application semantics.
-- [ ] Adapter-owned JSON protocol is validated independently.
+- [x] Adapter-owned JSON protocol is validated independently.
 - [ ] Runtime dependency strategy is documented and fail-closed.
 
 ### Phase 2: Working `@cline/sdk` Adapter
