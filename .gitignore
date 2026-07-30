@@ -13,3 +13,4 @@ dist/
 htmlcov/
 .cline-sdlc/
 src/cline_sdlc/features/cline_execution/adapters/outbound/cline_sdk/node_runner/node_modules/
+.vscode/
