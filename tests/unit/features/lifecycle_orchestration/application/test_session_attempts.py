@@ -6,9 +6,14 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from cline_sdlc.features.cline_execution.application.dtos.session import (
+    ClineSessionBlocker,
+    ClineSessionDiagnosticReference,
+    ClineSessionEvidence,
+    ClineSessionEvidenceType,
     ClineSessionProcessStatus,
     ClineSessionRequest,
     ClineSessionResult,
+    ClineSessionTerminalStatus,
 )
 from cline_sdlc.features.cline_execution.domain.outcome import (
     SessionBlocker,
@@ -30,6 +35,7 @@ from cline_sdlc.features.repository_coordination.application.dtos.repository imp
 )
 
 EXPECTED_RETRIED_ATTEMPTS = 2
+EXPECTED_NORMALIZED_SDK_EVENTS = 2
 
 
 @dataclass
@@ -66,6 +72,72 @@ def test_completed_session_returns_one_attempt_without_retry() -> None:
     assert len(result.attempts) == 1
     assert len(runner.requests) == 1
     assert result.changed_paths == ("src/app.py",)
+
+
+def test_preserves_normalized_sdk_evidence_without_promoting_events_to_changed_paths() -> None:
+    runner = RecordingRunner(
+        results=[
+            _completed_result(
+                changed_paths=("src/app.py",),
+                events=(
+                    ClineSessionEvidence(
+                        evidence_type=ClineSessionEvidenceType.FILE_CHANGE,
+                        summary="SDK observed a file-change-shaped event",
+                        sdk_event_type="file-changed",
+                        paths=("src/sdk-observed.py",),
+                    ),
+                    ClineSessionEvidence(
+                        evidence_type=ClineSessionEvidenceType.DIAGNOSTIC,
+                        summary="assistant text delta observed",
+                        sdk_event_type="assistant-text-delta",
+                    ),
+                ),
+                sdk_terminal_status=ClineSessionTerminalStatus.COMPLETED,
+                diagnostic_references=(
+                    ClineSessionDiagnosticReference(kind="run_id", value="run-123", summary="SDK run identifier"),
+                ),
+            )
+        ],
+        requests=[],
+    )
+    inspector = RecordingRepositoryInspector(snapshots=[_snapshot(), _snapshot()], requests=[])
+
+    result = RunSessionAttempts(runner=runner, repository_inspector=inspector).execute(_request())
+
+    assert result.completed
+    assert result.changed_paths == ("src/app.py",)
+    assert result.attempts[0].sdk_evidence.sdk_terminal_status == "completed"
+    assert result.attempts[0].sdk_evidence.event_count == EXPECTED_NORMALIZED_SDK_EVENTS
+    assert result.attempts[0].sdk_evidence.diagnostic_references == ("run_id:run-123",)
+
+
+def test_sdk_blocker_without_lifecycle_terminal_outcome_blocks_without_retry() -> None:
+    runner = RecordingRunner(
+        results=[
+            ClineSessionResult(
+                process_status=ClineSessionProcessStatus.EXITED,
+                exit_code=0,
+                sdk_terminal_status=ClineSessionTerminalStatus.BLOCKED,
+                blockers=(
+                    ClineSessionBlocker(
+                        code="permission_approval_unproven",
+                        summary="SDK permission approval evidence is unproven",
+                    ),
+                ),
+            )
+        ],
+        requests=[],
+    )
+    inspector = RecordingRepositoryInspector(snapshots=[_snapshot(), _snapshot()], requests=[])
+
+    result = RunSessionAttempts(runner=runner, repository_inspector=inspector).execute(_request())
+
+    assert result.status is SessionAttemptStatus.BLOCKED
+    assert result.blocker is not None
+    assert result.blocker.code == "sdk_permission_approval_unproven"
+    assert result.attempts[0].sdk_evidence.sdk_terminal_status == "blocked"
+    assert result.attempts[0].sdk_evidence.blocker_codes == ("permission_approval_unproven",)
+    assert len(runner.requests) == 1
 
 
 def test_retries_protocol_output_failure_once_when_repository_is_unchanged() -> None:
@@ -274,7 +346,13 @@ def _snapshot(*, dirty_paths: tuple[str, ...] = ()) -> RepositorySnapshot:
     )
 
 
-def _completed_result(*, changed_paths: tuple[str, ...] = ()) -> ClineSessionResult:
+def _completed_result(
+    *,
+    changed_paths: tuple[str, ...] = (),
+    events: tuple[ClineSessionEvidence, ...] = (),
+    sdk_terminal_status: ClineSessionTerminalStatus | None = None,
+    diagnostic_references: tuple[ClineSessionDiagnosticReference, ...] = (),
+) -> ClineSessionResult:
     return ClineSessionResult(
         process_status=ClineSessionProcessStatus.EXITED,
         exit_code=0,
@@ -286,6 +364,9 @@ def _completed_result(*, changed_paths: tuple[str, ...] = ()) -> ClineSessionRes
                 changed_paths=changed_paths,
             ),
         ),
+        events=events,
+        sdk_terminal_status=sdk_terminal_status,
+        diagnostic_references=diagnostic_references,
     )
 
 

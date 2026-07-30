@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from cline_sdlc.features.cline_execution.application.dtos.session import ClineSessionProcessStatus
@@ -12,6 +13,7 @@ from cline_sdlc.features.lifecycle_orchestration.application.dtos.session_attemp
     SessionAttemptObservation,
     SessionAttemptRequest,
     SessionAttemptResult,
+    SessionAttemptSdkEvidence,
     SessionAttemptStatus,
     SessionRetryReason,
 )
@@ -21,6 +23,15 @@ if TYPE_CHECKING:
     from cline_sdlc.features.cline_execution.application.ports.session_runner import ClineSessionRunnerPort
     from cline_sdlc.features.repository_coordination.application.dtos.repository import RepositorySnapshot
     from cline_sdlc.features.repository_coordination.application.ports.git import GitRepositoryInspectorPort
+
+
+@dataclass(frozen=True)
+class _AttemptControl:
+    """Bounded retry state for one observed session attempt."""
+
+    retry_reason: SessionRetryReason | None
+    attempt_number: int
+    max_attempts: int
 
 
 class RunSessionAttempts:
@@ -58,36 +69,62 @@ class RunSessionAttempts:
                 session_result=session_result,
                 after_snapshot=after_snapshot,
                 retry_reason=retry_reason,
+                sdk_evidence=_sdk_evidence(session_result),
             )
             observations.append(observation)
 
-            if session_result.interrupted or session_result.timed_out:
-                return SessionAttemptResult(
-                    status=SessionAttemptStatus.INTERRUPTED,
-                    attempts=tuple(observations),
-                    blocker=SessionAttemptBlocker(
-                        code="session_interrupted" if session_result.interrupted else "session_timed_out",
-                        summary="the active session was interrupted safely",
-                    ),
-                    changed_paths=after_snapshot.dirty_paths if after_snapshot is not None else (),
-                )
-            if session_result.has_exactly_one_terminal_outcome:
-                return _result_for_terminal_outcome(observations, session_result)
-            if retry_reason is None:
-                return _blocked(
-                    observations,
-                    code="session_retry_not_safe",
-                    summary="session did not produce one terminal outcome and retry safety could not be proven",
-                )
-            if attempt_number == request.max_attempts:
-                return _failed(
-                    observations,
-                    code="session_retry_exhausted",
-                    summary="bounded retry was exhausted before one terminal outcome was observed",
-                )
+            attempt_result = _attempt_result_after_session(
+                observations=observations,
+                session_result=session_result,
+                after_snapshot=after_snapshot,
+                control=_AttemptControl(
+                    retry_reason=retry_reason,
+                    attempt_number=attempt_number,
+                    max_attempts=request.max_attempts,
+                ),
+            )
+            if attempt_result is not None:
+                return attempt_result
             attempt_number += 1
 
         return _failed(observations, code="session_attempts_exhausted", summary="session attempts were exhausted")
+
+
+def _attempt_result_after_session(
+    *,
+    observations: list[SessionAttemptObservation],
+    session_result: ClineSessionResult,
+    after_snapshot: RepositorySnapshot | None,
+    control: _AttemptControl,
+) -> SessionAttemptResult | None:
+    if session_result.interrupted or session_result.timed_out:
+        return SessionAttemptResult(
+            status=SessionAttemptStatus.INTERRUPTED,
+            attempts=tuple(observations),
+            blocker=SessionAttemptBlocker(
+                code="session_interrupted" if session_result.interrupted else "session_timed_out",
+                summary="the active session was interrupted safely",
+            ),
+            changed_paths=after_snapshot.dirty_paths if after_snapshot is not None else (),
+        )
+    if session_result.has_exactly_one_terminal_outcome:
+        return _result_for_terminal_outcome(observations, session_result)
+    sdk_blocker = _sdk_blocker_without_terminal_outcome(session_result)
+    if sdk_blocker is not None:
+        return _blocked_from_session_blocker(observations, sdk_blocker)
+    if control.retry_reason is None:
+        return _blocked(
+            observations,
+            code="session_retry_not_safe",
+            summary="session did not produce one terminal outcome and retry safety could not be proven",
+        )
+    if control.attempt_number == control.max_attempts:
+        return _failed(
+            observations,
+            code="session_retry_exhausted",
+            summary="bounded retry was exhausted before one terminal outcome was observed",
+        )
+    return None
 
 
 def _result_for_terminal_outcome(
@@ -112,6 +149,31 @@ def _result_for_terminal_outcome(
             summary=outcome.reason,
         ),
         changed_paths=outcome.changed_paths,
+    )
+
+
+def _sdk_evidence(session_result: ClineSessionResult) -> SessionAttemptSdkEvidence:
+    return SessionAttemptSdkEvidence(
+        sdk_terminal_status=(
+            session_result.sdk_terminal_status.value if session_result.sdk_terminal_status is not None else None
+        ),
+        event_count=len(session_result.events),
+        blocker_codes=tuple(blocker.code for blocker in session_result.blockers),
+        diagnostic_references=tuple(
+            f"{reference.kind}:{reference.value}" for reference in session_result.diagnostic_references
+        ),
+    )
+
+
+def _sdk_blocker_without_terminal_outcome(session_result: ClineSessionResult) -> SessionAttemptBlocker | None:
+    """Return an SDK blocker only when lifecycle terminal outcomes are absent."""
+    if session_result.terminal_outcomes or not session_result.blockers:
+        return None
+    blocker = session_result.blockers[0]
+    return SessionAttemptBlocker(
+        code=f"sdk_{blocker.code}",
+        summary=blocker.summary,
+        evidence=blocker.evidence,
     )
 
 
@@ -161,6 +223,13 @@ def _blocked(observations: list[SessionAttemptObservation], *, code: str, summar
         attempts=tuple(observations),
         blocker=SessionAttemptBlocker(code=code, summary=summary, evidence=_attempt_evidence(observations)),
     )
+
+
+def _blocked_from_session_blocker(
+    observations: list[SessionAttemptObservation],
+    blocker: SessionAttemptBlocker,
+) -> SessionAttemptResult:
+    return _blocked(observations, code=blocker.code, summary=blocker.summary)
 
 
 def _failed(observations: list[SessionAttemptObservation], *, code: str, summary: str) -> SessionAttemptResult:

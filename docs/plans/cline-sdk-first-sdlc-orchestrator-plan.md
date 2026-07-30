@@ -811,14 +811,29 @@ spec's full SDK execution contract.
 
 **Acceptance criteria:**
 
-- [ ] Lifecycle use cases consume normalized SDK evidence, not raw SDK events.
-- [ ] SDK events do not replace artifact, digest, validation, plan progress, or
+- [x] Lifecycle use cases consume normalized SDK evidence, not raw SDK events.
+- [x] SDK events do not replace artifact, digest, validation, plan progress, or
       Git checks.
-- [ ] Missing/invalid SDK results produce blockers.
+- [x] Missing/invalid SDK results produce blockers.
+
+Task 11 implementation note: lifecycle session attempts now preserve a
+lifecycle-facing `SessionAttemptSdkEvidence` summary sourced from Python-owned
+`ClineSessionResult` fields: normalized SDK terminal status, normalized event
+count, SDK blocker codes, and safe diagnostic references. The session-attempt
+use case continues to advance only on exactly one validated lifecycle
+`SessionOutcome`; SDK event paths remain supporting evidence and do not replace
+changed-path, artifact, digest, validation, plan-progress, or Git authority. SDK
+blockers without a lifecycle terminal outcome fail closed as typed session-attempt
+blockers. This does not remove the broader delivery gate blockers for Plan/Act,
+Act authorization, real dynamic permission approval, SDK-native structured
+outcomes, or authoritative SDK file-change evidence.
 
 **Verification:**
 
-- [ ] Run focused lifecycle session-attempt tests.
+- [x] Run focused lifecycle session-attempt tests.
+
+Focused session-attempt test evidence: `uv run pytest tests/unit/features/lifecycle_orchestration/application/test_session_attempts.py`
+passed locally on 2026-07-30 with 11 tests.
 
 **Dependencies:** Capability Gate Ready for Delivery Decision
 

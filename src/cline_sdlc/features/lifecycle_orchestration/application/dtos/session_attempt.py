@@ -34,6 +34,35 @@ class SessionRetryReason(StrEnum):
 
 
 @dataclass(frozen=True)
+class SessionAttemptSdkEvidence:
+    """Lifecycle-facing summary of normalized SDK evidence for one attempt.
+
+    This DTO keeps SDK observations as supporting evidence. It does not make SDK
+    events authoritative for lifecycle advancement, changed paths, validation, or
+    commit eligibility.
+    """
+
+    sdk_terminal_status: str | None = None
+    event_count: int = 0
+    blocker_codes: tuple[str, ...] = field(default_factory=tuple)
+    diagnostic_references: tuple[str, ...] = field(default_factory=tuple)
+
+    def __post_init__(self) -> None:
+        if self.sdk_terminal_status is not None and not self.sdk_terminal_status.strip():
+            message = "SDK terminal status evidence must not be empty"
+            raise ValueError(message)
+        if self.event_count < 0:
+            message = "SDK event evidence count must not be negative"
+            raise ValueError(message)
+        if any(not code.strip() for code in self.blocker_codes):
+            message = "SDK blocker evidence codes must not be empty"
+            raise ValueError(message)
+        if any(not reference.strip() for reference in self.diagnostic_references):
+            message = "SDK diagnostic evidence references must not be empty"
+            raise ValueError(message)
+
+
+@dataclass(frozen=True)
 class SessionAttemptBlocker:
     """Actionable reason that prevented more session attempts."""
 
@@ -59,6 +88,7 @@ class SessionAttemptObservation:
     session_result: ClineSessionResult
     after_snapshot: RepositorySnapshot | None
     retry_reason: SessionRetryReason | None = None
+    sdk_evidence: SessionAttemptSdkEvidence = field(default_factory=SessionAttemptSdkEvidence)
 
 
 @dataclass(frozen=True)
