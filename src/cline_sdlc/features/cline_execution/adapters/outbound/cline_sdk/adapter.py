@@ -48,6 +48,7 @@ class ClineSdkSessionRunner:
         runner_directory: Path = DEFAULT_NODE_RUNNER_DIRECTORY,
         runner_script: str = _DEFAULT_RUNNER_SCRIPT,
         interruption: InterruptionPort | None = None,
+        environment: dict[str, str] | None = None,
     ) -> None:
         if not node_command:
             message = "SDK runner node command must not be empty"
@@ -62,6 +63,7 @@ class ClineSdkSessionRunner:
         self._runner_directory = runner_directory
         self._runner_script = runner_script
         self._interruption = interruption
+        self._environment = environment
 
     def run(self, request: ClineSessionRequest) -> ClineSessionResult:
         """Run the Node runner once and parse its JSONL protocol output."""
@@ -75,6 +77,7 @@ class ClineSdkSessionRunner:
                 stderr=subprocess.PIPE,
                 text=True,
                 start_new_session=True,
+                env=self._environment,
             )
         except OSError as err:
             return ClineSessionResult(

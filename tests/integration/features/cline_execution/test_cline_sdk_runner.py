@@ -41,6 +41,7 @@ def test_node_runner_reports_missing_sdk_configuration_as_structured_failure() -
         capture_output=True,
         check=False,
         timeout=10,
+        env={},
     )
 
     result = parse_runner_output(completed.stdout, exit_code=completed.returncode, stderr=completed.stderr)
@@ -66,7 +67,11 @@ def test_python_adapter_invokes_real_node_runner_as_structured_boundary() -> Non
         safe_context=("slice=task-5",),
     )
 
-    result = ClineSdkSessionRunner(node_command=(node_executable,), runner_directory=RUNNER_DIRECTORY).run(request)
+    result = ClineSdkSessionRunner(
+        node_command=(node_executable,),
+        runner_directory=RUNNER_DIRECTORY,
+        environment={},
+    ).run(request)
 
     assert result.process_status.value == "exited"
     assert result.exit_code == 1

@@ -1023,19 +1023,34 @@ Use the final verification commands below for handoff.
 
 **Acceptance criteria:**
 
-- [ ] Formatting check passes.
-- [ ] Ruff lint passes.
-- [ ] Mypy passes.
-- [ ] Pytest suite passes.
-- [ ] Package build passes.
+- [x] Formatting check passes.
+- [x] Ruff lint passes.
+- [x] Mypy passes.
+- [x] Pytest suite passes.
+- [x] Package build passes.
 
 **Verification commands:**
 
-- [ ] `uv run ruff format --check .`
-- [ ] `uv run ruff check .`
-- [ ] `uv run mypy .`
-- [ ] `uv run pytest`
-- [ ] `uv build`
+- [x] `uv run ruff format --check .`
+- [x] `uv run ruff check .`
+- [x] `uv run mypy .`
+- [x] `uv run pytest`
+- [x] `uv build`
+
+Task 15 validation evidence: the full local quality gate passed on 2026-07-30
+from the repository root. `uv run ruff format --check .` reported 305 files
+already formatted, `uv run ruff check .` passed, `uv run mypy .` reported no
+issues in 309 source files, `uv run pytest` passed with 512 tests, and `uv build`
+successfully built both the source distribution and wheel for version 0.0.10.
+
+During quality-gate execution, the first full `uv run pytest` attempt exposed
+ambient-environment leakage in the SDK runner integration tests: configured
+`CLINE_SDK_*` environment values caused tests that expected missing SDK
+configuration to enter real SDK execution and time out. The fix keeps production
+adapter behavior unchanged by default while allowing tests to pass an explicit
+empty environment to the trusted adapter-local Node subprocess. Focused
+formatting, linting, typing, and integration tests passed before rerunning the
+full quality gate.
 
 **Dependencies:** Task 14
 
@@ -1043,13 +1058,13 @@ Use the final verification commands below for handoff.
 
 ### Checkpoint: Complete
 
-- [ ] Adapter-first gate completed before delivery work.
-- [ ] SDK capability matrix is current.
-- [ ] Scripts/examples prove adapter behavior.
-- [ ] One-slice delivery proof is complete or explicitly blocked by missing SDK
+- [x] Adapter-first gate completed before delivery work.
+- [x] SDK capability matrix is current.
+- [x] Scripts/examples prove adapter behavior.
+- [x] One-slice delivery proof is complete or explicitly blocked by missing SDK
       capability.
-- [ ] Documentation matches implemented behavior and limitations.
-- [ ] Full quality gate passes or blockers are documented.
+- [x] Documentation matches implemented behavior and limitations.
+- [x] Full quality gate passes or blockers are documented.
 
 ## Dependencies and Sequencing Constraints
 

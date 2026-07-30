@@ -39,6 +39,7 @@ def test_clinecore_probe_reports_missing_sdk_configuration_as_structured_failure
         capture_output=True,
         check=False,
         timeout=10,
+        env={},
     )
 
     result = parse_runner_output(completed.stdout, exit_code=completed.returncode, stderr=completed.stderr)
