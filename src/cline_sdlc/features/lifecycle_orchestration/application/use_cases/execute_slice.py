@@ -5,7 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol
 
-from cline_sdlc.features.cline_execution.application.dtos.session import ClineSessionRequest
+from cline_sdlc.features.cline_execution.application.dtos.session import (
+    ClineSessionArtifactContext,
+    ClineSessionExecutionMode,
+    ClineSessionRequest,
+)
 from cline_sdlc.features.cline_execution.domain.outcome import SessionRole
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.session_attempt import (
     SessionAttemptRequest,
@@ -157,6 +161,28 @@ class ExecuteSlice:
                     command=(request.cline_command, "--json", _prompt(request, repair=repair)),
                     working_directory=request.working_directory,
                     timeout_seconds=request.timeout_seconds,
+                    session_role=request.session_role,
+                    instructions=_prompt(request, repair=repair),
+                    outcome_contract=_outcome_contract(request),
+                    required_skills=("incremental-implementation", "test-driven-development"),
+                    artifact_context=(
+                        ClineSessionArtifactContext(
+                            path=request.specification_path,
+                            digest=request.specification_digest,
+                            description="accepted specification",
+                        ),
+                        ClineSessionArtifactContext(
+                            path=request.plan_path,
+                            digest=request.material_digest,
+                            description="approved implementation plan material",
+                        ),
+                    ),
+                    execution_mode=ClineSessionExecutionMode.WRITE_CAPABLE,
+                    safe_context=(
+                        f"run_id={request.approval.run_id}",
+                        f"task_id={request.selection.task_id}",
+                        f"slice_id={request.selection.slice_id}",
+                    ),
                 ),
                 repository_request=request.repository_request,
             )
@@ -280,6 +306,23 @@ def _prompt(request: SliceExecutionRequest, *, repair: bool) -> str:
             request.specification_content,
             "Ready implementation plan:",
             request.plan_content,
+        )
+    )
+
+
+def _outcome_contract(request: SliceExecutionRequest) -> str:
+    return "\n".join(
+        (
+            "Return exactly one cline-sdlc terminal outcome as compact JSON on its own line.",
+            "Do not wrap the JSON in Markdown or prose.",
+            "The outcome must use schema_version 1 and must match this bounded session envelope:",
+            f"- session_role: {request.session_role.value}",
+            f"- approved_run_id: {request.approval.run_id}",
+            f"- task_id: {request.selection.task_id}",
+            f"- slice_id: {request.selection.slice_id}",
+            f"- specification_digest: {request.specification_digest}",
+            f"- material_digest: {request.material_digest}",
+            "The orchestrator will independently verify changed paths, validation, plan progress, and Git state.",
         )
     )
 

@@ -7,8 +7,8 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from cline_sdlc.features.artifact_lifecycle.adapters.inbound.state_yaml import parse_plan_state_from_markdown
-from cline_sdlc.features.cline_execution.adapters.outbound.attached_tty_session_runner import (
-    AttachedTtyClineSessionRunner,
+from cline_sdlc.features.cline_execution.adapters.outbound.cline_sdk import (
+    ClineSdkSessionRunner,
 )
 from cline_sdlc.features.lifecycle_orchestration.adapters.outbound.validation_runner import (
     SubprocessValidationCommandRunner,
@@ -19,7 +19,11 @@ from cline_sdlc.features.lifecycle_orchestration.application.dtos.plan_implement
     PlanImplementationResult,
     PlanImplementationStatus,
 )
-from cline_sdlc.features.lifecycle_orchestration.application.dtos.slice_execution import SliceExecutionRequest
+from cline_sdlc.features.lifecycle_orchestration.application.dtos.slice_execution import (
+    SliceExecutionRequest,
+    SlicePlanActMediation,
+    SlicePlanActStatus,
+)
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.slice_reconciliation import (
     SliceReconciliationRequest,
 )
@@ -146,7 +150,7 @@ def run_plan_implementation_runtime(request: PlanImplementationRuntimeRequest) -
         progress=progress,
         slice_execution=ExecuteSlice(
             session_attempts=RunSessionAttempts(
-                runner=AttachedTtyClineSessionRunner(),
+                runner=ClineSdkSessionRunner(),
                 repository_inspector=repository_inspector,
             ),
             operation_classifier=ClassifyOperation(),
@@ -208,6 +212,20 @@ class _FilesystemPlanProgress:
             )
             or (DEFAULT_FOCUSED_VALIDATION,),
             expected_paths=expected_paths,
+            plan_act_mediation=SlicePlanActMediation(
+                status=SlicePlanActStatus.READY_TO_ACT,
+                summary=(
+                    "same-session Plan-to-Act mode switching is proven for the SDK-first reset MVP; "
+                    "the orchestrator authorizes this bounded Act turn."
+                ),
+                run_id=approval.run_id,
+                task_id=selection.task_id,
+                slice_id=selection.slice_id,
+                specification_digest=approval.specification_digest,
+                material_digest=approval.material_digest,
+                operation_policy=approval.profile,
+                diagnostic_reference="docs/sdk-capability-matrix.md#gate-conclusion",
+            ),
         )
 
     def prepare_reconciliation(

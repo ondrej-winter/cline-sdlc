@@ -10,6 +10,7 @@ from typing import cast
 import pytest
 
 from cline_sdlc.features.cline_execution.application.dtos.session import (
+    ClineSessionExecutionMode,
     ClineSessionProcessStatus,
     ClineSessionResult,
 )
@@ -91,6 +92,17 @@ def test_executes_only_approved_slice_and_independent_focused_validation() -> No
     assert "create commits" in prompt
     assert SPECIFICATION_DIGEST in prompt
     assert MATERIAL_DIGEST in prompt
+    session_request = sessions.requests[0].session_request
+    assert session_request.session_role is SessionRole.IMPLEMENTATION
+    assert session_request.execution_mode is ClineSessionExecutionMode.WRITE_CAPABLE
+    assert session_request.instructions == prompt
+    assert "Return exactly one cline-sdlc terminal outcome" in session_request.outcome_contract
+    assert session_request.required_skills == ("incremental-implementation", "test-driven-development")
+    assert tuple(artifact.path for artifact in session_request.artifact_context) == (
+        "docs/specs/work.md",
+        "docs/plans/work.md",
+    )
+    assert session_request.safe_context == ("run_id=run-task-4.2", "task_id=task-4", "slice_id=task-4.2")
     assert len(validation.requests) == 1
     assert all(candidate.scope is ValidationScope.FOCUSED for candidate in validation.requests[0].commands)
 
