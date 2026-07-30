@@ -295,7 +295,11 @@ runner is wired to the real SDK.
 - [x] Python session DTOs and `SessionRunner` port express SDK-shaped
       application semantics.
 - [x] Adapter-owned JSON protocol is validated independently.
-- [ ] Runtime dependency strategy is documented and fail-closed.
+- [x] Runtime dependency strategy is documented and fail-closed.
+
+Checkpoint status note: later Task 1 and Task 14 evidence complete the runtime
+dependency documentation and fail-closed preflight requirements for the adapter
+foundation.
 
 ### Phase 2: Working `@cline/sdk` Adapter
 
@@ -800,9 +804,17 @@ remain in place as compatibility coverage.
 
 - [x] SDK capability matrix is complete.
 - [x] CLI probe surfaces are quarantined.
-- [ ] `--plan-file` delivery can proceed only after the spec's full SDK execution
+- [x] `--plan-file` delivery can proceed only after the spec's full SDK execution
       contract is proven by official docs/API references and local real-SDK smoke
       evidence.
+
+Checkpoint status note: later Tasks 11-13 and Checkpoint A complete the reset MVP
+delivery decision by relying on orchestrator-owned same-session Plan-to-Act
+sequencing, independent Git reconciliation, focused validation, and explicit-path
+commit gating. SDK-native planning-result observation, post-plan Act
+authorization, real dynamic permission callbacks, SDK-native structured outcomes,
+and authoritative SDK file-change evidence remain deferred non-MVP claims rather
+than blockers for the completed reset MVP proof.
 
 ### Phase 5: SDK-Backed One-Slice Delivery Proof
 
