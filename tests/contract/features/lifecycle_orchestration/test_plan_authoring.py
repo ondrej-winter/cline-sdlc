@@ -23,7 +23,6 @@ from cline_sdlc.features.artifact_lifecycle.domain.plan_state import (
     PlanState,
     ReviewReadiness,
 )
-from cline_sdlc.features.cline_execution.application.dtos.preflight import ClinePreflightRequest
 from cline_sdlc.features.cline_execution.application.dtos.session import ClineSessionProcessStatus, ClineSessionResult
 from cline_sdlc.features.cline_execution.domain.outcome import SessionOutcome, SessionRole, SessionStatus
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.invocation import InvocationRequest, InvocationSource
@@ -288,10 +287,6 @@ def _request() -> PlanAuthoringRequest:
                 working_directory=Path("/repo"),
                 input_paths=(_spec_path(),),
                 managed_paths=(Path("docs/plans"),),
-            ),
-            cline_preflight_request=ClinePreflightRequest(
-                command=("cline",),
-                required_skills=("planning-and-task-breakdown",),
             ),
         ),
         validation_discovery_request=ValidationDiscoveryRequest(changed_paths=(_spec_path().as_posix(),)),

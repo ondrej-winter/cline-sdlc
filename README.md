@@ -10,12 +10,10 @@ state. Structured session outcomes, validation evidence, and Git reconciliation�
 assistant prose—determine whether work completed.
 
 > [!IMPORTANT]
-> The project is **not currently described as unattended-ready**. The supervised
-> Cline CLI capability proof found blocking gaps in structured outcomes, pre-execution
-> permission mediation, and interruption evidence. ADR 0001 records the accepted
-> supervised workflow-runner boundary and the still-blocked unattended-readiness claim.
-> A successful supervised rollout proof or superseding execution-boundary ADR is still
-> required before changing this status.
+> The project is **not currently described as unattended-ready**. ADR 0002 supersedes
+> the previous Cline CLI probing direction: SDK-shaped Cline session contracts are the
+> intended execution boundary, and CLI probing must not be treated as production
+> readiness evidence.
 >
 > The installed console boundary currently validates inputs and renders the bounded
 > dry-run terminal result; it does not yet compose the implemented lifecycle use cases
@@ -28,8 +26,8 @@ assistant prose—determine whether work completed.
 - Python 3.14 or newer
 - [uv](https://docs.astral.sh/uv/), including `uvx`
 - Git for every file-backed stage and in-repository artifact write
-- A separately installed compatible Cline CLI for real lifecycle sessions
 - Node.js 22 or newer for the experimental adapter-local `@cline/sdk` runner
+- A Cline executable is still used by transitional interactive idea/specification/plan-authoring paths
 - The stage-specific Agent Skills required by the selected workflow
 
 ## Install and run
@@ -112,7 +110,7 @@ read-only review, bounded remediation, and a progress-only finalization commit f
 | Option | Meaning | Default |
 | --- | --- | --- |
 | `--timeout <seconds>` | Finite maximum duration for one Cline session | `1800` seconds (30 minutes) |
-| `--cline-command <path>` | Explicit Cline executable used for capability checks and sessions | `cline` |
+| `--cline-command <path>` | Transitional Cline executable used only by interactive non-SDK stage sessions | `cline` |
 | `--json` | Emit only one terminal JSON result on standard output | Disabled |
 | `--verbose` | Emit additional subprocess and reconciliation diagnostics | Disabled |
 | `--dry-run` | Preview the bounded invocation without starting lifecycle work | Disabled |
@@ -359,10 +357,10 @@ it does not require credentials, network access, or real lifecycle effects. Real
 Cline execution remains limited by unproven machine-detectable terminal outcomes,
 pre-execution permission mediation, and interruption recovery evidence.
 
-The project must not be represented as unattended-ready until a supervised
-non-production rollout proof demonstrates those contracts or a superseding
-execution-boundary ADR replaces the current Cline CLI boundary. See
-[`docs/adr/0001-keep-cline-cli-rollout-blocked-until-execution-contracts-are-proven.md`](docs/adr/0001-keep-cline-cli-rollout-blocked-until-execution-contracts-are-proven.md).
+The project must not be represented as unattended-ready until SDK-shaped execution
+evidence proves structured outcomes, permission mediation, interruption recovery,
+and reconciliation under representative usage. See
+[`docs/adr/0002-use-cline-sdk-contract-instead-of-cli-probing.md`](docs/adr/0002-use-cline-sdk-contract-instead-of-cli-probing.md).
 
 ## Development
 

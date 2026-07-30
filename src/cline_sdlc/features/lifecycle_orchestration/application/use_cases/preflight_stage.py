@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Protocol
 
 from cline_sdlc.features.artifact_lifecycle.application.dtos.artifact_location import ArtifactLocationBlocker
-from cline_sdlc.features.cline_execution.application.dtos.preflight import ClinePreflightStatus
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.preflight import (
     StagePreflightBlocker,
     StagePreflightEvidence,
@@ -21,10 +20,6 @@ if TYPE_CHECKING:
     from cline_sdlc.features.artifact_lifecycle.application.dtos.artifact_location import (
         ArtifactLocationResult,
         SelectArtifactLocationRequest,
-    )
-    from cline_sdlc.features.cline_execution.application.dtos.preflight import (
-        ClinePreflightRequest,
-        ClinePreflightResult,
     )
     from cline_sdlc.features.repository_coordination.application.dtos.repository import (
         RepositoryInspectionRequest,
@@ -63,28 +58,19 @@ class RunAuditRecorderPort(Protocol):
         """Return ignored audit summary persistence evidence or blockers."""
 
 
-class ClinePreflightPort(Protocol):
-    """Published Cline-execution boundary for capability and skill preflight."""
-
-    def execute(self, request: ClinePreflightRequest) -> ClinePreflightResult:
-        """Return Cline readiness evidence or blockers."""
-
-
 class PreflightLifecycleStage:
-    """Authorize one stage only after all ordered preflight checks pass."""
+    """Authorize one stage after repository and artifact preflight checks pass."""
 
     def __init__(
         self,
         *,
         repository_inspector: RepositoryInspectionPort,
-        cline_preflight: ClinePreflightPort,
         artifact_location_selector: ArtifactLocationSelectorPort | None = None,
         run_audit_recorder: RunAuditRecorderPort | None = None,
     ) -> None:
         self._artifact_location_selector = artifact_location_selector
         self._repository_inspector = repository_inspector
         self._run_audit_recorder = run_audit_recorder
-        self._cline_preflight = cline_preflight
 
     def execute(self, request: StagePreflightRequest) -> StagePreflightResult:
         """Return stage authorization or the first ordered preflight blocker."""
@@ -131,12 +117,6 @@ class PreflightLifecycleStage:
             audit_summary_path, blockers = self._set_up_run_audit(request)
         if request.run_audit_request is not None and not blockers:
             evidence.append(_evidence(StagePreflightStep.RUN_AUDIT, "ignored run audit destination is ready"))
-
-        if not blockers:
-            cline_result = self._cline_preflight.execute(request.cline_preflight_request)
-            blockers = _cline_blockers(cline_result)
-        if not blockers:
-            evidence.append(_evidence(StagePreflightStep.CLINE_CAPABILITY, "Cline capability preflight passed"))
 
         return artifact_location, repository_result, audit_summary_path, blockers
 
@@ -229,28 +209,6 @@ def _audit_blockers(result: RunAuditResult) -> tuple[StagePreflightBlocker, ...]
             step=StagePreflightStep.RUN_AUDIT,
             code="run_audit_not_recorded",
             summary="run audit setup did not produce a recorded summary destination",
-        ),
-    )
-
-
-def _cline_blockers(result: ClinePreflightResult) -> tuple[StagePreflightBlocker, ...]:
-    if result.status is ClinePreflightStatus.READY:
-        return ()
-    if result.blockers:
-        return tuple(
-            StagePreflightBlocker(
-                step=StagePreflightStep.CLINE_CAPABILITY,
-                code=blocker.code,
-                summary=blocker.summary,
-                evidence=blocker.evidence,
-            )
-            for blocker in result.blockers
-        )
-    return (
-        StagePreflightBlocker(
-            step=StagePreflightStep.CLINE_CAPABILITY,
-            code="cline_preflight_failed",
-            summary="Cline preflight failed without a detailed blocker",
         ),
     )
 

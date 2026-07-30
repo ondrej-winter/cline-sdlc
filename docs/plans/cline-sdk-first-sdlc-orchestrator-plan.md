@@ -70,9 +70,9 @@ adapter proves or explicitly blocks those SDK capabilities.
   the overview, then inspect Events, ClineCore, Tools, Permission Handling,
   production guidance, and API reference pages before claiming deeper lifecycle
   behavior.
-- Keep existing CLI probes, subprocess session runners, and fake Cline fixtures as
-  compatibility or test assets only. They must not be described as the production
-  SDK execution contract.
+- Remove historical CLI probes and obsolete subprocess session runners so only
+  SDK-first adapter code is described as the intended execution boundary. Fake
+  Cline fixtures may remain only where they support boundary tests.
 - Fail closed for unsupported SDK primitives, malformed adapter JSON, unknown SDK
   event shapes, missing terminal results, path-unsafe evidence, timeouts,
   interruptions, and contradictory repository evidence.
@@ -140,8 +140,7 @@ adapter proves or explicitly blocks those SDK capabilities.
   - `src/cline_sdlc/features/cline_execution/application/dtos/session.py`
   - `src/cline_sdlc/features/cline_execution/application/ports/session_runner.py`
   - `src/cline_sdlc/features/cline_execution/application/use_cases/run_session.py`
-  - `src/cline_sdlc/features/cline_execution/adapters/outbound/subprocess_session_runner/`
-  - `src/cline_sdlc/features/cline_execution/adapters/outbound/terminal_outcome_parser/`
+  - `src/cline_sdlc/features/cline_execution/adapters/outbound/cline_sdk/`
 - Existing lifecycle orchestration session attempts:
   - `src/cline_sdlc/features/lifecycle_orchestration/application/use_cases/run_session_attempts.py`
   - `src/cline_sdlc/features/lifecycle_orchestration/application/use_cases/execute_slice.py`
@@ -766,30 +765,27 @@ non-authoritative diagnostic/model-output evidence.
 
 ## Task 10: Quarantine CLI probe readiness language
 
-**Description:** Rename or document existing CLI probe artifacts so they are
-clearly historical, compatibility, or discovery fixtures. They must not imply
-production readiness for SDK-first orchestration.
+**Description:** Remove historical CLI probe artifacts so they cannot be mistaken
+for production readiness evidence for SDK-first orchestration.
 
 **Likely files/components touched:**
 
-- `src/cline_sdlc/features/cline_execution/domain/capability.py`
-- `src/cline_sdlc/features/cline_execution/adapters/outbound/cli_capability_probe/`
-- `scripts/probe_cline_capabilities.py`
-- related tests/docs
+- Removed legacy capability-domain and CLI probe modules
+- Removed `scripts/probe_cline_capabilities.py`
+- Removed related tests/docs references
 
 **Acceptance criteria:**
 
 - [x] CLI probe naming/docs do not present terminal probing as the production SDK
       execution contract.
-- [x] Useful subprocess/fake Cline tests remain available as compatibility tests.
+- [x] Useful fake Cline tests remain available as boundary tests without legacy
+      subprocess runner production surfaces.
 - [x] Documentation references ADR 0002 where appropriate.
 
-Task 10 implementation note: legacy CLI probe modules, ports, DTOs, scripts, and
-manual proof entry points now describe themselves as compatibility/discovery
-surfaces rather than SDK readiness evidence. `ClineCapabilityReport` exposes
-`sdk_readiness_evidence=False`, JSON script output includes the same flag, and
-script help text points readers to ADR 0002. Existing subprocess/fake Cline tests
-remain in place as compatibility coverage.
+Task 10 implementation note: legacy CLI probe modules, ports, DTOs, scripts,
+manual proof entry points, and obsolete terminal/subprocess runner adapters were
+removed. Remaining fake Cline fixtures support boundary tests only and do not
+define production execution readiness.
 
 **Verification:**
 
@@ -1089,8 +1085,8 @@ full quality gate.
 - Tasks 7-8 are mandatory before the adapter is considered proven for local use.
 - Task 9 must precede Plan/Act, permission, structured outcome, or `--plan-file`
   delivery claims.
-- Task 10 can run after Task 9 but before broader delivery work to avoid confusing
-  CLI probe artifacts with SDK readiness.
+- Task 10 can run after Task 9 but before broader delivery work to remove CLI
+  probe artifacts that could be confused with SDK readiness.
 - Tasks 11-13 must not begin until Checkpoint A and the capability matrix are
   complete.
 - Task 12 must block rather than emulate Plan/Act mediation, permission/tool

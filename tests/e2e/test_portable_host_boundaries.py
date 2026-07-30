@@ -24,7 +24,6 @@ from cline_sdlc.features.artifact_lifecycle.application.dtos.plan_review import 
 )
 from cline_sdlc.features.artifact_lifecycle.domain.findings import PlanReviewReadiness
 from cline_sdlc.features.artifact_lifecycle.domain.plan_state import PlanPhase, PlanState, ReviewReadiness
-from cline_sdlc.features.cline_execution.application.dtos.preflight import ClinePreflightRequest
 from cline_sdlc.features.cline_execution.application.dtos.session import ClineSessionProcessStatus, ClineSessionResult
 from cline_sdlc.features.cline_execution.domain.outcome import SessionOutcome, SessionRole, SessionStatus
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.idea_stage import IdeaRefinementRequest
@@ -321,7 +320,6 @@ def _preflight(
         invocation=invocation,
         artifact_location_request=SelectArtifactLocationRequest(artifact_kind, "portable-runner"),
         repository_request=RepositoryInspectionRequest(working_directory=host.root, input_paths=input_paths),
-        cline_preflight_request=ClinePreflightRequest(command=("fake-cline",), required_skills=("fixture-skill",)),
     )
 
 

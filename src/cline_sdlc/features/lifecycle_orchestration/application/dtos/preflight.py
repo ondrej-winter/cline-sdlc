@@ -11,7 +11,6 @@ if TYPE_CHECKING:
         ArtifactLocationResult,
         SelectArtifactLocationRequest,
     )
-    from cline_sdlc.features.cline_execution.application.dtos.preflight import ClinePreflightRequest
     from cline_sdlc.features.lifecycle_orchestration.application.dtos.invocation import InvocationRequest
     from cline_sdlc.features.repository_coordination.application.dtos.repository import (
         RepositoryInspectionRequest,
@@ -34,7 +33,6 @@ class StagePreflightStep(StrEnum):
     ARTIFACT_LOCATION = "artifact_location"
     REPOSITORY = "repository"
     RUN_AUDIT = "run_audit"
-    CLINE_CAPABILITY = "cline_capability"
 
 
 @dataclass(frozen=True)
@@ -75,7 +73,6 @@ class StagePreflightRequest:
     invocation: InvocationRequest
     artifact_location_request: SelectArtifactLocationRequest | None
     repository_request: RepositoryInspectionRequest
-    cline_preflight_request: ClinePreflightRequest
     run_audit_request: RunAuditRequest | None = None
 
 

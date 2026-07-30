@@ -36,9 +36,6 @@ from cline_sdlc.features.artifact_lifecycle.domain.plan_state import PlanPhase, 
 from cline_sdlc.features.cline_execution.adapters.outbound.attached_tty_session_runner import (
     AttachedTtyClineSessionRunner,
 )
-from cline_sdlc.features.cline_execution.adapters.outbound.cli_capability_probe import SubprocessClineCapabilityProbe
-from cline_sdlc.features.cline_execution.application.dtos.preflight import ClinePreflightRequest
-from cline_sdlc.features.cline_execution.application.use_cases.preflight import PreflightClineCapabilities
 from cline_sdlc.features.lifecycle_orchestration.adapters.inbound.plan_implementation_runtime import (
     PlanImplementationRuntimeRequest,
     run_plan_implementation_runtime,
@@ -586,15 +583,10 @@ def _interactive_stage_runtime(
         invocation=request,
         artifact_location_request=None,
         repository_request=repository_request,
-        cline_preflight_request=ClinePreflightRequest(
-            command=(request.cline_command,),
-            required_skills=(config.required_skill,),
-        ),
     )
     repository_inspector = GitCliRepositoryInspector()
     preflight = PreflightLifecycleStage(
         repository_inspector=_RepositoryInspectionAdapter(repository_inspector),
-        cline_preflight=PreflightClineCapabilities(SubprocessClineCapabilityProbe()),
     )
     session_attempts = RunSessionAttempts(
         runner=AttachedTtyClineSessionRunner(),

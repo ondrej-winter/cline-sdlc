@@ -13,7 +13,6 @@ from cline_sdlc.features.artifact_lifecycle.application.dtos.artifact_location i
     ArtifactLocationSource,
     SelectArtifactLocationRequest,
 )
-from cline_sdlc.features.cline_execution.application.dtos.preflight import ClinePreflightRequest
 from cline_sdlc.features.cline_execution.application.dtos.session import (
     ClineSessionProcessStatus,
     ClineSessionResult,
@@ -106,9 +105,9 @@ def test_preflight_blocker_prevents_session_start() -> None:
             status=StagePreflightStatus.BLOCKED,
             blockers=(
                 StagePreflightBlocker(
-                    step=StagePreflightStep.CLINE_CAPABILITY,
-                    code="missing_skill",
-                    summary="spec-driven-development is unavailable",
+                    step=StagePreflightStep.REPOSITORY,
+                    code="dirty_tree",
+                    summary="repository is not ready",
                 ),
             ),
         ),
@@ -121,7 +120,7 @@ def test_preflight_blocker_prevents_session_start() -> None:
     assert result.status is SpecificationCreationStatus.BLOCKED
     assert result.blocker is not None
     assert result.blocker.code == "specification_preflight_failed"
-    assert result.blocker.evidence == "cline_capability:missing_skill"
+    assert result.blocker.evidence == "repository:dirty_tree"
     assert attempts.requests == []
 
 
@@ -242,7 +241,6 @@ def _preflight_request(invocation: InvocationRequest) -> StagePreflightRequest:
             input_paths=(_idea_path(),),
             managed_paths=(Path("docs/specs"),),
         ),
-        cline_preflight_request=ClinePreflightRequest(command=("cline",), required_skills=("spec-driven-development",)),
     )
 
 

@@ -12,12 +12,6 @@ from cline_sdlc.features.artifact_lifecycle.application.dtos.artifact_location i
     ArtifactLocationSource,
     SelectArtifactLocationRequest,
 )
-from cline_sdlc.features.cline_execution.application.dtos.preflight import (
-    ClinePreflightBlocker,
-    ClinePreflightRequest,
-    ClinePreflightResult,
-    ClinePreflightStatus,
-)
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.invocation import InvocationRequest, InvocationSource
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.preflight import (
     StagePreflightRequest,
@@ -71,27 +65,15 @@ class RecordingAuditRecorder:
         return self.result
 
 
-@dataclass
-class RecordingClinePreflight:
-    result: ClinePreflightResult
-    calls: list[ClinePreflightRequest]
-
-    def execute(self, request: ClinePreflightRequest) -> ClinePreflightResult:
-        self.calls.append(request)
-        return self.result
-
-
 def test_blocks_unselected_invocation_before_downstream_checks() -> None:
     selector = RecordingArtifactSelector(_artifact_location(), [])
     repository = RecordingRepositoryInspector(_repository_ready(), [])
     audit = RecordingAuditRecorder(_audit_recorded(), [])
-    cline = RecordingClinePreflight(_cline_ready(), [])
 
     result = PreflightLifecycleStage(
         artifact_location_selector=selector,
         repository_inspector=repository,
         run_audit_recorder=audit,
-        cline_preflight=cline,
     ).execute(_request(invocation=_invocation(stage=None)))
 
     assert result.status is StagePreflightStatus.BLOCKED
@@ -99,27 +81,23 @@ def test_blocks_unselected_invocation_before_downstream_checks() -> None:
     assert selector.calls == []
     assert repository.calls == []
     assert audit.calls == []
-    assert cline.calls == []
 
 
-def test_artifact_location_blocker_stops_before_repository_and_cline_preflight() -> None:
+def test_artifact_location_blocker_stops_before_repository() -> None:
     selector = RecordingArtifactSelector(ArtifactLocationBlocker(code="unsafe_artifact_path", summary="unsafe"), [])
     repository = RecordingRepositoryInspector(_repository_ready(), [])
-    cline = RecordingClinePreflight(_cline_ready(), [])
 
     result = PreflightLifecycleStage(
         artifact_location_selector=selector,
         repository_inspector=repository,
-        cline_preflight=cline,
     ).execute(_request(include_run_audit=False))
 
     assert result.status is StagePreflightStatus.BLOCKED
     assert result.blockers[0].step is StagePreflightStep.ARTIFACT_LOCATION
     assert repository.calls == []
-    assert cline.calls == []
 
 
-def test_repository_blocker_stops_before_audit_setup_and_cline_preflight() -> None:
+def test_repository_blocker_stops_before_audit_setup() -> None:
     selector = RecordingArtifactSelector(_artifact_location(), [])
     repository = RecordingRepositoryInspector(
         RepositoryInspectionResult(
@@ -129,23 +107,20 @@ def test_repository_blocker_stops_before_audit_setup_and_cline_preflight() -> No
         [],
     )
     audit = RecordingAuditRecorder(_audit_recorded(), [])
-    cline = RecordingClinePreflight(_cline_ready(), [])
 
     result = PreflightLifecycleStage(
         artifact_location_selector=selector,
         repository_inspector=repository,
         run_audit_recorder=audit,
-        cline_preflight=cline,
     ).execute(_request())
 
     assert result.status is StagePreflightStatus.BLOCKED
     assert result.blockers[0].step is StagePreflightStep.REPOSITORY
     assert result.blockers[0].code == "dirty_tree"
     assert audit.calls == []
-    assert cline.calls == []
 
 
-def test_audit_setup_failure_stops_before_cline_preflight() -> None:
+def test_audit_setup_failure_blocks_authorization() -> None:
     audit = RecordingAuditRecorder(
         RunAuditResult(
             status=RunAuditStatus.FAILED,
@@ -153,60 +128,26 @@ def test_audit_setup_failure_stops_before_cline_preflight() -> None:
         ),
         [],
     )
-    cline = RecordingClinePreflight(_cline_ready(), [])
 
     result = PreflightLifecycleStage(
         artifact_location_selector=RecordingArtifactSelector(_artifact_location(), []),
         repository_inspector=RecordingRepositoryInspector(_repository_ready(), []),
         run_audit_recorder=audit,
-        cline_preflight=cline,
     ).execute(_request())
 
     assert result.status is StagePreflightStatus.BLOCKED
     assert result.blockers[0].step is StagePreflightStep.RUN_AUDIT
-    assert cline.calls == []
-
-
-def test_cline_preflight_failure_returns_actionable_blocker_after_prior_checks() -> None:
-    cline = RecordingClinePreflight(
-        ClinePreflightResult(
-            status=ClinePreflightStatus.FAILED,
-            executable="cline",
-            version="3.0.46",
-            blockers=(ClinePreflightBlocker(code="missing_skill", summary="skill missing", evidence="idea-refine"),),
-        ),
-        [],
-    )
-
-    result = PreflightLifecycleStage(
-        artifact_location_selector=RecordingArtifactSelector(_artifact_location(), []),
-        repository_inspector=RecordingRepositoryInspector(_repository_ready(), []),
-        run_audit_recorder=RecordingAuditRecorder(_audit_recorded(), []),
-        cline_preflight=cline,
-    ).execute(_request())
-
-    assert result.status is StagePreflightStatus.BLOCKED
-    assert [item.step for item in result.evidence] == [
-        StagePreflightStep.INVOCATION,
-        StagePreflightStep.ARTIFACT_LOCATION,
-        StagePreflightStep.REPOSITORY,
-        StagePreflightStep.RUN_AUDIT,
-    ]
-    assert result.blockers[0].step is StagePreflightStep.CLINE_CAPABILITY
-    assert result.blockers[0].evidence == "idea-refine"
 
 
 def test_authorizes_stage_after_ordered_preflight_checks_pass() -> None:
     artifact_location = _artifact_location()
     repository = RecordingRepositoryInspector(_repository_ready(), [])
     audit = RecordingAuditRecorder(_audit_recorded(), [])
-    cline = RecordingClinePreflight(_cline_ready(), [])
 
     result = PreflightLifecycleStage(
         artifact_location_selector=RecordingArtifactSelector(artifact_location, []),
         repository_inspector=repository,
         run_audit_recorder=audit,
-        cline_preflight=cline,
     ).execute(_request())
 
     assert result.authorized
@@ -217,14 +158,12 @@ def test_authorizes_stage_after_ordered_preflight_checks_pass() -> None:
         StagePreflightStep.ARTIFACT_LOCATION,
         StagePreflightStep.REPOSITORY,
         StagePreflightStep.RUN_AUDIT,
-        StagePreflightStep.CLINE_CAPABILITY,
     ]
     assert result.artifact_location == artifact_location
     assert result.repository_snapshot == _snapshot()
     assert result.audit_summary_path == ".cline-sdlc/runs/run-1/summary.json"
     assert len(repository.calls) == 1
     assert len(audit.calls) == 1
-    assert len(cline.calls) == 1
 
 
 def _request(
@@ -249,7 +188,6 @@ def _request(
             managed_paths=(Path("docs/plans"),),
         ),
         run_audit_request=audit_request if include_run_audit else None,
-        cline_preflight_request=ClinePreflightRequest(command=("cline",), required_skills=("spec-driven-development",)),
     )
 
 
@@ -281,7 +219,3 @@ def _snapshot() -> RepositorySnapshot:
 
 def _audit_recorded() -> RunAuditResult:
     return RunAuditResult(status=RunAuditStatus.RECORDED, summary_path=".cline-sdlc/runs/run-1/summary.json")
-
-
-def _cline_ready() -> ClinePreflightResult:
-    return ClinePreflightResult(status=ClinePreflightStatus.READY, executable="cline", version="3.0.46")
