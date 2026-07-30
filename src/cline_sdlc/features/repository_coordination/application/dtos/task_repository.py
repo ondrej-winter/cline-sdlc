@@ -38,6 +38,7 @@ class StagedChangeSet:
     staged_paths: tuple[str, ...]
     staged_diff_digest: str
     staged_diff_summary: str
+    read_only: bool = True
     operation_states: tuple[str, ...] = ()
     unstaged_paths: tuple[str, ...] = ()
 

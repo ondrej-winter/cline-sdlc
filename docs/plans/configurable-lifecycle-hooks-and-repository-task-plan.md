@@ -130,10 +130,10 @@ Do not mark the implementation complete until all checkpoints, validation comman
 
 **Acceptance criteria:**
 
-- [ ] Inspection requires execution inside a Git repository.
+- [x] Inspection requires execution inside a Git repository.
 - [x] Inspection reports staged paths and staged diff summary or digest evidence.
 - [x] Inspection distinguishes no staged changes from unsafe repository state.
-- [ ] Inspection does not stage, unstage, commit, reset, merge, rebase, clean, push, or otherwise mutate repository state.
+- [x] Inspection does not stage, unstage, commit, reset, merge, rebase, clean, push, or otherwise mutate repository state.
 - [x] Embedded inspection can compare observed staged paths with authorized slice-owned paths.
 - [x] Blockers are structured with actionable codes, summaries, and safe evidence.
 
@@ -141,6 +141,23 @@ Do not mark the implementation complete until all checkpoints, validation comman
 
 - [x] Run focused unit tests for the inspection use case with fake Git ports.
 - [x] Confirm repository task inspection does not reuse lifecycle preflight in a way that requires a clean working tree when standalone staged work is expected.
+
+Task 3 implementation note: staged task inspection now fails closed when a
+ready inspection lacks a Git repository root or HEAD, reports unresolved Git
+operation states, reports unsafe repository-relative staged paths, or indicates
+that inspection mutated repository state. `StagedChangeSet.read_only` records the
+read-only evidence contract for application-level validation while keeping Git CLI
+implementation details behind the repository coordination port. Focused unit
+tests cover the new repository-required and read-only guarantees with fake Git
+ports.
+
+Focused Task 3 verification evidence: `uv run ruff format
+src/cline_sdlc/features/repository_coordination/application/dtos/task_repository.py
+src/cline_sdlc/features/repository_coordination/application/use_cases/inspect_task_repository.py
+tests/unit/features/repository_coordination/application/test_inspect_task_repository.py
+&& uv run ruff check ... && uv run mypy ... && uv run pytest
+tests/unit/features/repository_coordination/application/test_inspect_task_repository.py`
+passed locally on 2026-07-30 with 11 tests.
 
 ## Task 4: Add Git CLI staged inspection adapter and integration tests
 

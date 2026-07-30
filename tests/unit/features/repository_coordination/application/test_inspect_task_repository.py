@@ -93,6 +93,93 @@ def test_blocks_when_ready_inspection_has_no_change_set() -> None:
     assert result.blockers[0].code == "staged_change_set_unavailable"
 
 
+def test_blocks_when_ready_inspection_does_not_identify_git_repository() -> None:
+    inspector = RecordingTaskInspector(
+        TaskRepositoryInspectionResult(
+            status=TaskRepositoryInspectionStatus.READY,
+            change_set=StagedChangeSet(
+                repository_root="",
+                head_commit="abc123",
+                branch="feature/task",
+                staged_paths=("src/example.py",),
+                staged_diff_digest="sha256:" + "0" * 64,
+                staged_diff_summary="1 file changed",
+            ),
+        )
+    )
+
+    result = InspectTaskRepository(inspector).execute(TaskRepositoryInspectionRequest(working_directory=Path("/repo")))
+
+    assert not result.ready
+    assert result.blockers[0].code == "git_repository_unavailable"
+
+
+def test_blocks_when_ready_inspection_does_not_identify_head() -> None:
+    inspector = RecordingTaskInspector(
+        TaskRepositoryInspectionResult(
+            status=TaskRepositoryInspectionStatus.READY,
+            change_set=StagedChangeSet(
+                repository_root="/repo",
+                head_commit="",
+                branch="feature/task",
+                staged_paths=("src/example.py",),
+                staged_diff_digest="sha256:" + "0" * 64,
+                staged_diff_summary="1 file changed",
+            ),
+        )
+    )
+
+    result = InspectTaskRepository(inspector).execute(TaskRepositoryInspectionRequest(working_directory=Path("/repo")))
+
+    assert not result.ready
+    assert result.blockers[0].code == "git_head_unavailable"
+
+
+def test_blocks_when_ready_inspection_reports_mutation() -> None:
+    inspector = RecordingTaskInspector(
+        TaskRepositoryInspectionResult(
+            status=TaskRepositoryInspectionStatus.READY,
+            change_set=StagedChangeSet(
+                repository_root="/repo",
+                head_commit="abc123",
+                branch="feature/task",
+                staged_paths=("src/example.py",),
+                staged_diff_digest="sha256:" + "0" * 64,
+                staged_diff_summary="1 file changed",
+                read_only=False,
+            ),
+        )
+    )
+
+    result = InspectTaskRepository(inspector).execute(TaskRepositoryInspectionRequest(working_directory=Path("/repo")))
+
+    assert not result.ready
+    assert result.blockers[0].code == "staged_inspection_mutated_repository"
+
+
+def test_blocks_when_ready_inspection_reports_unresolved_git_operation() -> None:
+    inspector = RecordingTaskInspector(
+        TaskRepositoryInspectionResult(
+            status=TaskRepositoryInspectionStatus.READY,
+            change_set=StagedChangeSet(
+                repository_root="/repo",
+                head_commit="abc123",
+                branch="feature/task",
+                staged_paths=("src/example.py",),
+                staged_diff_digest="sha256:" + "0" * 64,
+                staged_diff_summary="1 file changed",
+                operation_states=("merge",),
+            ),
+        )
+    )
+
+    result = InspectTaskRepository(inspector).execute(TaskRepositoryInspectionRequest(working_directory=Path("/repo")))
+
+    assert not result.ready
+    assert result.blockers[0].code == "git_operation_in_progress"
+    assert result.blockers[0].evidence == "merge"
+
+
 def test_blocks_when_ready_inspection_has_no_staged_paths() -> None:
     inspector = RecordingTaskInspector(
         TaskRepositoryInspectionResult(
@@ -136,3 +223,25 @@ def test_blocks_when_staged_paths_are_outside_authorized_scope() -> None:
     assert not result.ready
     assert result.blockers[0].code == "staged_paths_outside_authorized_scope"
     assert result.blockers[0].path == "README.md"
+
+
+def test_blocks_unsafe_staged_paths_before_authorized_scope_check() -> None:
+    inspector = RecordingTaskInspector(
+        TaskRepositoryInspectionResult(
+            status=TaskRepositoryInspectionStatus.READY,
+            change_set=StagedChangeSet(
+                repository_root="/repo",
+                head_commit="abc123",
+                branch="feature/task",
+                staged_paths=("../outside.py",),
+                staged_diff_digest="sha256:" + "0" * 64,
+                staged_diff_summary="1 file changed",
+            ),
+        )
+    )
+
+    result = InspectTaskRepository(inspector).execute(TaskRepositoryInspectionRequest(working_directory=Path("/repo")))
+
+    assert not result.ready
+    assert result.blockers[0].code == "unsafe_staged_path"
+    assert result.blockers[0].path == "../outside.py"
