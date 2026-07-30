@@ -977,19 +977,36 @@ scripts/examples, capability limitations, and delivery gate.
 
 **Acceptance criteria:**
 
-- [ ] README or linked docs explain Node.js 22+ and `@cline/sdk` setup.
-- [ ] Docs explain how to run adapter scripts/examples.
-- [ ] Any SDK-related environment variables are documented with safe placeholders
+- [x] README or linked docs explain Node.js 22+ and `@cline/sdk` setup.
+- [x] Docs explain how to run adapter scripts/examples.
+- [x] Any SDK-related environment variables are documented with safe placeholders
       and mirrored in `.env.example` when they become supported configuration.
-- [ ] Generated Node artifacts such as `node_modules/` are covered by `.gitignore`
+- [x] Generated Node artifacts such as `node_modules/` are covered by `.gitignore`
       without hiding committed adapter package files or lockfiles.
-- [ ] Docs do not claim Plan/Act, permission handling, or unattended readiness
+- [x] Docs do not claim Plan/Act, permission handling, or unattended readiness
       beyond proven adapter capabilities.
-- [ ] Deferred hooks and repository task recipes remain explicitly deferred.
+- [x] Deferred hooks and repository task recipes remain explicitly deferred.
+
+Task 14 implementation note: `README.md` documents the adapter-local Node.js 22+
+runtime requirement, `npm ci` setup from the `cline_sdk/node_runner/` directory,
+the Python adapter example script, the event diagnostic script, and the current
+SDK capability matrix. `.env.example` now mirrors every supported `CLINE_SDK_*`
+live-smoke variable with safe placeholder values only. `.gitignore` already covers
+the generated adapter-local `node_modules/` directory while preserving committed
+package and lock files. Documentation preserves the current blocked delivery
+decision: direct Plan/Act observation, Act authorization, real dynamic permission
+approval, SDK-native structured lifecycle outcomes, and authoritative SDK
+file-change evidence remain unproven or blocked; lifecycle hooks and repository
+task recipes remain deferred.
 
 **Verification:**
 
-- [ ] Review docs for consistency with implementation and SDK capability matrix.
+- [x] Review docs for consistency with implementation and SDK capability matrix.
+
+Documentation verification evidence: README, `.env.example`, `.gitignore`, and
+`docs/sdk-capability-matrix.md` were reviewed for Task 14 consistency on
+2026-07-30. Final whitespace validation is recorded in Task 14 handoff notes;
+the full quality gate remains Task 15.
 
 **Dependencies:** Reset MVP Slice Proof, or documented blocker if delivery stops earlier
 

@@ -275,7 +275,9 @@ export CLINE_SDK_REASONING_EFFORT=medium
 
 Do not commit real credentials. The SDK runner records safe diagnostics and must not
 print secrets, raw prompts containing sensitive repository content, or raw model
-reasoning by default.
+reasoning by default. The repository includes `.env.example` with safe placeholders
+for every supported `CLINE_SDK_*` live-smoke variable; copy it to `.env` only for
+local experimentation and replace placeholders outside version control.
 
 ## Experimental Cline SDK adapter foundation
 
@@ -345,7 +347,10 @@ execution contract remains blocked until official SDK references plus local
 real-SDK smoke evidence prove direct Plan/Act observation, Act authorization, and
 real dynamic permission approval behavior. The orchestrator must continue to fail
 closed for those unproven capabilities and must not claim unattended readiness from
-the SDK adapter foundation alone.
+the SDK adapter foundation alone. Lifecycle hooks, repository task recipes,
+multi-agent runtimes, and broad unattended-readiness claims remain deferred until
+the SDK execution boundary is proven and a later plan explicitly reopens that
+scope.
 
 ## Current limitations and supervised proof
 
