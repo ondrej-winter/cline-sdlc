@@ -210,7 +210,8 @@ def _adapter_capabilities() -> tuple[SdkRuntimeCapabilityEvidence, ...]:
                 status=SdkRuntimeCapabilityStatus.UNPROVEN,
                 source=SdkRuntimeCapabilitySource.OFFICIAL_DOCS,
                 summary=(
-                    "Official SDK references and local smoke evidence do not yet prove this full-contract capability."
+                    "Official SDK references and local smoke evidence do not prove this SDK-native primitive; "
+                    "the MVP relies on orchestrator-owned same-session Plan-then-Act sequencing instead."
                 ),
             )
             for capability in unproven

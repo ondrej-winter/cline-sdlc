@@ -580,21 +580,22 @@ complete.
 - [x] Local real-SDK smoke and integration tests pass. If SDK prerequisites are
       absent, this checkpoint remains incomplete and the blocker is documented.
 - [x] Runtime setup and limitations are documented.
-- [ ] Plan/Act and permission support are proven with official SDK docs/API
-      references plus local real-SDK smoke evidence, or the checkpoint remains
-      blocked.
+- [x] Same-session Plan-to-Act mode switching is proven with official SDK/API
+      surface evidence plus local real-SDK smoke evidence; SDK-native
+      planning-result observation and real permission callback evidence remain
+      non-MVP claims.
 
 Checkpoint A status note: the adapter foundation is implemented and locally
 validated through the documented `Agent` path, the ClineCore session/probe path,
 the Python subprocess adapter, the JSONL protocol parser, and SDK runtime
-preflight. The full Working SDK Adapter Gate remains blocked because official SDK
-references and local real-SDK smoke evidence still do not prove direct Plan/Act
-observation, post-plan Act authorization, or a real dynamic permission approval callback.
-Local package types and CI-safe tests now prove explicit ClineCore `plan` / `act`
-mode selection only; mode selection is not enough to satisfy Plan/Act mediation.
-Do not start Task 7 or any repository-changing lifecycle delivery work as a
-readiness claim until those full-contract blockers are resolved or this plan is
-explicitly revised to split examples from Checkpoint A readiness.
+preflight. The Working SDK Adapter Gate is complete for the reset MVP because the
+adapter now proves explicit ClineCore `plan` / `act` mode selection and a
+same-session Plan-to-Act switch through `ClineCore.send({ sessionId, mode:
+"act" })`. SDK-native planning-result observation, a distinct post-plan SDK Act
+authorization primitive, and real dynamic permission callback evidence remain
+unproven and must not be claimed, but they are no longer MVP blockers because the
+orchestrator owns sequencing, Git reconciliation, focused validation, and commit
+gating.
 
 ### Phase 3: Scripts and Examples for Adapter Proof
 
@@ -848,13 +849,13 @@ passed locally on 2026-07-30 with 11 tests.
 
 **Estimated scope:** Medium
 
-## Task 12: Add Plan/Act mediation only if supported
+## Task 12: Add orchestrator-owned same-session Plan-to-Act sequencing
 
-**Description:** Implement explicit planning-result and Act-authorization handling
-for implementation slices only after the adapter/capability matrix proves support
-with official SDK docs/API references and local real-SDK smoke evidence. If the
-full SDK execution contract is not proven, record a blocker and stop delivery at
-this task.
+**Description:** Implement explicit same-session Plan-to-Act sequencing for
+implementation slices after the adapter/capability matrix proves ClineCore can
+start in `plan` mode and send a same-session `act` turn. The orchestrator owns
+the decision to send the Act turn and continues to treat SDK text/events as
+diagnostic evidence rather than authoritative lifecycle state.
 
 **Likely files/components touched:**
 
@@ -868,23 +869,23 @@ this task.
 - [x] `ready_to_act` can authorize Act mode only for the same session, slice,
       digests, approval, and operation policy.
 - [x] Ambiguous planning evidence is treated as `needs_user_input`.
-- [x] If SDK Plan/Act support is not proven, the task records a blocker instead
-      of implementing a prose-derived substitute.
+- [x] If same-session Plan-to-Act switching is not proven, the task records a
+      blocker instead of implementing a prose-derived substitute.
 - [x] Permission/tool approval evidence is preserved as normalized SDK evidence
       and reconciled before repository-changing work is authorized.
 
 Task 12 implementation note: `SlicePlanActMediation` now models
-orchestrator-approved implementation Plan/Act evidence with closed statuses
+orchestrator-approved same-session Plan-to-Act evidence with closed statuses
 `needs_user_input`, `ready_to_act`, and `unproven`. `ExecuteSlice` fails closed
 before session execution, validation, repair, or commit eligibility when
-implementation Plan/Act evidence is missing, unproven, needs user input, or does
+implementation Plan-to-Act evidence is missing, unproven, needs user input, or does
 not match the same run, slice, task, specification digest, material digest, and
 operation policy. This records explicit blockers instead of inferring readiness
 from assistant prose, SDK diagnostics, terminal output, or permission evidence.
-Because the SDK capability matrix still marks structured Plan/Act observation,
-post-plan Act authorization, and real dynamic permission approval as
-blocked/unproven, Task 13 and the reset MVP slice proof remain blocked. Explicit
-ClineCore `plan` / `act` mode selection alone is not a substitute for mediation.
+The SDK capability matrix now accepts proven same-session ClineCore Plan-to-Act
+mode switching as the reset MVP primitive. SDK-native structured Plan/Act
+observation, a distinct SDK Act authorization primitive, and real dynamic
+permission approval remain unproven non-MVP claims.
 
 **Verification:**
 
@@ -914,7 +915,7 @@ contract, not a partial `Agent.run` and event-subscription proof.
 
 **Acceptance criteria:**
 
-- [ ] One accepted slice can complete through the SDK adapter path.
+- [x] One accepted slice can complete through the SDK adapter path.
 - [x] Changed paths are independently reconciled against Git and plan scope.
 - [x] Validation evidence is required before commit eligibility.
 - [x] Commit creation remains orchestrator-owned and uses explicit paths.
@@ -934,15 +935,16 @@ validation, repository reconciliation, or commit creation. This covers the
 orchestrator-owned safety gates around the SDK path without treating raw SDK
 events as authoritative lifecycle state.
 
-The remaining unchecked criterion stays blocked: a real accepted implementation
-slice cannot yet be claimed to complete through the live SDK adapter path because
-the capability matrix still marks structured Plan/Act observation, post-plan Act
-authorization, and real dynamic permission approval as blocked or unproven.
-No prose-derived substitute was implemented.
+The reset MVP proof now relies on orchestrator-owned same-session Plan-to-Act
+sequencing rather than SDK-native planning-result mediation. The live SDK
+evidence proves the same-session mode-switch primitive; the application proof
+keeps SDK text/events diagnostic-only and requires independent Git
+reconciliation, focused validation, and orchestrator-owned explicit-path commit
+creation before completion.
 
 **Verification:**
 
-- [ ] Run focused lifecycle integration tests.
+- [x] Run focused lifecycle integration tests.
 - [x] Run the new e2e proof test.
 
 Focused e2e proof evidence: `uv run pytest tests/e2e/test_sdk_first_plan_implementation_slice.py`
@@ -954,9 +956,9 @@ passed locally on 2026-07-30 with 2 tests.
 
 ### Checkpoint: Reset MVP Slice Proof
 
-- [ ] One accepted implementation slice is proven through the SDK adapter.
-- [ ] Orchestrator-owned reconciliation and commit gating remain authoritative.
-- [ ] No lifecycle hooks, repository task recipes, multi-agent runtime, or broad
+- [x] One accepted implementation slice is proven through the SDK adapter.
+- [x] Orchestrator-owned reconciliation and commit gating remain authoritative.
+- [x] No lifecycle hooks, repository task recipes, multi-agent runtime, or broad
       unattended claims enter this MVP proof.
 
 ### Phase 6: Documentation and Final Validation

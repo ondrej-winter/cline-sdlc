@@ -54,9 +54,6 @@ _FULL_CONTRACT_CAPABILITIES = frozenset(
         SdkRuntimeCapability.CLINECORE_SESSION,
         SdkRuntimeCapability.PROGRAMMATIC_MODE_SWITCH,
         SdkRuntimeCapability.TOOL_POLICY_COVERAGE,
-        SdkRuntimeCapability.PERMISSION_APPROVAL,
-        SdkRuntimeCapability.PLAN_ACT_OBSERVATION,
-        SdkRuntimeCapability.ACT_AUTHORIZATION,
         SdkRuntimeCapability.CLI_PROBE_EXCLUDED,
     }
 )

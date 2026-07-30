@@ -236,7 +236,7 @@ def test_one_accepted_slice_completes_only_after_sdk_execution_reconciliation_va
     assert commit.requests[0].candidate.validation_evidence == (_passing_validation(),)
 
 
-def test_unproven_sdk_plan_act_evidence_blocks_before_session_reconciliation_or_commit() -> None:
+def test_unproven_same_session_plan_to_act_evidence_blocks_before_session_reconciliation_or_commit() -> None:
     sessions = RecordingSdkSessionAttempts()
     validation = PassingFocusedValidation()
     inspector = RecordingRepositoryInspector()
@@ -294,9 +294,9 @@ def _selection() -> SelectedSlice:
 def _plan_act(status: SlicePlanActStatus) -> SlicePlanActMediation:
     return SlicePlanActMediation(
         status=status,
-        summary="SDK Plan/Act mediation evidence is ready."
+        summary="same-session Plan-to-Act sequencing evidence is ready."
         if status is SlicePlanActStatus.READY_TO_ACT
-        else "SDK Plan/Act support is unproven.",
+        else "same-session Plan-to-Act sequencing is unproven.",
         run_id="run-task-13",
         task_id="task-13",
         slice_id="task-13.1",

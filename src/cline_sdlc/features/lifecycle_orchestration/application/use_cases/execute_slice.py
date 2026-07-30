@@ -193,7 +193,7 @@ def _plan_act_failure(request: SliceExecutionRequest) -> SliceExecutionResult | 
     if mediation is None:
         return _simple_blocker(
             "slice_plan_act_support_unproven",
-            "implementation sessions require proven SDK Plan/Act mediation before acting",
+            "implementation sessions require orchestrator-approved same-session Plan-to-Act evidence before acting",
         )
     mismatch = _plan_act_scope_mismatch(request, mediation)
     if mismatch is not None:
@@ -238,7 +238,7 @@ def _plan_act_scope_mismatch(
         return None
     return _simple_blocker(
         "slice_plan_act_scope_mismatch",
-        "Plan/Act mediation evidence does not match the approved session, slice, digests, and policy",
+        "Plan-to-Act sequencing evidence does not match the approved session, slice, digests, and policy",
         evidence=", ".join(mismatched_fields),
     )
 

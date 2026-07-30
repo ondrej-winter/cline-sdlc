@@ -130,7 +130,7 @@ def test_unclassifiable_operation_blocks_before_session() -> None:
     assert validation.requests == []
 
 
-def test_missing_plan_act_support_blocks_implementation_before_session() -> None:
+def test_missing_same_session_plan_to_act_evidence_blocks_implementation_before_session() -> None:
     sessions = RecordingSessions([_completed_session()], [])
     validation = RecordingValidation([_passing_validation()], [])
 
@@ -173,7 +173,7 @@ def test_unproven_plan_act_support_records_blocker_instead_of_emulating_readines
         _request(
             plan_act_mediation=_plan_act_mediation(
                 SlicePlanActStatus.UNPROVEN,
-                summary="SDK Plan/Act observation is not proven by official references and smoke evidence.",
+                summary="same-session Plan-to-Act sequencing is not proven for this slice envelope.",
             )
         )
     )

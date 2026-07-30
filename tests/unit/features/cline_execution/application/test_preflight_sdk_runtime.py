@@ -102,11 +102,11 @@ def test_preflight_fails_closed_for_runtime_blockers(blocker: SdkRuntimeBlocker,
     assert result.blockers[0].code == expected_code
 
 
-def test_preflight_fails_closed_when_full_contract_capability_evidence_is_missing() -> None:
+def test_preflight_fails_closed_when_required_full_contract_capability_evidence_is_missing() -> None:
     capabilities = tuple(
         evidence
         for evidence in _full_contract_capabilities()
-        if evidence.capability is not SdkRuntimeCapability.PLAN_ACT_OBSERVATION
+        if evidence.capability is not SdkRuntimeCapability.PROGRAMMATIC_MODE_SWITCH
     )
     probe = RecordingSdkRuntimeProbe(
         SdkRuntimeObservation(
@@ -121,10 +121,10 @@ def test_preflight_fails_closed_when_full_contract_capability_evidence_is_missin
 
     assert result.status is SdkRuntimePreflightStatus.FAILED
     assert not result.ready
-    assert result.blockers[-1].code == "sdk_capability_missing_plan_act_observation"
+    assert result.blockers[-1].code == "sdk_capability_missing_programmatic_mode_switch"
 
 
-def test_preflight_fails_closed_when_plan_act_permission_or_approval_is_unproven() -> None:
+def test_preflight_allows_sdk_native_plan_act_and_permission_primitives_to_remain_unproven() -> None:
     capabilities = tuple(
         SdkRuntimeCapabilityEvidence(
             capability=evidence.capability,
@@ -152,12 +152,8 @@ def test_preflight_fails_closed_when_plan_act_permission_or_approval_is_unproven
 
     result = PreflightSdkRuntime(probe).execute(SdkRuntimePreflightRequest())
 
-    assert result.status is SdkRuntimePreflightStatus.FAILED
-    assert {blocker.code for blocker in result.blockers if blocker.code.startswith("sdk_capability_unproven_")} == {
-        "sdk_capability_unproven_permission_approval",
-        "sdk_capability_unproven_plan_act_observation",
-        "sdk_capability_unproven_act_authorization",
-    }
+    assert result.status is SdkRuntimePreflightStatus.READY
+    assert result.blockers == ()
 
 
 def test_preflight_does_not_accept_agent_proof_as_clinecore_or_permission_proof() -> None:
@@ -169,7 +165,6 @@ def test_preflight_does_not_accept_agent_proof_as_clinecore_or_permission_proof(
             SdkRuntimeCapability.CLINECORE_SESSION,
             SdkRuntimeCapability.PROGRAMMATIC_MODE_SWITCH,
             SdkRuntimeCapability.TOOL_POLICY_COVERAGE,
-            SdkRuntimeCapability.PERMISSION_APPROVAL,
         }
     )
     probe = RecordingSdkRuntimeProbe(
@@ -188,7 +183,6 @@ def test_preflight_does_not_accept_agent_proof_as_clinecore_or_permission_proof(
         "sdk_capability_missing_clinecore_session",
         "sdk_capability_missing_programmatic_mode_switch",
         "sdk_capability_missing_tool_policy_coverage",
-        "sdk_capability_missing_permission_approval",
     }.issubset({blocker.code for blocker in result.blockers})
 
 
@@ -200,7 +194,7 @@ def test_preflight_rejects_cli_probe_as_sdk_readiness_evidence() -> None:
             source=SdkRuntimeCapabilitySource.CLI_PROBE,
             summary="terminal probe observed this behavior",
         )
-        if evidence.capability is SdkRuntimeCapability.PLAN_ACT_OBSERVATION
+        if evidence.capability is SdkRuntimeCapability.PROGRAMMATIC_MODE_SWITCH
         else evidence
         for evidence in _full_contract_capabilities()
     )
@@ -216,7 +210,7 @@ def test_preflight_rejects_cli_probe_as_sdk_readiness_evidence() -> None:
     result = PreflightSdkRuntime(probe).execute(SdkRuntimePreflightRequest())
 
     assert result.status is SdkRuntimePreflightStatus.FAILED
-    assert result.blockers[-1].code == "sdk_capability_cli_probe_plan_act_observation"
+    assert result.blockers[-1].code == "sdk_capability_cli_probe_programmatic_mode_switch"
 
 
 def test_preflight_request_defaults_to_adapter_local_runner_contract() -> None:

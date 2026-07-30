@@ -39,7 +39,7 @@ class SliceExecutionStatus(StrEnum):
 
 
 class SlicePlanActStatus(StrEnum):
-    """Orchestrator-owned classification of implementation Plan/Act readiness."""
+    """Orchestrator-owned classification of same-session Plan-to-Act readiness."""
 
     NEEDS_USER_INPUT = "needs_user_input"
     READY_TO_ACT = "ready_to_act"
@@ -62,11 +62,12 @@ class SliceExecutionBlocker:
 
 @dataclass(frozen=True)
 class SlicePlanActMediation:
-    """Session-bound evidence for implementation Plan/Act mediation.
+    """Session-bound evidence for orchestrator-owned Plan-to-Act sequencing.
 
-    The DTO intentionally models only orchestrator-approved mediation evidence.
-    Unproven or ambiguous SDK support must remain blocked rather than inferred
-    from ordinary assistant prose, SDK diagnostics, or terminal output.
+    The DTO intentionally models only orchestrator-approved same-session
+    sequencing evidence. SDK-native planning-result observation remains optional
+    and must not be inferred from ordinary assistant prose, SDK diagnostics, or
+    terminal output.
     """
 
     status: SlicePlanActStatus
@@ -90,7 +91,7 @@ class SlicePlanActMediation:
             self.operation_policy,
         )
         if any(not value.strip() for value in required_values):
-            message = "Plan/Act mediation evidence fields must not be empty"
+            message = "Plan-to-Act sequencing evidence fields must not be empty"
             raise ValueError(message)
         if self.diagnostic_reference is not None and not self.diagnostic_reference.strip():
             message = "Plan/Act diagnostic reference must not be empty"
