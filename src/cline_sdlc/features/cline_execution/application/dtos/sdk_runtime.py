@@ -31,6 +31,7 @@ class SdkRuntimeCapability(StrEnum):
     DIAGNOSTIC_REFERENCES = "diagnostic_references"
     AGENT_RUN = "agent_run"
     CLINECORE_SESSION = "clinecore_session"
+    PROGRAMMATIC_MODE_SWITCH = "programmatic_mode_switch"
     TOOL_POLICY_COVERAGE = "tool_policy_coverage"
     PERMISSION_APPROVAL = "permission_approval"
     PLAN_ACT_OBSERVATION = "plan_act_observation"

@@ -168,6 +168,7 @@ def _adapter_capabilities() -> tuple[SdkRuntimeCapabilityEvidence, ...]:
     proven_by_agent = (SdkRuntimeCapability.AGENT_RUN,)
     proven_by_clinecore = (
         SdkRuntimeCapability.CLINECORE_SESSION,
+        SdkRuntimeCapability.PROGRAMMATIC_MODE_SWITCH,
         SdkRuntimeCapability.TOOL_POLICY_COVERAGE,
     )
     unproven = (

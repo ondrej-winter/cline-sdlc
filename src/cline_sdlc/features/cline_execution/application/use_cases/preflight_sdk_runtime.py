@@ -52,6 +52,7 @@ _FULL_CONTRACT_CAPABILITIES = frozenset(
         SdkRuntimeCapability.DIAGNOSTIC_REFERENCES,
         SdkRuntimeCapability.AGENT_RUN,
         SdkRuntimeCapability.CLINECORE_SESSION,
+        SdkRuntimeCapability.PROGRAMMATIC_MODE_SWITCH,
         SdkRuntimeCapability.TOOL_POLICY_COVERAGE,
         SdkRuntimeCapability.PERMISSION_APPROVAL,
         SdkRuntimeCapability.PLAN_ACT_OBSERVATION,

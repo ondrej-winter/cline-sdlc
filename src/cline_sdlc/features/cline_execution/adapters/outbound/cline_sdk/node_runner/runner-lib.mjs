@@ -103,6 +103,7 @@ export function createClineCoreStartInput(request, env = process.env) {
       baseUrl,
       cwd: workingDirectory,
       workspaceRoot: workingDirectory,
+      mode: clineCoreModeForExecutionMode(request.executionMode),
       systemPrompt: request.outcomeContract,
       enableTools: false,
       enableSpawnAgent: false,
@@ -134,6 +135,16 @@ export function createClineCoreOptions(emitRecord) {
 
 export function createFailClosedToolPolicies() {
   return Object.fromEntries(Object.entries(FAIL_CLOSED_TOOL_POLICIES).map(([name, policy]) => [name, { ...policy }]));
+}
+
+export function clineCoreModeForExecutionMode(executionMode) {
+  if (executionMode === "read_only") {
+    return "plan";
+  }
+  if (executionMode === "write_capable") {
+    return "act";
+  }
+  throw new RunnerProtocolError("Runner request executionMode is unsupported for ClineCore mode selection.");
 }
 
 export function createProbeCapabilities(emitRecord) {
@@ -210,6 +221,12 @@ export async function runClineCoreProbe({ ClineCoreClass, request, env = process
     });
     emitRecord({
       type: "diagnostic",
+      kind: "plan_act_mode",
+      value: startInput.config.mode,
+      summary: "ClineCore probe selected an explicit SDK Plan/Act mode from the adapter execution mode",
+    });
+    emitRecord({
+      type: "diagnostic",
       kind: "dynamic_approval_handler",
       value: "installed-deny-by-default",
       summary: "ClineCore probe installed requestToolApproval capability",
@@ -249,6 +266,70 @@ export async function runClineCoreProbe({ ClineCoreClass, request, env = process
     }
     if (cline && typeof cline.dispose === "function") {
       await cline.dispose("cline-sdlc ClineCore probe complete");
+    }
+  }
+}
+
+export async function runClineCoreModeSwitchProbe({ ClineCoreClass, request, env = process.env, emitRecord }) {
+  let cline;
+  try {
+    const options = createClineCoreOptions(emitRecord);
+    const startInput = createClineCoreStartInput({ ...request, executionMode: "read_only" }, env);
+    startInput.capabilities = options.capabilities;
+    startInput.config.mode = "plan";
+    startInput.interactive = true;
+    emitRecord({
+      type: "diagnostic",
+      kind: "plan_act_start_mode",
+      value: startInput.config.mode,
+      summary: "ClineCore mode-switch probe starts the bounded session in Plan mode",
+    });
+
+    if (!ClineCoreClass || typeof ClineCoreClass.create !== "function") {
+      throw new RunnerProtocolError("ClineCore.create is not available from @cline/sdk.", "clinecore_missing");
+    }
+    cline = await ClineCoreClass.create(options);
+    if (!cline || typeof cline.start !== "function") {
+      throw new RunnerProtocolError("ClineCore start method is not available.", "clinecore_start_missing");
+    }
+    if (typeof cline.send !== "function") {
+      throw new RunnerProtocolError("ClineCore send method is not available for mode switching.", "clinecore_send_missing");
+    }
+
+    const result = await cline.start(startInput);
+    const sessionId = requiredString(result, "sessionId");
+    const sendInput = {
+      sessionId,
+      prompt: "Continue this same bounded session in Act mode only if explicitly authorized by the caller.",
+      mode: "act",
+      delivery: "queue",
+    };
+    emitRecord({
+      type: "diagnostic",
+      kind: "plan_act_send_mode",
+      value: sendInput.mode,
+      summary: "ClineCore mode-switch probe sends a same-session follow-up turn in Act mode",
+    });
+    await cline.send(sendInput);
+    emitRecord({
+      type: "diagnostic",
+      kind: "same_session_mode_switch",
+      value: "true",
+      summary: "ClineCore accepted a Plan-to-Act mode switch request for the same session identifier",
+    });
+    emitRecord({ type: "terminal_result", status: "completed" });
+  } catch (error) {
+    emitSafeDebugDiagnostics({ error, env, emitRecord });
+    emitRecord({
+      type: "blocker",
+      code: error instanceof RunnerProtocolError ? error.code : "clinecore_mode_switch_probe_failed",
+      summary: error instanceof RunnerProtocolError ? error.message : "ClineCore mode-switch probe failed.",
+      evidence: safeErrorEvidence(error),
+    });
+    emitRecord({ type: "terminal_result", status: "failed" });
+  } finally {
+    if (cline && typeof cline.dispose === "function") {
+      await cline.dispose("cline-sdlc ClineCore mode-switch probe complete");
     }
   }
 }

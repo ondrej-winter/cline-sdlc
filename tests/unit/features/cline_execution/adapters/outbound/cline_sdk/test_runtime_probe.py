@@ -52,7 +52,9 @@ def test_probe_reports_ready_when_node_version_and_sdk_resolution_pass(monkeypat
     assert observation.sdk_resolved
     assert observation.blockers == ()
     capabilities = {evidence.capability: evidence for evidence in observation.capabilities}
-    assert capabilities[SdkRuntimeCapability.NODE_RUNTIME].status is SdkRuntimeCapabilityStatus.PROVEN
+    assert (
+        capabilities[SdkRuntimeCapability.PROGRAMMATIC_MODE_SWITCH].source is SdkRuntimeCapabilitySource.CLINECORE_SMOKE
+    )
     assert capabilities[SdkRuntimeCapability.SDK_PACKAGE].status is SdkRuntimeCapabilityStatus.PROVEN
     assert capabilities[SdkRuntimeCapability.AGENT_RUN].source is SdkRuntimeCapabilitySource.AGENT_SMOKE
     assert capabilities[SdkRuntimeCapability.CLINECORE_SESSION].source is SdkRuntimeCapabilitySource.CLINECORE_SMOKE

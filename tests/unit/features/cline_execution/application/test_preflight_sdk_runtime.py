@@ -167,6 +167,7 @@ def test_preflight_does_not_accept_agent_proof_as_clinecore_or_permission_proof(
         if evidence.capability
         not in {
             SdkRuntimeCapability.CLINECORE_SESSION,
+            SdkRuntimeCapability.PROGRAMMATIC_MODE_SWITCH,
             SdkRuntimeCapability.TOOL_POLICY_COVERAGE,
             SdkRuntimeCapability.PERMISSION_APPROVAL,
         }
@@ -185,6 +186,7 @@ def test_preflight_does_not_accept_agent_proof_as_clinecore_or_permission_proof(
     assert result.status is SdkRuntimePreflightStatus.FAILED
     assert {
         "sdk_capability_missing_clinecore_session",
+        "sdk_capability_missing_programmatic_mode_switch",
         "sdk_capability_missing_tool_policy_coverage",
         "sdk_capability_missing_permission_approval",
     }.issubset({blocker.code for blocker in result.blockers})

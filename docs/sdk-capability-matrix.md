@@ -5,7 +5,7 @@
 - Source plan: `docs/plans/cline-sdk-first-sdlc-orchestrator-plan.md`
 - Source spec: `docs/specs/cline-sdk-first-sdlc-orchestrator-spec.md`
 - Related ADR: `docs/adr/0002-use-cline-sdk-contract-instead-of-cli-probing.md`
-- Matrix date: 2026-07-29
+- Matrix date: 2026-07-30
 - Decision state: SDK adapter foundation proven for diagnostics; full SDLC
   execution remains blocked
 
@@ -42,6 +42,7 @@ Local evidence sources:
 
 - `src/cline_sdlc/features/cline_execution/adapters/outbound/cline_sdk/node_runner/runner.mjs`
 - `src/cline_sdlc/features/cline_execution/adapters/outbound/cline_sdk/node_runner/clinecore-probe.mjs`
+- `src/cline_sdlc/features/cline_execution/adapters/outbound/cline_sdk/node_runner/clinecore-mode-switch-probe.mjs`
 - `src/cline_sdlc/features/cline_execution/adapters/outbound/cline_sdk/adapter.py`
 - `src/cline_sdlc/features/cline_execution/adapters/outbound/cline_sdk/protocol.py`
 - `src/cline_sdlc/features/cline_execution/adapters/outbound/cline_sdk/runtime_probe.py`
@@ -59,11 +60,13 @@ Local evidence sources:
 | `AgentRunResult.outputText` and messages | `Agent`-proven as diagnostic/model output | Agent reference documents `outputText`, `messages`, usage, and error fields. | Runner keeps assistant text and SDK messages as safe diagnostic/model-output evidence and avoids raw reasoning/secrets by default. | Must not be treated as authoritative lifecycle state or a substitute for role-specific structured outcomes. |
 | Session identity | `ClineCore`-proven for ClineCore; `Agent`-proven for agent/run IDs | Agent reference documents `agentId` and `runId`; ClineCore guide documents `sessionId`, manifests, and session artifacts. | Task 4a recorded safe `agentId`/`runId`; Task 4b smoke recorded session, manifest, messages, and session-result diagnostics. | Diagnostic references are proven; they do not authorize lifecycle advancement. |
 | Workspace root and working directory | `ClineCore`-proven | ClineCore guide documents `cwd` and `workspaceRoot` session configuration. | Task 4b probe used validated adapter-owned `cwd` and `workspaceRoot` from the runner request. | Proven as ClineCore configuration; still subject to Python path validation. |
+| Plan/Act mode selection | ClineCore API-surface proven and adapter-proven | Adapter-local `@cline/shared` types expose `AgentMode = "act" | "plan" | "yolo" | "zen"`; `SessionPromptConfig.mode?: AgentMode`; `ClineCoreStartConfig` includes the prompt config fields; and `SendSessionInput.mode?: AgentMode` is accepted by `RuntimeHost.runTurn` / `ClineCore.send`. | `runner-lib.mjs` maps adapter execution mode `read_only` to SDK `plan` and `write_capable` to SDK `act`, emits a safe `plan_act_mode` diagnostic, and `node --test runner-lib.test.mjs` passed locally on 2026-07-30 with mode-selection coverage. | Proven only as explicit mode selection at session start; not proof of planning-result observation, user-input classification, or session-bound Act authorization. |
+| Programmatic same-session Plan-to-Act mode switch API surface | `ClineCore`-proven | Adapter-local type references expose `ClineCore.send` as `RuntimeHost["runTurn"]`; `RuntimeHost.runTurn(input: SendSessionInput)` accepts `sessionId`, `prompt`, and optional `mode?: AgentMode`. | `runClineCoreModeSwitchProbe` starts a ClineCore session in `plan`, then sends a follow-up turn with the same `sessionId` and `mode: "act"`; CI-safe fake ClineCore tests prove the adapter call sequence and diagnostics. Real SDK smoke through `clinecore-mode-switch-probe.mjs` completed on 2026-07-30 after setting `interactive: true`, emitting `plan_act_start_mode=plan`, `plan_act_send_mode=act`, `same_session_mode_switch=true`, and terminal status `completed`. | Proven that Plan/Act switching can be driven programmatically for the same session. Still not enough for lifecycle delivery until planning-result observation, permission callbacks, and session-bound authorization semantics are proven. |
 | Built-in tool policy coverage | `ClineCore`-proven | ClineCore and permission references document tools, tool policies, and default tool behavior. | Task 4b probe installs explicit fail-closed tool policies and reports tool-policy coverage diagnostics. | Proven enough to avoid SDK default auto-approval; not proof of repository-changing safety by itself. |
 | Dynamic tool approval callback | Unproven / blocked | Permission Handling guide documents `ClineCore.create(...)` capability `requestToolApproval`. | CI-safe fake ClineCore tests exercise a callback; local real-SDK smoke installed the handler but did not observe a real approval request callback. | Blocked for full-contract permission proof until a real SDK approval request is observed and normalized. |
 | Permission approval evidence | Unproven / blocked | Permission references establish approval concepts, but local evidence has not proven real dynamic approval behavior. | Runtime preflight reports `permission_approval` as unproven. | Blocks `--plan-file` SDK delivery. |
-| Plan/Act observation | Unproven / blocked | Inspected Agent, Events, Permission Handling, and ClineCore pages do not prove a direct Plan/Act transition observation API. | No local real-SDK smoke evidence proves structured `needs_user_input` or `ready_to_act` observation. | Blocks implementation-session Plan/Act mediation. Do not infer readiness from prose. |
-| Act authorization | Unproven / blocked | Inspected SDK references do not prove an API for authorizing Act mode for one bounded session and material digest envelope. | No adapter or smoke evidence proves session-bound Act authorization. | Blocks repository-changing SDK delivery. Do not emulate from prompts or terminal output. |
+| Plan/Act observation | Unproven / blocked | Local package types prove session mode selection but do not prove a structured planning-result observation API. Inspected Agent, Events, Permission Handling, and ClineCore pages do not prove direct `needs_user_input` / `ready_to_act` semantics. | No local real-SDK smoke evidence proves structured `needs_user_input` or `ready_to_act` observation. | Blocks implementation-session Plan/Act mediation. Do not infer readiness from prose. |
+| Act authorization | Unproven / blocked | Local package types prove `mode: "act"` can be supplied at session start or turn send, but do not prove an API for authorizing Act mode after reviewing a Plan result for one bounded session and material digest envelope. | Adapter can select `act` for `write_capable`; no smoke evidence proves session-bound Act authorization after plan review. | Blocks repository-changing SDK delivery. Do not emulate from prompts or terminal output. |
 | Structured role-specific outcomes | Blocked for SDK primitive; orchestrator-owned validation exists for normalized terminal outcomes | Agent result status and ClineCore session result are documented, but role-specific SDLC outcomes are not proven as SDK primitives. | Python DTOs/protocol validate normalized terminal results; existing lifecycle tests enforce role outcomes independently. | SDK output remains evidence only; missing role-specific structured outcomes block lifecycle advancement. |
 | Event/evidence stream distinction | Orchestrator-owned with `Agent`/`ClineCore` inputs | Events reference documents SDK event streams. | Python protocol labels normalized events as diagnostic, assistant output, file change, validation, approval request, blocker, timeout, or interruption where supported. Unknown SDK events remain diagnostic. | Proven as adapter-owned normalization; only promoted evidence may be used for reconciliation. |
 | Timeout handling | Orchestrator-owned | SDK docs expose `abort(reason?)`; Python adapter owns subprocess timeout. | `ClineSdkSessionRunner` terminates bounded child processes and returns structured timeout blockers such as `sdk_runner_timeout`. | Proven at adapter boundary; not proof of SDK-authored recovery metadata. |
@@ -82,8 +85,10 @@ Local evidence sources:
 | Explicit instructions and repository context | Python protocol serializes instructions, safe context, working directory, and role. | Adapter-owned proof exists. |
 | Configured skill availability requirements | Existing preflight/skill checks are orchestrator-owned and not SDK-proven. | Orchestrator-owned; SDK skill semantics remain outside this matrix. |
 | Operation policy and permission constraints | Python operation policy is orchestrator-owned; ClineCore tool policy coverage is proven; real dynamic approval remains unproven. | Blocked for repository-changing SDK delivery. |
-| Plan/Act observation | No official API reference plus smoke evidence proves this. | Blocked. |
-| Act authorization | No official API reference plus smoke evidence proves this. | Blocked. |
+| Plan/Act mode selection | ClineCore type surface and adapter code can select `plan` or `act` explicitly from the adapter execution mode. | Proven as mode selection only. |
+| Programmatic same-session Plan-to-Act mode switch | ClineCore type surface, fake adapter tests, and real ClineCore smoke show `ClineCore.send` can carry `mode: "act"` for an existing `sessionId` after a `plan` start when the session is kept interactive. | Satisfied as a mode-switch primitive; still not full Plan/Act mediation. |
+| Plan/Act observation | No official API reference plus smoke evidence proves structured planning-result observation. | Blocked. |
+| Act authorization | No official API reference plus smoke evidence proves post-plan, session-bound Act authorization for a material digest envelope. | Blocked. |
 | Structured event or evidence streams | Agent/ClineCore events are proven as inputs; Python protocol distinguishes diagnostic observations from promoted evidence. | Partially satisfied; only normalized promoted evidence may be reconciled. |
 | Structured role-specific terminal outcomes | Python validates normalized terminal results; SDK role-specific structured outcomes are not proven. | Blocked for lifecycle advancement. |
 | Timeouts and interruptions | Python adapter/orchestrator own bounded timeout and interruption behavior. | Satisfied at adapter boundary. |
@@ -101,6 +106,8 @@ required by `--plan-file` implementation.
 
 The following blockers prevent repository-changing SDK-first delivery:
 
+- SDK Plan/Act mode selection and same-session mode-switch API surface are proven
+  as explicit `plan` / `act` start or turn configuration, not as mediation;
 - no direct SDK Plan/Act observation primitive has been proven;
 - no session-bound Act authorization primitive has been proven;
 - real dynamic permission approval has not been exercised in local SDK smoke;

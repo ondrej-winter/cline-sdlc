@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  clineCoreModeForExecutionMode,
   createClineCoreOptions,
   createClineCoreStartInput,
   createFailClosedToolPolicies,
@@ -14,6 +15,7 @@ import {
   normalizeAgentStatus,
   parseRunnerRequest,
   runClineCoreProbe,
+  runClineCoreModeSwitchProbe,
   runAgentProof,
   RunnerProtocolError,
   sanitizeDiagnosticText,
@@ -91,6 +93,7 @@ test("createClineCoreStartInput supplies safe workspace and fail-closed tool pol
   assert.equal(startInput.config.modelId, "gpt-5.5");
   assert.equal(startInput.config.cwd, "/repo");
   assert.equal(startInput.config.workspaceRoot, "/repo");
+  assert.equal(startInput.config.mode, "plan");
   assert.equal(startInput.config.enableTools, false);
   assert.equal(startInput.config.enableSpawnAgent, false);
   assert.equal(startInput.config.enableAgentTeams, false);
@@ -98,6 +101,24 @@ test("createClineCoreStartInput supplies safe workspace and fail-closed tool pol
   assert.equal(startInput.config.toolPolicies.bash.autoApprove, false);
   assert.equal(startInput.config.toolPolicies.editor.enabled, false);
   assert.equal(startInput.toolPolicies.applyPatch.autoApprove, false);
+});
+
+test("createClineCoreStartInput maps write-capable execution to explicit SDK act mode", () => {
+  const startInput = createClineCoreStartInput(
+    { ...BASE_REQUEST, executionMode: "write_capable" },
+    {
+      CLINE_SDK_PROVIDER_ID: "openai-codex-cli",
+      CLINE_SDK_MODEL_ID: "gpt-5.5",
+    },
+  );
+
+  assert.equal(startInput.config.mode, "act");
+});
+
+test("clineCoreModeForExecutionMode fails closed for unsupported execution modes", () => {
+  assert.equal(clineCoreModeForExecutionMode("read_only"), "plan");
+  assert.equal(clineCoreModeForExecutionMode("write_capable"), "act");
+  assert.throws(() => clineCoreModeForExecutionMode("yolo"), /executionMode is unsupported/);
 });
 
 test("createClineCoreOptions installs local backend and dynamic approval capability", async () => {
@@ -209,6 +230,7 @@ test("runClineCoreProbe uses ClineCore create subscribe and start and emits sess
       calls.push(["start", input]);
       assert.equal(input.config.cwd, "/repo");
       assert.equal(input.config.workspaceRoot, "/repo");
+      assert.equal(input.config.mode, "plan");
       assert.equal(input.config.enableTools, false);
       assert.equal(input.config.toolPolicies.bash.autoApprove, false);
       assert.equal(input.capabilities, calls[0][1].capabilities);
@@ -241,6 +263,7 @@ test("runClineCoreProbe uses ClineCore create subscribe and start and emits sess
   assert.equal(calls.map((call) => call[0]).includes("dispose"), true);
   assert.equal(records.some((record) => record.kind === "manifest"), true);
   assert.equal(records.some((record) => record.kind === "messages"), true);
+  assert.equal(records.some((record) => record.kind === "plan_act_mode" && record.value === "plan"), true);
   assert.deepEqual(records.at(-1), { type: "terminal_result", status: "completed" });
 });
 
@@ -258,6 +281,85 @@ test("runClineCoreProbe reports missing ClineCore as blocked capability", async 
   });
 
   assert.equal(records.some((record) => record.code === "clinecore_missing"), true);
+  assert.deepEqual(records.at(-1), { type: "terminal_result", status: "failed" });
+});
+
+test("runClineCoreModeSwitchProbe starts in plan mode then sends act mode to same session", async () => {
+  const records = [];
+  const calls = [];
+  class FakeClineCore {
+    static async create(options) {
+      calls.push(["create", options]);
+      return new FakeClineCore();
+    }
+
+    async start(input) {
+      calls.push(["start", input]);
+      assert.equal(input.config.mode, "plan");
+      assert.equal(input.config.enableTools, false);
+      assert.equal(input.config.toolPolicies.bash.autoApprove, false);
+      return {
+        sessionId: "session-1",
+        manifestPath: ".cline/sessions/session-1/manifest.json",
+        messagesPath: ".cline/sessions/session-1/messages.json",
+      };
+    }
+
+    async send(input) {
+      calls.push(["send", input]);
+      assert.deepEqual(input, {
+        sessionId: "session-1",
+        prompt: "Continue this same bounded session in Act mode only if explicitly authorized by the caller.",
+        mode: "act",
+        delivery: "queue",
+      });
+    }
+
+    async dispose(reason) {
+      calls.push(["dispose", reason]);
+    }
+  }
+
+  await runClineCoreModeSwitchProbe({
+    ClineCoreClass: FakeClineCore,
+    request: BASE_REQUEST,
+    env: {
+      CLINE_SDK_PROVIDER_ID: "openai-codex-cli",
+      CLINE_SDK_MODEL_ID: "gpt-5.5",
+    },
+    emitRecord: (record) => records.push(record),
+  });
+
+  assert.deepEqual(calls.map((call) => call[0]), ["create", "start", "send", "dispose"]);
+  assert.equal(records.some((record) => record.kind === "plan_act_start_mode" && record.value === "plan"), true);
+  assert.equal(records.some((record) => record.kind === "plan_act_send_mode" && record.value === "act"), true);
+  assert.equal(records.some((record) => record.kind === "same_session_mode_switch" && record.value === "true"), true);
+  assert.deepEqual(records.at(-1), { type: "terminal_result", status: "completed" });
+});
+
+test("runClineCoreModeSwitchProbe blocks when send is unavailable", async () => {
+  const records = [];
+  class FakeClineCoreWithoutSend {
+    static async create() {
+      return new FakeClineCoreWithoutSend();
+    }
+
+    async start() {
+      return { sessionId: "session-1" };
+    }
+  }
+
+  await runClineCoreModeSwitchProbe({
+    ClineCoreClass: FakeClineCoreWithoutSend,
+    request: BASE_REQUEST,
+    env: {
+      CLINE_SDK_PROVIDER_ID: "openai-codex-cli",
+      CLINE_SDK_MODEL_ID: "gpt-5.5",
+    },
+    emitRecord: (record) => records.push(record),
+  });
+
+  assert.equal(records.some((record) => record.code === "clinecore_send_missing"), true);
   assert.deepEqual(records.at(-1), { type: "terminal_result", status: "failed" });
 });
 

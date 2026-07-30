@@ -414,12 +414,16 @@ Task 4b implementation note: `node_runner/clinecore-probe.mjs` and the shared
 `runner-lib.mjs` ClineCore probe path use the documented `ClineCore.create(...)`,
 `cline.subscribe(...)`, and `cline.start(...)` shapes re-exported by `@cline/sdk`.
 The probe configures adapter-owned `cwd` and `workspaceRoot` values from the
-validated runner request, disables repository-changing tools by default,
+validated runner request, maps adapter execution mode `read_only` to SDK `plan`
+mode and `write_capable` to SDK `act` mode, disables repository-changing tools by default,
 provides explicit fail-closed tool policies for known tool/mode categories, and
 installs a `capabilities.requestToolApproval` handler that records normalized
 approval evidence while denying by default. CI-safe fake ClineCore tests verify
-session diagnostics, event normalization, dynamic approval evidence, and blocked
-capability reporting. This proves the probe contract and SDK API surface shape.
+session diagnostics, event normalization, explicit Plan/Act mode selection,
+dynamic approval evidence, and blocked capability reporting. This proves the
+probe contract and SDK API surface shape for mode selection, but not structured
+planning-result observation or session-bound Act authorization after a reviewed
+plan.
 Local real-SDK smoke
 on 2026-07-29 loaded the adapter-owned `.env` SDK provider/model settings
 without printing values, ran `node_runner/clinecore-probe.mjs` against the
@@ -432,7 +436,8 @@ proves local ClineCore session creation, workspace-root use, session event
 subscription, and session artifact diagnostics for the probe path. The smoke did
 not observe a real `requestToolApproval` callback, so dynamic approval remains
 installed and CI-fake verified but not yet real-SDK exercised. No direct SDK
-Plan/Act transition or Act-authorization primitive has been proven.
+Plan/Act transition or Act-authorization primitive has been proven beyond
+explicit start/turn mode selection.
 
 **Verification:**
 
@@ -537,9 +542,10 @@ contract in `PreflightSdkRuntime`. The `cline_sdk` runtime probe emits
 conservative evidence from implemented adapter/protocol behavior, local Agent
 smoke proof, and local ClineCore smoke proof. Missing capabilities, unproven
 capabilities, and CLI-probe-sourced claims all fail closed with typed blockers.
-Plan/Act observation, Act authorization, and real permission approval remain
-reported as unproven until official SDK references plus local smoke evidence
-prove them directly.
+Plan/Act mode selection is now adapter-proven from local `@cline/core` types and
+CI-safe ClineCore probe tests. Plan/Act observation, post-plan Act authorization,
+and real permission approval remain reported as unproven until official SDK
+references plus local smoke evidence prove them directly.
 
 **Verification:**
 
@@ -583,7 +589,9 @@ validated through the documented `Agent` path, the ClineCore session/probe path,
 the Python subprocess adapter, the JSONL protocol parser, and SDK runtime
 preflight. The full Working SDK Adapter Gate remains blocked because official SDK
 references and local real-SDK smoke evidence still do not prove direct Plan/Act
-observation, Act authorization, or a real dynamic permission approval callback.
+observation, post-plan Act authorization, or a real dynamic permission approval callback.
+Local package types and CI-safe tests now prove explicit ClineCore `plan` / `act`
+mode selection only; mode selection is not enough to satisfy Plan/Act mediation.
 Do not start Task 7 or any repository-changing lifecycle delivery work as a
 readiness claim until those full-contract blockers are resolved or this plan is
 explicitly revised to split examples from Checkpoint A readiness.
@@ -732,9 +740,10 @@ Task 9 implementation note: `docs/sdk-capability-matrix.md` now maps the reset
 MVP SDK execution requirements to official SDK references, implemented adapter
 evidence, local smoke evidence, orchestrator-owned checks, and explicit blockers.
 The matrix marks minimal `Agent` execution, event subscription, ClineCore session
-probing, tool policy coverage, timeout/interruption handling, and safe diagnostic
-references as proven only within their documented scope. It keeps Plan/Act
-observation, Act authorization, real dynamic permission approval, SDK-native
+probing, explicit ClineCore `plan` / `act` mode selection, tool policy coverage,
+timeout/interruption handling, and safe diagnostic references as proven only
+within their documented scope. It keeps structured Plan/Act observation,
+post-plan Act authorization, real dynamic permission approval, SDK-native
 role-specific structured outcomes, and authoritative SDK file-change evidence
 blocked or unproven. `AgentRunResult.outputText`, SDK messages, unknown events,
 terminal output, Cline Checkpoints, and CLI probe observations remain
@@ -872,9 +881,10 @@ implementation Plan/Act evidence is missing, unproven, needs user input, or does
 not match the same run, slice, task, specification digest, material digest, and
 operation policy. This records explicit blockers instead of inferring readiness
 from assistant prose, SDK diagnostics, terminal output, or permission evidence.
-Because the SDK capability matrix still marks direct Plan/Act observation, Act
-authorization, and real dynamic permission approval as blocked/unproven, Task 13
-and the reset MVP slice proof remain blocked.
+Because the SDK capability matrix still marks structured Plan/Act observation,
+post-plan Act authorization, and real dynamic permission approval as
+blocked/unproven, Task 13 and the reset MVP slice proof remain blocked. Explicit
+ClineCore `plan` / `act` mode selection alone is not a substitute for mediation.
 
 **Verification:**
 
@@ -905,15 +915,38 @@ contract, not a partial `Agent.run` and event-subscription proof.
 **Acceptance criteria:**
 
 - [ ] One accepted slice can complete through the SDK adapter path.
-- [ ] Changed paths are independently reconciled against Git and plan scope.
-- [ ] Validation evidence is required before commit eligibility.
-- [ ] Commit creation remains orchestrator-owned and uses explicit paths.
-- [ ] Invalid SDK evidence blocks without committing.
+- [x] Changed paths are independently reconciled against Git and plan scope.
+- [x] Validation evidence is required before commit eligibility.
+- [x] Commit creation remains orchestrator-owned and uses explicit paths.
+- [x] Invalid SDK evidence blocks without committing.
+
+Task 13 implementation note: `tests/e2e/test_sdk_first_plan_implementation_slice.py`
+now proves the application composition for one accepted SDK-first implementation
+slice using Python-owned normalized session evidence. The proof composes
+`ExecuteSlice`, `ReconcileSlice`, and `ImplementPlan` with hand-written fakes for
+the SDK session-attempt boundary, focused validation, repository observation, and
+commit creation. The happy-path test verifies that a slice reaches completion
+only after normalized SDK execution evidence, independent changed-path
+reconciliation, independently passing focused validation evidence, and
+orchestrator-owned explicit-path commit creation all agree. The blocker test
+verifies that unproven SDK Plan/Act evidence stops before session execution,
+validation, repository reconciliation, or commit creation. This covers the
+orchestrator-owned safety gates around the SDK path without treating raw SDK
+events as authoritative lifecycle state.
+
+The remaining unchecked criterion stays blocked: a real accepted implementation
+slice cannot yet be claimed to complete through the live SDK adapter path because
+the capability matrix still marks structured Plan/Act observation, post-plan Act
+authorization, and real dynamic permission approval as blocked or unproven.
+No prose-derived substitute was implemented.
 
 **Verification:**
 
 - [ ] Run focused lifecycle integration tests.
-- [ ] Run the new e2e proof test.
+- [x] Run the new e2e proof test.
+
+Focused e2e proof evidence: `uv run pytest tests/e2e/test_sdk_first_plan_implementation_slice.py`
+passed locally on 2026-07-30 with 2 tests.
 
 **Dependencies:** Task 12 and proven full SDK execution contract
 
@@ -1054,7 +1087,7 @@ Use the final verification commands below for handoff.
 | The SDK overview proves `Agent.run` and events but deeper Plan/Act, permission, and structured-outcome behavior must be verified. | High | Add capability matrix with official SDK docs/API references and local real-SDK smoke evidence for every proven capability; block `--plan-file` delivery until the full SDK execution contract is proven. |
 | A minimal `Agent` proof is mistaken for full SDLC execution readiness. | High | Split Task 4 into `Agent` and `ClineCore` proofs; require `ClineCore` proof and capability matrix completion before repository-changing lifecycle work. |
 | SDK tool policies default to enabled and auto-approved when unspecified. | High | Require explicit fail-closed tool policy coverage and dynamic approval evidence before permission capabilities are considered proven. |
-| Official SDK references do not prove direct Plan/Act transition APIs. | High | Mark Plan/Act mediation unproven or blocked unless a focused SDK API reference and real smoke evidence prove observation and authorization semantics. |
+| Official SDK references and local types prove explicit `plan` / `act` mode selection but do not prove Plan/Act mediation APIs. | High | Mark Plan/Act mediation unproven or blocked unless a focused SDK API reference and real smoke evidence prove structured observation and post-plan authorization semantics. |
 | Adapter examples accidentally log secrets or raw repository content. | High | Redact by default and keep raw payloads out of normal output. |
 | Existing CLI probe code continues to imply production readiness. | Medium | Quarantine or rename CLI probe readiness language after adapter proof. |
 | Integration tests become dependent on live providers. | Medium | Keep CI-safe fake-runner/protocol tests separate, but require local real-SDK smoke/integration evidence before adapter gates are marked complete. |
@@ -1076,9 +1109,10 @@ Use the final verification commands below for handoff.
 
 ## Open Questions
 
-- Which exact official SDK docs/API pages and local package APIs prove Plan/Act
-  semantics and structured outcomes? The currently fetched focused SDK references
-  do not prove a direct Plan/Act transition or Act-authorization API.
+- Which exact official SDK docs/API pages and local package APIs prove structured
+  Plan/Act observation, post-plan Act authorization, and structured outcomes? The
+  currently inspected local package types prove explicit mode selection only, not
+  mediation semantics.
 - Which SDK event fields are reconciliation evidence versus diagnostic-only
   observations?
 - Which real-provider credentials or local provider settings are required for the
@@ -1108,7 +1142,8 @@ Use the final verification commands below for handoff.
   support, but lifecycle delivery may rely on those capabilities only after
   official SDK docs/API references and local real-SDK smoke evidence prove them.
   The fetched focused SDK references prove tool policies and dynamic approval via
-  `ClineCore`, but do not prove direct Plan/Act mediation.
+  `ClineCore`, and local package types prove explicit `plan` / `act` mode
+  selection, but they do not prove direct Plan/Act mediation.
 - The full SDK execution contract from
   `docs/specs/cline-sdk-first-sdlc-orchestrator-spec.md` is the minimum gate
   before `--plan-file` implementation may use the SDK-first path.
