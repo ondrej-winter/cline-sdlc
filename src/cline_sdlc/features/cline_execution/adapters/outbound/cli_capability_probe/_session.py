@@ -138,7 +138,7 @@ def _unproven_session_observations() -> tuple[CapabilityObservation, ...]:
             "supervised_session_writes_status_sidecar",
             CapabilityStatus.UNPROVEN,
             "Help/version probes do not prove that a supervised Cline session writes a status sidecar; "
-            "supervised MVP readiness relies on repository-visible checkpoint evidence.",
+            "legacy supervised CLI compatibility relies on repository-visible checkpoint evidence.",
         ),
         supporting(
             "cline_authored_interruption_recovery_metadata",

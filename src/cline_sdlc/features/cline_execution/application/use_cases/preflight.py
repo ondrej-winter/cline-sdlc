@@ -24,7 +24,7 @@ class PreflightClineCapabilities:
         self._probe = probe
 
     def execute(self, request: ClinePreflightRequest) -> ClinePreflightResult:
-        """Return actionable readiness or blockers for the requested Cline command."""
+        """Return legacy CLI compatibility blockers for the requested command."""
         report = self._probe.probe(
             CapabilityProbeRequest(command=request.command, required_skills=request.required_skills)
         )

@@ -24,7 +24,7 @@ class ClinePreflightBlocker:
 
 @dataclass(frozen=True)
 class ClinePreflightRequest:
-    """Application request to verify Cline readiness before stage execution."""
+    """Application request to verify legacy CLI compatibility before a session."""
 
     command: tuple[str, ...] = ("cline",)
     required_skills: tuple[str, ...] = ()
@@ -43,7 +43,7 @@ class ClinePreflightRequest:
 
 @dataclass(frozen=True)
 class ClinePreflightResult:
-    """Typed Cline readiness result for pre-session orchestration."""
+    """Typed legacy CLI compatibility result for pre-session orchestration."""
 
     status: ClinePreflightStatus
     executable: str

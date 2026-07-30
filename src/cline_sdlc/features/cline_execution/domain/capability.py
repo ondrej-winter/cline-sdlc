@@ -31,7 +31,7 @@ class CapabilityObservation:
 
     @property
     def is_satisfied(self) -> bool:
-        """Return whether this observation satisfies implementation readiness."""
+        """Return whether this observation satisfies legacy CLI compatibility."""
         return self.status is CapabilityStatus.PROVEN
 
 
@@ -56,7 +56,7 @@ class ClineCapabilityReport:
 
     @property
     def critical_capabilities_proven(self) -> bool:
-        """Return whether every critical capability has proof-level evidence."""
+        """Return whether every critical legacy CLI check has proof-level evidence."""
         return all(
             observation.is_satisfied
             for observation in self.observations
@@ -65,7 +65,7 @@ class ClineCapabilityReport:
 
     @property
     def blocking_observations(self) -> tuple[CapabilityObservation, ...]:
-        """Return critical observations that still block Checkpoint A."""
+        """Return critical observations that still block legacy CLI compatibility."""
         return tuple(
             observation
             for observation in self.observations
