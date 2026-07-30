@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -22,6 +23,8 @@ from cline_sdlc.features.lifecycle_orchestration.application.dtos.session_attemp
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.slice_execution import (
     SliceExecutionRequest,
     SliceExecutionStatus,
+    SlicePlanActMediation,
+    SlicePlanActStatus,
 )
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.slice_selection import SelectedSlice
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.validation import (
@@ -49,6 +52,7 @@ SPECIFICATION_DIGEST = f"sha256:{'1' * 64}"
 MATERIAL_DIGEST = f"sha256:{'2' * 64}"
 HEAD = "a" * 40
 EXPECTED_SESSION_AND_VALIDATION_RUNS = 2
+DEFAULT_PLAN_ACT = object()
 
 
 @dataclass
@@ -122,6 +126,78 @@ def test_unclassifiable_operation_blocks_before_session() -> None:
     assert result.status is SliceExecutionStatus.BLOCKED
     assert result.blocker is not None
     assert result.blocker.code == "slice_operation_not_authorized"
+    assert sessions.requests == []
+    assert validation.requests == []
+
+
+def test_missing_plan_act_support_blocks_implementation_before_session() -> None:
+    sessions = RecordingSessions([_completed_session()], [])
+    validation = RecordingValidation([_passing_validation()], [])
+
+    result = _execute(sessions=sessions, validation=validation).execute(_request(plan_act_mediation=None))
+
+    assert result.status is SliceExecutionStatus.BLOCKED
+    assert result.blocker is not None
+    assert result.blocker.code == "slice_plan_act_support_unproven"
+    assert sessions.requests == []
+    assert validation.requests == []
+
+
+def test_plan_act_needs_user_input_stops_without_acting_or_validation() -> None:
+    sessions = RecordingSessions([_completed_session()], [])
+    validation = RecordingValidation([_passing_validation()], [])
+
+    result = _execute(sessions=sessions, validation=validation).execute(
+        _request(
+            plan_act_mediation=_plan_act_mediation(
+                SlicePlanActStatus.NEEDS_USER_INPUT,
+                summary="Cline needs the user to choose between two accepted alternatives.",
+                diagnostic_reference="session:plan-question-1",
+            )
+        )
+    )
+
+    assert result.status is SliceExecutionStatus.BLOCKED
+    assert result.blocker is not None
+    assert result.blocker.code == "slice_plan_act_needs_user_input"
+    assert result.blocker.evidence == "session:plan-question-1"
+    assert sessions.requests == []
+    assert validation.requests == []
+
+
+def test_unproven_plan_act_support_records_blocker_instead_of_emulating_readiness() -> None:
+    sessions = RecordingSessions([_completed_session()], [])
+    validation = RecordingValidation([_passing_validation()], [])
+
+    result = _execute(sessions=sessions, validation=validation).execute(
+        _request(
+            plan_act_mediation=_plan_act_mediation(
+                SlicePlanActStatus.UNPROVEN,
+                summary="SDK Plan/Act observation is not proven by official references and smoke evidence.",
+            )
+        )
+    )
+
+    assert result.status is SliceExecutionStatus.BLOCKED
+    assert result.blocker is not None
+    assert result.blocker.code == "slice_plan_act_support_unproven"
+    assert "not proven" in result.blocker.summary
+    assert sessions.requests == []
+    assert validation.requests == []
+
+
+def test_ready_to_act_must_match_same_session_slice_digests_and_policy() -> None:
+    sessions = RecordingSessions([_completed_session()], [])
+    validation = RecordingValidation([_passing_validation()], [])
+
+    result = _execute(sessions=sessions, validation=validation).execute(
+        _request(plan_act_mediation=_plan_act_mediation(SlicePlanActStatus.READY_TO_ACT, slice_id="other-slice"))
+    )
+
+    assert result.status is SliceExecutionStatus.BLOCKED
+    assert result.blocker is not None
+    assert result.blocker.code == "slice_plan_act_scope_mismatch"
+    assert result.blocker.evidence == "slice_id"
     assert sessions.requests == []
     assert validation.requests == []
 
@@ -212,13 +288,37 @@ def _execute(
     )
 
 
+def _plan_act_mediation(
+    status: SlicePlanActStatus,
+    *,
+    summary: str = "Cline is ready to act within the accepted slice boundary.",
+    slice_id: str = "task-4.2",
+    diagnostic_reference: str | None = None,
+) -> SlicePlanActMediation:
+    return SlicePlanActMediation(
+        status=status,
+        summary=summary,
+        run_id="run-task-4.2",
+        task_id="task-4",
+        slice_id=slice_id,
+        specification_digest=SPECIFICATION_DIGEST,
+        material_digest=MATERIAL_DIGEST,
+        operation_policy="balanced",
+        diagnostic_reference=diagnostic_reference,
+    )
+
+
 def _request(
     *,
     operations: tuple[ClassifyOperationRequest, ...] = (),
     material_digest: str = MATERIAL_DIGEST,
     focused_validation_commands: tuple[ValidationCommandCandidate, ...] | None = None,
     expected_paths: tuple[str, ...] = ("src/feature.py", "tests/test_feature.py", "docs/plans/work.md"),
+    plan_act_mediation: SlicePlanActMediation | None | object = DEFAULT_PLAN_ACT,
 ) -> SliceExecutionRequest:
+    if plan_act_mediation is DEFAULT_PLAN_ACT:
+        plan_act_mediation = _plan_act_mediation(SlicePlanActStatus.READY_TO_ACT)
+    typed_plan_act_mediation = cast("SlicePlanActMediation | None", plan_act_mediation)
     return SliceExecutionRequest(
         approval=InvocationApproval(
             run_id="run-task-4.2",
@@ -242,6 +342,7 @@ def _request(
         focused_validation_commands=focused_validation_commands or (_focused_candidate(),),
         expected_paths=expected_paths,
         operations=operations,
+        plan_act_mediation=typed_plan_act_mediation,
     )
 
 

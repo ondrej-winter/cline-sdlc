@@ -16,6 +16,8 @@ from cline_sdlc.features.lifecycle_orchestration.application.dtos.slice_executio
     SliceExecutionRequest,
     SliceExecutionResult,
     SliceExecutionStatus,
+    SlicePlanActMediation,
+    SlicePlanActStatus,
 )
 from cline_sdlc.features.lifecycle_orchestration.application.dtos.validation import (
     ValidationEvidence,
@@ -83,6 +85,10 @@ class ExecuteSlice:
         initial_failure = self._initial_failure(request)
         if initial_failure is not None:
             return initial_failure
+
+        plan_act_failure = _plan_act_failure(request)
+        if plan_act_failure is not None:
+            return plan_act_failure
 
         evidence = _ExecutionEvidence(
             decisions=tuple(self._operation_classifier.execute(operation) for operation in request.operations)
@@ -177,6 +183,63 @@ def _operation_failure(evidence: _ExecutionEvidence) -> SliceExecutionResult | N
             summary=denied.summary,
             evidence=denied.proposed_operation,
         ),
+    )
+
+
+def _plan_act_failure(request: SliceExecutionRequest) -> SliceExecutionResult | None:
+    if request.session_role is not SessionRole.IMPLEMENTATION:
+        return None
+    mediation = request.plan_act_mediation
+    if mediation is None:
+        return _simple_blocker(
+            "slice_plan_act_support_unproven",
+            "implementation sessions require proven SDK Plan/Act mediation before acting",
+        )
+    mismatch = _plan_act_scope_mismatch(request, mediation)
+    if mismatch is not None:
+        return mismatch
+    if mediation.status is SlicePlanActStatus.NEEDS_USER_INPUT:
+        return _simple_blocker(
+            "slice_plan_act_needs_user_input",
+            mediation.summary,
+            evidence=mediation.diagnostic_reference,
+        )
+    if mediation.status is SlicePlanActStatus.UNPROVEN:
+        return _simple_blocker(
+            "slice_plan_act_support_unproven",
+            mediation.summary,
+            evidence=mediation.diagnostic_reference,
+        )
+    return None
+
+
+def _plan_act_scope_mismatch(
+    request: SliceExecutionRequest,
+    mediation: SlicePlanActMediation,
+) -> SliceExecutionResult | None:
+    expected = {
+        "run_id": request.approval.run_id,
+        "task_id": request.selection.task_id,
+        "slice_id": request.selection.slice_id,
+        "specification_digest": request.specification_digest,
+        "material_digest": request.material_digest,
+        "operation_policy": request.approval.profile,
+    }
+    actual = {
+        "run_id": mediation.run_id,
+        "task_id": mediation.task_id,
+        "slice_id": mediation.slice_id,
+        "specification_digest": mediation.specification_digest,
+        "material_digest": mediation.material_digest,
+        "operation_policy": mediation.operation_policy,
+    }
+    mismatched_fields = tuple(field for field, expected_value in expected.items() if actual[field] != expected_value)
+    if not mismatched_fields:
+        return None
+    return _simple_blocker(
+        "slice_plan_act_scope_mismatch",
+        "Plan/Act mediation evidence does not match the approved session, slice, digests, and policy",
+        evidence=", ".join(mismatched_fields),
     )
 
 
@@ -275,11 +338,11 @@ def _result(
     )
 
 
-def _simple_blocker(code: str, summary: str) -> SliceExecutionResult:
+def _simple_blocker(code: str, summary: str, *, evidence: str | None = None) -> SliceExecutionResult:
     return _result(
         SliceExecutionStatus.BLOCKED,
         _ExecutionEvidence(),
-        blocker=SliceExecutionBlocker(code=code, summary=summary),
+        blocker=SliceExecutionBlocker(code=code, summary=summary, evidence=evidence),
     )
 
 

@@ -855,18 +855,33 @@ this task.
 
 **Acceptance criteria:**
 
-- [ ] `needs_user_input` stops without acting or committing.
-- [ ] `ready_to_act` can authorize Act mode only for the same session, slice,
+- [x] `needs_user_input` stops without acting or committing.
+- [x] `ready_to_act` can authorize Act mode only for the same session, slice,
       digests, approval, and operation policy.
-- [ ] Ambiguous planning evidence is treated as `needs_user_input`.
-- [ ] If SDK Plan/Act support is not proven, the task records a blocker instead
+- [x] Ambiguous planning evidence is treated as `needs_user_input`.
+- [x] If SDK Plan/Act support is not proven, the task records a blocker instead
       of implementing a prose-derived substitute.
-- [ ] Permission/tool approval evidence is preserved as normalized SDK evidence
+- [x] Permission/tool approval evidence is preserved as normalized SDK evidence
       and reconciled before repository-changing work is authorized.
+
+Task 12 implementation note: `SlicePlanActMediation` now models
+orchestrator-approved implementation Plan/Act evidence with closed statuses
+`needs_user_input`, `ready_to_act`, and `unproven`. `ExecuteSlice` fails closed
+before session execution, validation, repair, or commit eligibility when
+implementation Plan/Act evidence is missing, unproven, needs user input, or does
+not match the same run, slice, task, specification digest, material digest, and
+operation policy. This records explicit blockers instead of inferring readiness
+from assistant prose, SDK diagnostics, terminal output, or permission evidence.
+Because the SDK capability matrix still marks direct Plan/Act observation, Act
+authorization, and real dynamic permission approval as blocked/unproven, Task 13
+and the reset MVP slice proof remain blocked.
 
 **Verification:**
 
-- [ ] Run focused and contract slice-execution tests.
+- [x] Run focused and contract slice-execution tests.
+
+Focused Task 12 verification evidence: `uv run pytest tests/contract/features/lifecycle_orchestration/test_slice_execution.py tests/unit/features/lifecycle_orchestration/application/test_session_attempts.py`
+passed locally on 2026-07-30 with 23 tests.
 
 **Dependencies:** Task 11 and proven full SDK execution contract
 

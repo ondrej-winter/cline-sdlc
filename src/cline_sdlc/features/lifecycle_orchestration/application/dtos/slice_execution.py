@@ -38,6 +38,14 @@ class SliceExecutionStatus(StrEnum):
     INTERRUPTED = "interrupted"
 
 
+class SlicePlanActStatus(StrEnum):
+    """Orchestrator-owned classification of implementation Plan/Act readiness."""
+
+    NEEDS_USER_INPUT = "needs_user_input"
+    READY_TO_ACT = "ready_to_act"
+    UNPROVEN = "unproven"
+
+
 @dataclass(frozen=True)
 class SliceExecutionBlocker:
     """Actionable reason a slice did not reach focused verification."""
@@ -49,6 +57,43 @@ class SliceExecutionBlocker:
     def __post_init__(self) -> None:
         if not self.code.strip() or not self.summary.strip():
             message = "slice-execution blocker code and summary must not be empty"
+            raise ValueError(message)
+
+
+@dataclass(frozen=True)
+class SlicePlanActMediation:
+    """Session-bound evidence for implementation Plan/Act mediation.
+
+    The DTO intentionally models only orchestrator-approved mediation evidence.
+    Unproven or ambiguous SDK support must remain blocked rather than inferred
+    from ordinary assistant prose, SDK diagnostics, or terminal output.
+    """
+
+    status: SlicePlanActStatus
+    summary: str
+    run_id: str
+    task_id: str
+    slice_id: str
+    specification_digest: str
+    material_digest: str
+    operation_policy: str
+    diagnostic_reference: str | None = None
+
+    def __post_init__(self) -> None:
+        required_values = (
+            self.summary,
+            self.run_id,
+            self.task_id,
+            self.slice_id,
+            self.specification_digest,
+            self.material_digest,
+            self.operation_policy,
+        )
+        if any(not value.strip() for value in required_values):
+            message = "Plan/Act mediation evidence fields must not be empty"
+            raise ValueError(message)
+        if self.diagnostic_reference is not None and not self.diagnostic_reference.strip():
+            message = "Plan/Act diagnostic reference must not be empty"
             raise ValueError(message)
 
 
@@ -71,6 +116,7 @@ class SliceExecutionRequest:
     expected_paths: tuple[str, ...] = ()
     operations: tuple[ClassifyOperationRequest, ...] = ()
     session_role: SessionRole = SessionRole.IMPLEMENTATION
+    plan_act_mediation: SlicePlanActMediation | None = None
 
     def __post_init__(self) -> None:  # noqa: C901 - Boundary DTO validates each independent input invariant.
         if not self.specification_path.strip() or not self.plan_path.strip():
